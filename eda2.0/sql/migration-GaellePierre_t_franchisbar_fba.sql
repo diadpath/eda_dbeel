@@ -1,0 +1,3 @@
+INSERT INTO t_franchisbar_fba (fba_ouv_id,fba_tax_code,fba_valeurnote,fba_tyn_typenote,fba_iconf_indiceconfiance,fba_datedebut,fba_datefin,fba_commentaire)
+	SELECT fba_ouv_id,fba_tax_code,fba_valeurnote,fba_tyn_typenote,0,fba_datedebut,fba_datefin,fba_commentaires
+	FROM t_franchisbar_fba1;

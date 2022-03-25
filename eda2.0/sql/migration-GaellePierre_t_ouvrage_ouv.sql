@@ -1,0 +1,4 @@
+INSERT INTO t_ouvrage_ouv (ouv_id,ouv_codearea,ouv_ouv_id,ouv_baraval,ouv_codegenerique,ouv_distancesource,ouv_distancemer,ouv_distancemareedyn,ouv_sbv,ouv_bassin,ouv_rinom,ouv_abscisse,ouv_ordonnee,ouv_libelle,ouv_commentaires)
+	SELECT ouv_id,'',ouv_ouv_id,ouv_baraval,ouv_codegenerique,ouv_distancesource,ouv_distancemer,ouv_distancemareedyn,ouv_sbv,ouv_bassin,ouv_rinom,ouv_abscisse,ouv_ordonnee,ouv_libelle,ouv_commentaires
+	FROM t_ouvrage_ouv1;
+	

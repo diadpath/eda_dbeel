@@ -1,0 +1,3 @@
+INSERT INTO t_bvsansbar_bv (bv_id,bv_codegenerique,bv_distancesource,bv_distancemer,bv_distancemareedyn,bv_sbv,bv_rinom,bv_abscisse,bv_ordonnee,bv_commentaires)
+	SELECT bv_id,bv_codegenerique,bv_distancesource,bv_distancemer,bv_distancemareedyn,bv_sbv,bv_rinom,bv_abscisse,bv_ordonnee,bv_commentaires
+	FROM t_bvsansbar_bv1
