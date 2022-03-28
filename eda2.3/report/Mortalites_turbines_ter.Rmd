@@ -1,0 +1,414 @@
+---
+title: 'Mortality turbines : tests of turbine functions'
+author: "Cédric & Mathilde & Maria"
+date: "26 novembre 2019"
+output: html_document
+---
+
+
+```{r launch, echo=FALSE, include=FALSE}
+require(knitr)
+opts_knit$set(eval.after = 'fig.cap' ) # to be used in chunks used only to plot pictures
+knitr::opts_chunk$set(fig.width=12, fig.height=8, echo=FALSE)
+options(knitr.table.format = 'html') # options pour kable
+options(knitr.kable.NA = '.')
+# this will set figure caption to cap inside R chunk
+obj <- ls(all=TRUE)
+obj <- obj[!obj%in%c("passworddistant","passwordlocal")]
+getUsername <- function(){
+	name <- Sys.info()[["user"]]
+	return(name)
+}
+#memory.limit(size =4000)
+if(getUsername() == 'cedric.briand'|getUsername() == 'mmateo') setwd("C:/workspace/EDA/")
+rivernetwork <- "RIOS"
+source("EDACCM/init.r")
+#citation("sqldf")
+#citation("RPostgreSQL")
+#citation("RColorBrewer")
+#citation("plyr")
+#citation("ggplot2")
+#citation("stargazer")
+#citation("visreg")
+#citation("mgcv")
+#citation("PresenceAbsence")
+graphics.off() 
+
+#options(warn =  -1)
+options(sqldf.RPostgreSQL.user = "postgres", 
+		sqldf.RPostgreSQL.password = passwordlocal,
+		sqldf.RPostgreSQL.dbname = "eda2.3",
+		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+		sqldf.RPostgreSQL.port = 5432)
+#t <- tryCatch(sqldf("select gid from rht.rhtvs2 limit 1"),error =  function(e) e)
+#is_simple_error <- function(x) inherits(x, "simpleError")
+#if (is_simple_error(t)) stop("distant call using w3.eptb-vilaine.fr failed, check connection to the database")
+
+
+
+datawd<-"C:/workspace/EDAdata/" 	
+ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
+imgwd<-"C:/workspace/EDAdata/report2.3/images/"
+shpwd="C:/workspace/EDAdata/dataEDAlb2/shp/"
+edawd="C:/workspace/EDA/"
+
+
+
+# Attention il faut creer les repertoires
+options(warn =  0)
+#setwd("C:/workspace/EDA/report2.3")
+#datawd <- "C:/workspace/EDAdata/"
+ddatawd <- paste0(datawd,"/report2.3/data/")
+#imgwd <- "C:/workspace/EDAdata/reportt2.3/images/"
+#edawd =  "C:/workspace/EDA/"
+
+sanitizeLatexS <- function(str) {
+	gsub('([#$%&~_\\^\\\\{}])', '\\\\\\\\\\1', str, perl = TRUE);
+}
+# la fonction sn utilise maintenant le package siunitx
+# ajouter \usepackage{siunitx}
+#\sisetup{
+#round-mode = places, % nombre de decimales apres la virgule
+#round-precision = 3
+#}%
+# Dans le preambule
+num <- function(x,round_precision =  NULL)
+{
+	if (is.null(round_precision)) {
+		return(sprintf("\\num{%s}", x))
+	} else {
+		return(sprintf("\\num[round-precision=%s]{%s}",round_precision+1, x))
+	}
+}
+wd <- getwd()
+# choix de la version a charger
+rapport <- "2020" #"2012" "2015" "2009" donnees celine 
+sector <- "spain"
+open_in_excel <- function(some_df){
+	tFile <- paste("C:/temp/",gsub("\\\\","",tempfile(fileext =  paste0(substitute(some_df), ".csv"),tmpdir =  "")),sep =  "")
+	write.table(some_df, tFile, row.names = F, sep = ";", quote = F)
+	system(paste('open -a \"/ProgramData/Microsoft/Windows/Start Menu/Programs/Microsoft Office/Microsoft Excel 2010\"', tFile))
+}
+
+library(sf)
+require(RPostgreSQL)
+require(sqldf)
+require(kableExtra)
+require(tidyr)
+load_library("glue")
+load_library("ggmap")
+load_library("ggimage")
+load_library("ggrepel")
+
+blue_s <- "#00B8CD"
+orange_s <- "#DB6118"
+navy_s <- "#164193"
+green_s <- "#95C300"
+
+```
+
+# Calculate mortalities, per dam, per turbines.
+
+
+ 
+
+```{r turbine_mortality, eval=FALSE, echo=TRUE}
+
+
+#**********************************************************#
+#     Downloading init (library & codes necessary)         #
+#**********************************************************#
+
+
+#setwd("C:/workspace/EDA")
+#source("EDACCM/init.r")
+###options(warn =  -1)
+#options(sqldf.RPostgreSQL.user = "postgres", 
+#		sqldf.RPostgreSQL.password = passwordlocal,
+#		sqldf.RPostgreSQL.dbname = "eda2.3",
+#		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+#		sqldf.RPostgreSQL.port = 5432)
+
+
+
+#**********************************************************#
+# Projection for the whole dataset (FR+ SP + PT)           #
+#**********************************************************#
+
+#  IF THE DATABASE OF RIVERS HAS BEEN UPDATED
+# LAUNCH edacommun/sql/dbeel_view_obstruction.sql
+#**********************************************************#
+# script to test the BaseEdaRiosRiversegmentsDamTurb Class                 #
+#**********************************************************#
+
+# loaddb method -------------------------------------------
+
+
+#DONE  bug arguments join_obstruction_rn_downstream, joinschema, jointable cannot be passed down by initialize...
+turb_rios <- new("BaseEdaRiosRiversegmentsDamTurb", 
+		join_obstruction_rn_downstream = "dbeel_rivers.join_obstruction_rn_downstream",
+		joinschema = "sudoang",
+		jointable = "view_obstruction",
+		baseODBC = "baseODBCrios",
+		schema= "dbeel_rivers",
+		table = "rn",
+		zonegeo =c("all"),
+		prkey="idsegment")
+
+
+turb_rios <- loaddb(turb_rios)
+#join_obstruction_rn_downstream  loaded 17247676 lines
+#time for query on downstream path (mins) = 0.78  
+#dam data loaded (@datadam): 106406 lines 
+#time for query on dams (mins) = 0.03  
+#time for query (mins) 1.6data from the riversegments loaded: 512714 lines 
+#time for query on rivers (mins) = 1.55  
+#Final join_downstream_obstruction_rn size 17247032 
+#time for query on hpp (secs) = 0.22  
+#hpp data loaded: 6687 lines
+#turbine data loaded: 1383 lines
+#time for query on turbines (secs) = 0.01  
+#upstream_productions_loaded: 515011 lines
+#time for query on upstream productions (mins) = 0.13  
+# now from 23/11 this method also loads the updstream production and paste it in tablehppdbeel and datadam
+
+
+
+# extract a simple table joining dams and segments, it exists in dam_rn_dwn which is the table of all dams downstream from a riversegment
+# including the riversegment itself.
+# correspond to the segments that have dams (on the first segment (upstream = idsegmentsource) the code of the idsegment on
+# the path to the sea is the same as the idsegmentsource.
+
+# I have to reproduce what is done in the method to get the size structures
+# the steps are to get the matrix of size for the calculations done in tableturbine so it is an inner join
+# it is done outside the class method
+
+
+hpp_turb <- left_join(turb_rios@tablehppdbeel, turb_rios@tableturbinedbeel, by=c("hpp_id"="turb_hpp_id")) #1073
+#hpp_turb[is.na(hpp_turb$idsegmentsource),]
+# only one dam not projected
+
+
+# some dams have sum zero, for these ones and 
+
+# applying the turbine_mortality function (see BaseEdaRiosRiversegmentsDamTurb.r), the function is reproduced
+# below
+
+
+
+
+#size_table_eel <- hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+#		rowSums(hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")])
+# for either missing segment or values where production is null I put 
+
+# Running turbine mortality function  ------------------------------------------------------------------------------
+
+# see ticket #144 #150 recalculate proper middle class, the mean of a class is not in the middle #c(375,525,675,825)
+# so the average values have been calculated in the next chunk (size structure). The values corresponding to mixed male and females are
+# 0.285,0.363,0.523,0.666,0.840
+
+
+turb_rios <- turbine_mortality (	turb_rios,					
+		size_table_eel= hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+				rowSums(hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]),
+		middle_class_eel = c(0.285,0.363,0.523,0.666,0.840)
+)
+#The following dams are dams considered with VLH 
+#ROE110284:barrage centrale de Randens,
+#ROE4400:Moulin du Duc (moulin de pont Menou),
+#ROE20876:Boussard,
+#ROE118520:Centrale de la Cavaletade,
+#ROE118520:Centrale de la Cavaletade,
+#ROE41885:Aubas,
+#ROE20891:St Baudelle,
+#ROE20829:La Verrerie,
+#ROE20732:L'Ame,
+#ROE8857:Ronsard usine,
+#ROE8857:Ronsard usine,
+#ROE20731:La Maignannerie,
+#ROE40049:Montgiroux (déversoir  des Communes amont),
+#ROE20861:Corçu,
+#ROE8593:BARRAGE DE PONT DU NAVOY,
+#ROE17600:Microcentrale de Larche,
+#ROE17600:Microcentrale de Larche,
+#ROE20856:Bas Hambert,
+#ROE20850:Le Port,
+#ROE118534:Microcentrale de Losse,
+#ROE68997:Seuil Moulin De Losse,
+#ROE118534:Microcentrale de Losse,
+#ROE20733:Moulin Oger,
+#ROE20734:La Fourmondière inférieure,
+#ROE20847:La Nourrière,
+#ROE20885:Grenoux,
+#ROE27285:Moulin de la Ville Centrale élect de St Pourçain,
+#ROE29001:Barrage du moulin de la Ville rive gauche,
+#ROE28948:Barrage du Moulin de la Ville rive droite (principal),
+#ROE20880:La Roche
+
+ddatawd <- paste0(datawd,"/report2.3/data/")
+save(hpp_turb,turb_rios, file=str_c(ddatawd,"turb_rios.Rdata"))
+#load( file=str_c(ddatawd,"turb_rios.Rdata"))
+#PT56183	Mondego
+#SP224290	Ter
+#SP128132	Ter
+#FR118671	Adour
+#SP109916	Guadalquivir
+#SP118297	Guadiaro
+
+```
+
+
+```{r test_ter, eval=TRUE, echo=FALSE}
+#PT56183	Mondego
+#SP224290	Oria
+#SP128132	Ter
+#FR118671	Adour
+#SP109916	Guadalquivir
+#SP118297	Guadiaro
+
+load( file=str_c(ddatawd,"turb_rios.Rdata"))
+# seaidsegment <- 'FR118671'
+
+# 60 dams ancestor (tablemortalitydam)
+# 122 turbines (tablemortalityturbine)
+# 310 rows in tablehpp_dbeel => check how we deal with missing dams
+# 1383 => tableturbinedbeel 
+# 1872 => datadam Corresponds to the number of dams on the basin
+# 165806 => dam_rn_dwn
+# shpdams NULL
+# traveled segments 1872
+# shp NULL
+# data 3283
+
+#Migration flow.
+# This will need to be corrected. Actually q_1004_10 is the first class of flow, and corresponds
+# to eel having migrated between 0 and Q10
+
+tmigration_flow <- readRDS("C:/workspace/EDAdata/report2.3/data/migration_flow_temp.Rds")
+# In France reserved flow are 10% of the module
+# TODO MAYBE ADAPT THIS CASE BY CASE
+
+turb_rios@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios@tablemortalitydam))
+
+turb_full <- segment_mortality(turb_rios, 
+		seaidsegment = 'SP128132',
+		migrationflow=tmigration_flow[3,],
+		default_mortality =NULL)
+
+
+
+# this is a simplified version of dam level mortalities after running the program on the Adour.
+
+default_mortality <- c(
+		mortality_q_1004_10 = 0.12, 
+		mortality_q_1004_20 = 0.13, 
+		mortality_q_1004_30 = 0.13, 
+		mortality_q_1004_40 = 0.13, 
+		mortality_q_1004_50 = 0.12,
+		mortality_q_1004_60 = 0.11,
+		mortality_q_1004_70 = 0.10,
+		mortality_q_1004_80 = 0.08,
+		mortality_q_1004_90 = 0.06,
+		mortality_q_1004_95 = 0.05,
+		mortality_q_1004_99 = 0.04)
+
+turb_inputed <- segment_mortality(turb_rios, 
+		seaidsegment = 'SP128132',
+		migrationflow=tmigration_flow[3,],
+		default_mortality = default_mortality)           
+
+# test for maps for one dam
+
+
+
+m_full <- map(turb_full, bv="Oria", label="full",
+		output =c("rate", "nb",  "hpp_mort"), 
+		seaidsegment = "SP128132")
+print(m_full$rate)
+print(m_full$nb)
+print(m_full$hpp_mort)
+m_inputed <- map(turb_inputed, bv="Oria", label="inputed",
+		output =c("rate",  "hpp_mort", "nb"), 
+		seaidsegment = "SP128132")
+print(m_inputed$rate)
+print(m_inputed$nb)
+print(m_inputed$hpp_mort)
+saveRDS(turb_adour, file = str_c(ddatawd, "turb_oria_full.rds"))
+saveRDS(turb_adour, file = str_c(ddatawd, "turb_oria_inputed.rds"))
+```
+
+```{r table, eval=TRUE, echo=FALSE, results='asis'}
+
+
+library(kableExtra)
+turb_oria_inputed <- readRDS(file = str_c(ddatawd, "turb_ter_inputed.rds"))
+(nr <- nrow(turb_adour@tablehppdbeel)) # 30
+table_hpp <-
+		left_join(
+				turb_ter_inputed@tablehppdbeel %>% 
+						filter(is.na(op_op_id)) %>%
+						select("op_id", "op_placename", "id_original",  "ob_id",   "po_obstruction_height", 
+								"po_downs_pb", "po_downs_water_depth", "date_last_update", "author_last_update", 
+								"comment_update", "mitigation_measure_no_id", 
+								"hpp_id", "hpp_name", "hpp_main_grid_or_production", "hpp_presence_bypass", 
+								"hpp_total_flow_bypass", "hpp_orient_flow_no_id", "hpp_presence_of_bar_rack", 
+								"hpp_bar_rack_space", "hpp_surface_bar_rack", 
+								"hpp_inclination_bar_rack", "hpp_presence_bypass_trashrack", "hpp_nb_trashrack_bypass",
+								"hpp_turb_max_flow", "hpp_reserved_flow", "hpp_flow_trashrack_bypass", "hpp_max_power",
+								"hpp_orientation_bar_rack", "hpp_id_original", "hpp_source", "googlemapscoods", 
+								"idsegment", "cnfemale300450", "cnfemale450600", "cnfemale600750", "cnfemale750", 
+								"cnmale150300", "cnmale300450", "cnmale450600", "cnsilver150300", "cnsilver300450", 
+								"cnsilver450600", "cnsilver600750", "cnsilver750", "cnsilver", 
+								"code_hydro_station", "station_idsegment", "station_q50", "station_source_flow", "station_surfacebvm2", 
+								"idsegment_q50", "idsegment_source_flow", "idsegment_surfacebvm2"),
+				turb_ter_inputed@tablemortalitydam %>% select (
+						c("op_id_pere", "mortality_eel", "mortality_smolt",
+								"q_equipment_dam", "prop_preserve",
+								"segment_q_1004_10", "segment_q_1004_20", "segment_q_1004_30", "segment_q_1004_40", "segment_q_1004_50",
+								"segment_q_1004_60", "segment_q_1004_70", "segment_q_1004_80", "segment_q_1004_90", "segment_q_1004_95",
+								"segment_q_1004_99", 
+								"mortality_q_1004_10", "mortality_q_1004_20", "mortality_q_1004_30", "mortality_q_1004_40",
+								"mortality_q_1004_50", "mortality_q_1004_60", "mortality_q_1004_70", "mortality_q_1004_80",
+								"mortality_q_1004_90", "mortality_q_1004_95", "mortality_q_1004_99",
+								"production_upstream", 
+								"net_production_upstream", 
+								"net_survival_q_1004_10", "net_survival_q_1004_20", "net_survival_q_1004_30", "net_survival_q_1004_40", 
+								"net_survival_q_1004_50", "net_survival_q_1004_60", "net_survival_q_1004_70", "net_survival_q_1004_80",
+								"net_survival_q_1004_90", "net_survival_q_1004_95", "net_survival_q_1004_99", 
+								"pot_nb_killed_q_1004_10", "pot_nb_killed_q_1004_20", "pot_nb_killed_q_1004_30", "pot_nb_killed_q_1004_40",
+								"pot_nb_killed_q_1004_50", "pot_nb_killed_q_1004_60", "pot_nb_killed_q_1004_70", "pot_nb_killed_q_1004_80",
+								"pot_nb_killed_q_1004_90", "pot_nb_killed_q_1004_95", "pot_nb_killed_q_1004_99",
+								"net_nb_killed", 
+								"potential_nb_killed", 
+								"mort_rate" )),		
+				by=c("op_id"="op_id_pere"))
+
+(nr1 <- nrow(table_hpp)) # 30
+
+table_hpp1 <- table_hpp %>%
+		arrange(idsegment_q50) %>%
+		select ("op_placename", "id_original","mort_rate","net_nb_killed", 
+				"potential_nb_killed") %>%
+		mutate(op_placename=iconv(op_placename, to = "UTF-8"))%>%
+		filter(!is.na(mort_rate)) 
+#nrow(table_hpp1) # 17
+
+table_hpp1 %>%
+		kable(caption = "Test") %>%
+		kable_paper(full_width = F)  %>%		
+		column_spec(3, color = "white",
+				background = spec_color(table_hpp1$mort_rate, end = 1)
+		) %>%
+		column_spec(4, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		) %>%
+		column_spec(5, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		)
+
+#  select("op_id","net_nb_killed")%>%
+#  slice_head() %>%
+#   kable(escape = F, align = "c") %>%
+#   kable_paper(c("striped", "condensed"), full_width = F)
+
+```

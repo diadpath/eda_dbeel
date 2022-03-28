@@ -1,0 +1,1128 @@
+---
+title: "E 1.2.1 Tool for automatic data import"
+author: "M. Mateo, L. Beaulaton, H. Drouineau and C.Briand"
+date: "January 8,  2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+---
+
+```{r eval=FALSE, include=FALSE}
+htmltools::img(src = knitr::image_uri("C:/workspace/EDAdata/report2.3/images/logoSUDOANG.png"), 
+               alt = 'logoSUDOANG', 
+               style = 'position:absolute; top:0; right:0; padding:10px;')
+```
+
+# Introduction
+
+Collecting data from various sources about eel populations and impact is the first step to the estimation of silver eel biomass. All data received have been collated in the SUDOANG database, whose structure is inherited from the database for eels (DBEEL), developed during the POSE project. The POSE project objective was to provide methods to estimate the current and potential (without mortality) biomass of silver eel in the Baltic, Atlantic and Mediterranean regions. The database is managed in PostgreSQL, an object-relational database management system, free and open-source. Using this kind of database allows an easy sharing of complex data structures between operators from different countries! Furthermore, PostGIS, a spatial database extension, is used to store GIS objects and work with spatial data.
+
+The SUDOANG database has further been expanded from the POSE structure to allow the integration of all the relevant information compiled by other GT's. The information that has been collected refers to:
+
+* electrofishing surveys 
+* hydrographic network and environmental characteristics
+* hydrographic waterbodies connected to the river network (ponds, estuaries, lakes ....)
+* physical attributes from the river network such as the flow, the water surface and width
+* physical obstacles in rivers (dams that may be associated with hydroelectric
+  power plants).
+
+This deliverable presents the routine of importing data concerning electrofishing. The hydrographic network is presented in deliverable 1.1.2 where the spatial database is presented. The physical obstacles in rivers are presented in deliverable 2.2.1 on the collection and storage of data. 
+
+# Source of data
+
+The import of electrofishing has been carried out in two phases, using first the data obtained from the the Iberian Society of Ichthyology (SIBIC), and then importing the rest of the data obtained by the partners and managers.
+
+Firstly, the data from SIBIC was imported, while preserving its structure as much as possible to facilitates exchange with their providers. This database of Iberian freshwater fish (Carta Piscícola Española (CPE)) had been created in order to complete and update the knowledge on the biology and distribution of fishes in the Iberian Península: http://www.cartapiscicola.es/#/home. The database covers the period from 1985 to 2015. Among various collection methods only electrofishing methods have been selected for import into the SUDOANG database. However, only the data from the first pass of electrofishing is available in the SIBIC database, so the primary resource of this database has been imported to search the information about all pass of electrofishing, and the biometric information of eels.
+
+The following table describes the data import from the original tables that feed the SIBIC database:
+
+```{r echo = FALSE, ft.split=FALSE}
+library(knitr)
+library(kableExtra)
+
+layer_name <- c("Ebro Datos IBI", "NSp_EFIplus", "Levante PECES_2011")
+source <- c("SIBIC, R. Miranda", "SIBIC, R. Miranda", "SIBIC, R. Miranda")
+place <- c("8 communities (Ebro passes through them)", "A Coru?a, Leon, Santander and Bizkaia", "Levante (Valencia)")
+date <- c("2003 - 2007", "1985 - 2007", "2011")
+biometric <- c("YES", "YES", "YES")
+silvering <- c("NO", "NO", "NO")
+
+sibic_source <- data.frame(layer_name, source, place, date, biometric, silvering)
+
+kable(sibic_source) %>%
+  kable_styling(bootstrap_options = c("condensed", "bordered"), full_width = F)
+```
+
+Different partners and project managers have provided their data, who are listed below:
+
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+library(kableExtra)
+
+layer_name <- c("DFG_GIPUZKOA FISH DATABASE_12_11_2018", "Anguillaanguilla_datacollectionFCUL_Portugal_Review", 
+                "silver eels_portugal_sampling prior to SUDOANG Apr 2019", "ASTURIAS_pesca_electrica", "Peixos_SUDOANG",
+                "ANGUILAS_GALICIA_2017", "CEROS_ANGUILA", "ANBIOTEK_pesca_electrica_SUDOANG_E.1.1", "2013_anguila_datos",
+                "2014_anguila_datos", "GVAnguila", "datos_biometricos", "tabla_pesca_electrica_SUDOANG_E.1.1_Navarra", 
+                "CORREGIDA-guadalquivir_capturas_anguila_pesca_electrica_cursos_bajo_presa_alcala_2012",
+                "Electrofishingeels_MinhoRiver_sampling prior to SUDOANG Modelo_CIIMAR", "pesca_electrica_SUDOANG_E.1.1_v3",
+                "Puntos_pesca_identificados_los_de_anguila", "BASE_PESCAS_hasta_2013", "BASE_PESCAS_desde_2014")
+
+source <- c("Gipuzkoa Provincial Council, I. Azpiroz", "FCUL MARE, I. Domingos", "FCUL MARE, I. Domingos", 
+            "The Government Agency of Asturias, L. Garc?a", "Catalan Water Agency, Ll. Zamora", 
+            "The Xunta of Galicia, F. Tilves", "The Xunta of Galicia, F. Hervella", "URA, A. Aguirre", "URA, A. Aguirre", 
+            "URA, A. Aguirre", "URA, E. D?az", "URA, E. D?az", "Environmental Management in Navarra, J. I. E. Huarte",
+            "UCO, R. M. Rubio", "CIIMAR, A. Moura", "Ministry for Ecological Transition, B. Mu??z", 
+            "Ministry for Ecological Transition, B. Mu??z", "Vaersa Generalitat Valenciana, N. F. Belloch",
+            "Vaersa Generalitat Valenciana, N. F. Belloch")
+
+place <- c("Gipuzkoa", "Portugal", "Portugal", "Asturias", "Catalonia", "Galicia", "Galicia", "Basque Country", "Basque Country",
+           "Basque Country", "Basque Country", "Basque Country", "Navarra", "Andaluc?a", "Minho river", "Spain", "Spain",
+           "Valencia", "Valencia")
+
+date <- c("1996 - 2018", "2004 - 2018", "2014 - 2018", "2011 - 2018", "2016 - 2017", "1988 - 2017", "1988 - 2017", "2012 - 2018",
+          "2013", "2014", "2002 - 2009", "2002 - 2009", "2016 - 2018", "2002 - 2009, 2012", "1988 - 2018", "2006 - 2015", 
+          "2006 - 2015", "1987 - 2013", "2013 - 2018")
+
+biometric <- c("YES", "YES", "YES", "YES", "YES", "YES", "NO", "YES", "YES", "YES", "NO", "YES", "YES", "YES", "YES", "YES",
+               "NO","YES", "YES")
+
+silvering <- c("YES", "NO", "YES", "YES", "NO", "NO", "NO", "YES", "YES", "YES", "NO", "NO", "YES", "NO", "NO", "NO", "NO",
+               "YES", "YES")
+
+dbeel_source <- data.frame(layer_name, source, place, date, biometric, silvering)
+
+kable(dbeel_source) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "bordered"), full_width = F, font_size = 10)
+```
+
+In a second step, data from pilot basins were imported. Isabel Domingos, from GT6 (Eel stock monitoring transnational network) sent us the following list of tables:
+
+```{r echo = FALSE, ft.split=FALSE}
+library(knitr)
+library(kableExtra)
+
+layer_name <- c("Ecobiop_ sudoang_sampling_data_final_jan_Feb2019_TP", "SUDOANG_electrofishing_sampling_ data_ciimar_TP",
+                "sudoang_sampling_data_Bages Sigean150319_TP", "sudoang_sampling_data_final_feb2019_ORIA_TP",
+                "sudoang_sampling_data_final_feb2019_UCO_Guadiaro_28-03-2019", "sudoang_sampling_data_final_mondego_fculmare",
+                "Sudoang_Electrofishing_Girona_recodFinal")
+source <- c("INRA, A. Bardonnet", "CIIMAR, C. Antunes", "UPVD, E. Amilhat", "AZTI, M. Korta", "UCO, C. F. Delgado",
+            "FCUL/MARE, I. Domingos", "UDG, L. Zamora")
+place <- c("Nivelle River", "Minho River", "Bages Sigean Lagoon", "Oria River", "Guadiaro River", "Mondego River","Ter River")
+date <- c("September 2012", "October 2018 - January 2019", "", "September - October 2018", "September 2018", 
+          "October - November 2018", "2018 - 2019")
+biometric <- c("YES", "YES", "YES", "YES", "YES", "YES", "YES")
+silvering <- c("YES", "YES", "YES", "YES", "YES", "YES", "YES")
+
+gt6_source <- data.frame(layer_name, source, place, date, biometric, silvering)
+
+kable(gt6_source) %>%
+  kable_styling(bootstrap_options = c("condensed", "bordered"), full_width = F)
+```
+
+The data import and the data transformation into a common format is mainly done in two steps:
+
+1. The data received (in any format) are first inserted in PostgreSQL
+2. Once the data are in PostgreSQL, they must be transformed to match the SUDOANG database structure.
+
+To explain the two steps, the data from pilot basins are used as an example. The rest of the code can be found here: 
+
+* http://185.135.126.250/traceda/browser/eda/sudoang/SIBIC.R
+* http://185.135.126.250/traceda/browser/eda/EDAcommun/sql/sudoang/dbeel_sudoang_electrofishing.sql
+* http://185.135.126.250/traceda/browser/eda/EDAcommun/sql/sudoang/import_sibic_dbeel.sql
+
+## Data import in PostgreSQL
+
+According to the previously created templates (E 1.1.1), three tables with different processing needs are imported into PostgreSQL: stations, sampling operations and fish.
+
+For __stations__, the table is first converted into an sf object, i.e. a data frame with a special column indicating the geometry (and calculated using the geographical coordinates). Once done, the projection system can be changed to the same format as the SUDOANG database (LAEA Europe, SRID 3035). Below is an extract of the R code to import station in the database.
+
+```{r eval=FALSE}
+### STATIONS
+nivelle_station <- read_excel("Ecobiop_ sudoang_sampling_data_final_jan_Feb2019_TP.xlsx", sheet=4, skip=0)
+str(nivelle_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+nivelle_station <- st_as_sf(nivelle_station, coords = c("sta_y", "sta_x"), crs = 4326)
+nivelle_station <- st_transform(x = nivelle_station, crs = 3035)
+
+ter_station <- read_excel("Sudoang_Electrofishing_Girona_recodFinal.xlsx", sheet=2, skip=0)
+str(ter_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+ter_station <- st_as_sf(ter_station, coords = c("sta_x", "sta_y"), crs = 32631)
+ter_station <- st_transform(x = ter_station, crs = 3035)
+
+ciimar_station <- read_excel("SUDOANG_electrofishing_sampling_ data_ciimar_TP.xlsx", sheet=4, skip=0)
+str(ciimar_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+ciimar_station <- st_as_sf(ciimar_station, coords = c("sta_y", "sta_x"), crs = 4326)
+ciimar_station <- st_transform(x = ciimar_station, crs = 3035)
+
+fcul_station <- read_excel("sudoang_sampling_data_final_mondego_fculmare.xlsx", sheet=4, skip=0)
+str(fcul_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+fcul_station <- st_as_sf(fcul_station, coords = c("sta_x", "sta_y"), crs = 4326)
+fcul_station <- st_transform(x = fcul_station, crs = 3035)
+
+oria_station <- read_excel("sudoang_sampling_data_final_feb2019_ORIA_TP.xlsx", sheet=5, skip=0)
+str(oria_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+oria_station <- st_as_sf(oria_station, coords = c("sta_x", "sta_y"), crs = 25830)
+oria_station <- st_transform(x = oria_station, crs = 3035)
+
+guadiaro_station <- read_excel("sudoang_sampling_data_final_feb2019_UCO_Guadiaro_28-03-2019.xlsx", 
+                               sheet=4, skip=0)
+str(guadiaro_station) # 8 variables
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+guadiaro_station <- st_as_sf(guadiaro_station, coords = c("sta_y", "sta_x"), crs = 4326)
+guadiaro_station <- st_transform(x = guadiaro_station, crs = 3035)
+```
+
+In order to perform this step, the geographic coordinates must be in decimal degrees. Otherwise, this information must be transformed. In the example, the coordinates of the "bages_station" table, which belongs to the Bages-Sigean lagoon were in degrees minutes seconds and were transformed (with previous transformation of the character string).
+
+```{r eval=FALSE}
+bages_station <- read_excel("sudoang_sampling_data_Bages Sigean150319_TP.xlsx", sheet=4, skip=0)
+str(bages_station) # 8 variables
+# add aditional information:
+bages_station$sta_source <- "upvd"
+bages_station$sta_cod <- "BAG1"
+bages_station$sta_lib <- "bages_sigean"
+# change the degree symbol to a :
+bages_station$sta_y <- gsub('[""]', '',bages_station$sta_y)
+bages_station$sta_y <- gsub('[?]', ':', bages_station$sta_y)
+bages_station$sta_y <- gsub("[']", ':', bages_station$sta_y)
+bages_station$sta_y <- gsub('E', '', bages_station$sta_y) 
+bages_station$sta_x <- gsub('[""]', '',bages_station$sta_x)
+bages_station$sta_x <- gsub('[?]', ':', bages_station$sta_x)
+bages_station$sta_x <- gsub("[']", ':', bages_station$sta_x)
+bages_station$sta_x <- gsub('N', '', bages_station$sta_x) 
+# convert from decimal minutes to decimal degrees
+bages_station$sta_y <- dms2deg(bages_station$sta_y)
+bages_station$sta_x <- dms2deg(bages_station$sta_x)
+# make the UTM cols spatial (X/Easting/lon, Y/Northing/lat)
+bages_station <- st_as_sf(bages_station, coords = c("sta_y", "sta_x"), crs = 4326)
+bages_station <- st_transform(x = bages_station, crs = 3035)
+```
+
+Once all the tables have the same kind of geometry (R code below):
+
+* they are joined in the same table
+* a unique identifier for each line (i.e. each station) is created
+* the table is imported into PostgreSQL.
+
+```{r eval=FALSE}
+gt6_station <- rbind(nivelle_station, ter_station, ciimar_station, fcul_station, oria_station, 
+                     guadiaro_station, bages_station)
+gt6_station <- gt6_station%>%
+		mutate(sta_id = 1:n())%>%
+		mutate(id=paste0("GT6_",sta_id))
+str(gt6_station) ## 277 rows
+
+st_write(gt6_station, dsn = con, layer = "gt6_station", overwrite = TRUE, append = FALSE)
+```
+
+For __operations__, the date and the unique identifier of the station `op_sta_id` allows us to differentiate the operations. Therefore, in each table of the pilot basins:
+
+* the date format is specified and modified in case it is not the correct one
+* the station identifier `op_sta_id`, which match with the station table identifier `sta_id` is standardized.
+
+Once the attributes are in the same format, all the tables of the pilot basins are joined and imported into PostgreSQL (R code below).
+
+```{r eval=FALSE}
+### OPERATIONS
+pb_nivelle_ope <- read_excel("Ecobiop_ sudoang_sampling_data_final_jan_Feb2019_TP.xlsx", sheet=5, skip=0)
+pb_nivelle_ope$op_dat <- as.Date(gsub("_", "-", pb_nivelle_ope$op_dat))
+str(pb_nivelle_ope) # 10 obs. of 15 variables (Date, format: "2018-09-19")
+pb_nivelle_ope$op_name <- NA
+# The station ID's not right:
+pb_nivelle_ope$op_sta_id[1:9] <- substring(pb_nivelle_ope$op_cod[pb_nivelle_ope$op_cod %in% c("dor_10001", 
+  "tfo_20001","nvl_30001","nvl_40001","nvl_50001","liz_60001","lur_70001","nvl_80001","nvl_90001")], 1, 5)
+pb_nivelle_ope$op_sta_id[10] <- substring(pb_nivelle_ope$op_cod[pb_nivelle_ope$op_cod %in% c("ame_100001")], 
+                                          1, 6)
+		
+ter_ope <- read_excel("Sudoang_Electrofishing_Girona_recodFinal.xlsx", sheet=1, skip=0)
+ter_ope$op_dat <- as.Date(ter_ope$op_dat)
+str(ter_ope) # 16 obs. of 16 variables (Date, format: "2019-02-20") (4th position: Site name)
+names(ter_ope)[names(ter_ope) == "Site name"] <- "op_name"
+# The station ID's not right:
+ter_ope$op_sta_id[1:9] <- str_remove(toupper(substring(ter_ope$op_cod[ter_ope$op_cod %in% c("ter_10001",
+  "ter_20001","ter_30001","ter_40001","ter_50001", "ter_60001","ter_70001","ter_80001","ter_90001")], 
+  1, 5)), "_")
+ter_ope$op_sta_id[10:12] <- str_remove(toupper(substring(ter_ope$op_cod[ter_ope$op_cod %in% c("ter_100001",
+  "ter_110001", "ter_120001")], 1, 6)), "_")
+ter_ope$op_sta_id[13:16] <- paste0('TER', 13:16)
+
+
+ciimar_ope <- read_excel("SUDOANG_electrofishing_sampling_ data_ciimar_TP.xlsx", sheet=5, skip=0)
+ciimar_ope$op_dat <- as.Date(ciimar_ope$op_dat)
+str(ciimar_ope) # 10 obs. of15 variables (Date, format: "2018-10-02")
+ciimar_ope$op_name <- NA
+# The station ID's not right:
+ciimar_ope$op_sta_id[1:9] <- substring(ciimar_ope$op_cod[ciimar_ope$op_cod %in% c("mou_10001","gon_20002",
+  "ins_30003","gad_40004","ins_50005","mou_60006","laj_70007","min_80008","mou_90009")],1, 5)
+ciimar_ope$op_sta_id[10] <- substring(ciimar_ope$op_cod[ciimar_ope$op_cod %in% c("gad_100010")], 1, 6)
+
+fcul_ope <- read_excel("sudoang_sampling_data_final_mondego_fculmare.xlsx", sheet=5, skip=0)
+fcul_ope$op_dat <- as.Date(fcul_ope$op_dat)
+str(fcul_ope) # 15 obs. of 15 variables (Date, format: "2018-11-06")
+fcul_ope$op_name <- NA
+# The station ID's not right:
+fcul_ope$op_sta_id <- substring(fcul_ope$op_cod, 1, 5)
+
+oria_ope <- read_excel("sudoang_sampling_data_final_feb2019_ORIA_TP.xlsx", sheet=6, skip=0)
+oria_ope$op_dat <- as.Date(oria_ope$op_dat)
+str(oria_ope) # 25 obs. of 15 variables (Date, format: "2018-10-19")
+oria_ope$op_name <- NA
+# The station ID's not right:
+oria_ope$op_sta_id <- paste0('ori_', oria_ope$op_sta_id)
+
+guadiaro_ope <- read_excel("sudoang_sampling_data_final_feb2019_UCO_Guadiaro_28-03-2019.xlsx", 
+                           sheet=5, skip=0)
+guadiaro_ope$op_dat <- as.Date(as.numeric(guadiaro_ope$op_dat), origin = "1899-12-30")
+str(guadiaro_ope) # 22 obs. of  15 variables (Date, format: "2018-09-24")
+guadiaro_ope$op_name <- NA
+# The station ID's not right:
+guadiaro_ope$op_sta_id <- paste0('GRO', guadiaro_ope$op_sta_id)
+
+# NO OPERATIONS IN BAGES SIGEAN
+
+gt6_ope <- plyr::rbind.fill(pb_nivelle_ope, ter_ope, ciimar_ope, fcul_ope, oria_ope, guadiaro_ope)
+str(gt6_ope) # 98 obs. of 16 variables
+
+sqldf("drop table if exists sudoang.gt6_ope")
+sqldf("create table sudoang.gt6_ope as select * from gt6_ope")
+```
+
+The __fish__ table refers to eels that have been caught and measured (not all data providers had this information). The identifier of the operation has been added in order to match operation and fish tables.
+
+Once the tables of pilot basins are joined, some of the attributes are converted to the required format and imported into PostgreSQL (R code below).
+
+```{r eval=FALSE}
+### FISH
+nivelle_fish <- read_excel("Ecobiop_ sudoang_sampling_data_final_jan_Feb2019_TP.xlsx", sheet=6, skip=0)
+# ang_op_id matches with op_id in operation table (example 10001) 
+# But we need to add also the op_cod of operation table because 
+# 	when all the tables of pilot basins are joint by rows, these codes are duplicated (example 10001)
+pb_nivelle_ope$id0 <- pb_nivelle_ope$op_id
+nivelle_fish$id0 <- nivelle_fish$ang_op_id
+nivelle_fish <- merge(x = nivelle_fish, y = pb_nivelle_ope[, c("id0", "op_cod", "op_sta_id")], 
+                      by = "id0", all.x = TRUE)
+str(nivelle_fish) # 426 obs. of 15 variables
+
+ter_fish <- read_excel("Sudoang_Electrofishing_Girona_recodFinal.xlsx", sheet=3, skip=0)
+# ang_op_id matches with op_id in operation table (example 10001)
+ter_ope$id0 <- ter_ope$op_id
+ter_fish$id0 <- ter_fish$ang_op_id
+ter_fish <- merge(x = ter_fish, y = ter_ope[, c("id0", "op_cod", "op_sta_id")], by = "id0", all.x = TRUE)
+str(ter_fish) # 827 obs. of 15 variables
+
+ciimar_fish <- read_excel("SUDOANG_electrofishing_sampling_ data_ciimar_TP.xlsx", sheet=6, skip=0)
+# ang_op_id matches with op_id in operation table (example 10001)
+ciimar_ope$id0 <- ciimar_ope$op_id
+ciimar_fish$id0 <- ciimar_fish$ang_op_id
+ciimar_fish <- merge(x = ciimar_fish, y = ciimar_ope[, c("id0", "op_cod", "op_sta_id")], 
+                     by = "id0", all.x = TRUE)
+str(ciimar_fish) # 211 obs. of 15 variables
+
+fcul_fish <- read_excel("sudoang_sampling_data_final_mondego_fculmare.xlsx", sheet=6, skip=0)
+# ng_op_id matches with op_id in operation table (example 10001)
+fcul_ope$id0 <- fcul_ope$op_id
+fcul_fish$id0 <- fcul_fish$ang_op_id
+fcul_fish <- merge(x = fcul_fish, y = fcul_ope[, c("id0", "op_cod", "op_sta_id")], by = "id0", all.x = TRUE)
+str(fcul_fish) # 603 obs. of 15 variables
+
+oria_fish <- read_excel("sudoang_sampling_data_final_feb2019_ORIA_TP.xlsx", sheet=7, skip=0)
+# ang_op_id matches with op_id in operation table (example 10001)
+oria_ope$id0 <- oria_ope$op_id
+oria_fish$id0 <- oria_fish$ang_op_id
+oria_fish <- merge(x = oria_fish, y = oria_ope[, c("id0", "op_cod", "op_sta_id")], by = "id0", all.x = TRUE)
+str(oria_fish) # 1980 obs. of 15 variables
+
+guadiaro_fish <- read_excel("sudoang_sampling_data_final_feb2019_UCO_Guadiaro_28-03-2019.xlsx", 
+                            sheet=6, skip=0)
+# ang_op_id matches with op_id in operation table (example 10001)
+guadiaro_ope$id0 <- guadiaro_ope$op_id
+guadiaro_fish$id0 <- guadiaro_fish$ang_op_id
+guadiaro_fish <- merge(x = guadiaro_fish, y = guadiaro_ope[, c("id0", "op_cod", "op_sta_id")], 
+                       by = "id0", all.x = TRUE)
+str(guadiaro_fish) # 419 obs. of 15 variables
+
+gt6_fish <- plyr::rbind.fill(nivelle_fish, ter_fish, ciimar_fish, fcul_fish, oria_fish, guadiaro_fish)
+gt6_fish$id0 <- NULL
+gt6_fish$ang_pds[gt6_fish$ang_pds == "?" ] <- NA
+gt6_fish$ang_op_id <- as.numeric(gt6_fish$ang_op_id)
+gt6_fish$ang_samplnb <- as.numeric(gt6_fish$ang_samplnb)
+gt6_fish$ang_pds <- as.numeric(gt6_fish$ang_pds)
+gt6_fish$ang_pect <- as.numeric(gt6_fish$ang_pect)
+gt6_fish$ang_eye_diam_vert <- as.numeric(gt6_fish$ang_eye_diam_vert)
+gt6_fish$ang_eye_diam_horiz <- as.numeric(gt6_fish$ang_eye_diam_horiz)
+str(gt6_fish) # 4466 obs. of  14 variables
+
+sqldf("drop table if exists sudoang.gt6_fish")
+sqldf("create table sudoang.gt6_fish as select * from gt6_fish")
+```
+
+## Data import into the SUDOANG database
+
+Once the three tables (station, operation and fish) are in PostgreSQL, they must be imported into the SUDOANG database. In all three cases there is a previous phase of verification of duplicates. When importing data to SUDOANG's database, it is necessary to create primary keys that identify each entity of the three tables (unique values). These primary keys are also stored in the original tables in order to find the information quickly.
+
+To import information about the __stations__:
+
+* The table is imported into the SUDOANG schema (SQL code below)
+
+```{sql eval=FALSE}
+--------------------------------------------------------------------------------------------
+-- GT6: reprojection and stations
+--------------------------------------------------------------------------------------------
+-- Move the table to sudoang schema from public
+ALTER TABLE gt6_station
+    SET SCHEMA sudoang;
+
+ALTER TABLE sudoang.gt6_station RENAME COLUMN geometry TO geom;
+
+select * from sudoang.gt6_station; -- 99 rows
+```
+
+* An index is created in the geometry column to improve the performance of the database (SQL code below)
+
+```{sql eval=FALSE}
+CREATE INDEX 
+  ON sudoang.gt6_station
+  USING gist
+  (geom);
+```
+
+* The stations are reprojected on the hydrographic network. To do this, the distance between the station and the river segment is measured, and if it is less than 300 meters the station is snapped on the corresponding river segment. Another index is created on this new reprojection (SQL code below)
+
+```{sql eval=FALSE}
+-- Reprojection
+select st_srid(geom) from sudoang.gt6_station; -- 3035 (SELECT Find_SRID doesn't work)
+
+select addgeometrycolumn('sudoang','gt6_station','geom_reproj',3035,'POINT',2);
+update sudoang.gt6_station set geom_reproj = sub2.geom_reproj from (
+select distinct on ("sta_cod") "sta_cod", geom_reproj,distance from(
+select
+"sta_cod", 
+ST_ClosestPoint(r.geom,s.geom) as geom_reproj,
+ST_distance(r.geom,s.geom) as distance
+from sudoang.gt6_station s join
+spain.rn r on st_dwithin(r.geom,s.geom,300) 
+order by "sta_cod", distance
+)sub )sub2
+where sub2."sta_cod"= gt6_station."sta_cod"; -- 67 rows (98 total)
+
+CREATE INDEX 
+  ON sudoang.gt6_station
+  USING gist
+  (geom_reproj);
+```
+
+* Verify that there are no internal duplicates within the station table (using the same function that measures distance between points) (SQL code below)
+
+```{sql eval=FALSE}
+-- internal duplicate here (added id (GT6_) from SIBIC.R script)
+WITH duplicate AS
+(
+	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.gt6_station AS sp1, sudoang.gt6_station AS sp2
+	WHERE substring(sp1.id from 5) < substring(sp2.id from 5) AND ST_DWithin(sp1.geom, sp2.geom, 0.01)
+) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 5)::integer
+; -- GT6_92 and TG6_97 internal duplicates
+
+```
+
+* The data provider (responsible and establishment) is created in the SUDOANG database (SQL code below)
+
+```{sql eval=FALSE}
+-- add establishment
+-- select * from dbeel.establishment
+INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('GT6'); 
+-- add data provider
+INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
+	SELECT 'Isabel Domingos', et_id FROM dbeel.establishment WHERE et_establishment_name = 'GT6'; 
+```
+
+* Duplicates are checked in the SUDOANG database by measuring the distance between stations (farther than 50 m)
+* In case of duplicates, the primary key of the entity is stored in the source table (SQL code below)
+
+```{sql eval=FALSE}
+-- to store the link for dbeel
+ALTER TABLE sudoang.gt6_station ADD COLUMN dbeel_op_id uuid;
+
+-- duplicate with data already in dbeel, there is one internal duplicate in dbeel that we ignore
+-- we choose the closest station to join with
+WITH 
+projection_gt6 AS (
+	SELECT st_distance(g.geom_reproj,d.geom_reproj) as dist,
+	 d.op_id, 
+	 g.id,
+	 d.place_classification
+	FROM sudoang.gt6_station g
+        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+	WHERE g.geom_reproj IS NOT NULL
+	order by id, dist
+),
+closest_gt6 AS (
+SELECT distinct on (id) * from projection_gt6
+)
+--SELECT * from closest_gt6; -- 16 rows
+UPDATE sudoang.gt6_station SET dbeel_op_id = op_id
+	FROM closest_gt6 c
+	WHERE c.id=gt6_station.id; -- 16 duplicates
+```
+
+* Insertion of station that are not duplicates. Duplicates are not imported because they already have the primary key to the SUDOANG database `dbeel_op_id is not null` (SQL code below)
+
+```{sql eval=FALSE}
+-- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
+begin;
+INSERT INTO sudoang.dbeel_station(
+		op_id,
+		op_gis_systemname,
+		op_gis_layername,
+		op_gislocation,
+		op_placename,
+		op_no_observationplacetype,
+		op_op_id,
+		the_geom,
+		locationid,
+		country,
+		place_classification,
+		codhb,
+		observations,
+		hydrographic_basin_pt,
+		hydrographic_basin_es,
+		s_guid,
+		x,
+		y,
+		geom_reproj)		
+	SELECT  uuid_generate_v4() AS op_id,
+	'3035' AS op_gis_systemname,
+	'GT6' AS op_gis_layername,
+	id AS op_gislocation, -- this field allows to join back to original data provided to the SIBIC
+	sta_lib as op_placename,
+	10 AS op_no_observationplacetype, -- Sampling station
+	NULL AS op_op_id,
+	geom as the_geom, 	
+	NULL as locationid,
+	case when sta_source in ('ecobiop', 'bages_sigean') then 'FR'
+	WHEN sta_source in ('fcup_ciimar', 'fcul_mare') then 'PT' 
+	WHEN sta_source in ('udg', 'AZTI', 'uco') then 'ES' END as country,
+	sta_cod as place_classification,
+	NULL as codhb,	
+	null as observations,
+	NULL as hydrographic_basin_pt,
+	NULL as hydrographic_basin_es,
+	NULL as s_guid,
+	st_x(geom) as x,
+	st_y(geom) as y,
+	geom_reproj as geom_reproj
+	from sudoang.gt6_station 
+	where dbeel_op_id is null -- as those lines are not reprojected
+	; -- 83 rows
+COMMIT;
+```
+
+* The primary key of the imported stations is put back in the source table (SQL code below)
+
+```{sql eval=FALSE}
+begin;
+With jointure as (
+SELECT * from sudoang.dbeel_station JOIN
+sudoang.gt6_station ON op_gislocation=id)
+update sudoang.gt6_station set dbeel_op_id=op_id from jointure where jointure.id = gt6_station.id; -- 83 rows
+commit;
+```
+
+To import information about the __operations__:
+
+* It is verified that there are no duplicates. In this case, it is necessary to verify that there are no duplicates of the information about the station and the date in which the fishing operation was carried out.
+* A boolean attribute identifies duplicates in the source table `is_duplicate = TRUE` (SQL code below)
+
+```{sql eval=FALSE}
+-----------------------------
+-- INSERTING GT6 OPERATIONS
+-----------------------------
+-- select * from sudoang.gt6_ope; -- 98 rows
+delete from sudoang.gt6_ope where op_cod in ('gro_50001','gro_60001','gro_160001','gro_190001'); 
+-- 4 empty lines, 94 rows
+
+---- Add dbeel_ob_id in guipuz_operation table
+ALTER TABLE sudoang.gt6_ope ADD COLUMN dbeel_ob_id uuid;
+
+-- Checking the duplicates for year: real duplicates
+with g_station_operation as(
+select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+) -- joining the two tables on the gt6 side
+select * from g_station_operation JOIN sudoang.dbeel_electrofishing on(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id) -- 15 rows from Gipuzkoa
+
+-- for those lines where there is a join, add ob_id in gt6 tables
+ALTER TABLE sudoang.gt6_ope ADD COLUMN is_duplicate boolean;
+
+---- STEP 1 for duplicates, check if the same information about size is present in the database 
+----    (eg silvering is probably not integrated)
+with duplicates as (
+	Select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+	),-- joining the two tables on the gt6 side
+
+op_duplicates as (
+	select * from duplicates JOIN sudoang.dbeel_electrofishing on(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
+	)
+
+--select * from op_duplicates; -- 15 rows
+update sudoang.gt6_ope set is_duplicate = TRUE where op_cod in (select op_cod from op_duplicates); -- 15rows
+```
+
+* For pilot basins, the information obtained is considered more accurate than that in the SUDOANG database. Therefore, duplicates of the SUDOANG database are eliminated (SQL code below)
+
+```{sql eval=FALSE}
+-- We search into the dbeel the duplicated operations. 
+-- We will supress them as we have better information from GT6:
+-- We have to do three times for different tables because we have on delete restrict clause in the table:
+begin;
+with duplicates as (
+	Select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+	),-- joining the two tables on the gt6 side
+
+op_duplicates as (
+	select * from duplicates JOIN sudoang.dbeel_electrofishing on(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
+	),
+
+fish_duplicates as (
+	select * from sudoang.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates)
+	)
+
+--select * from sudoang.dbeel_mensurationindiv_biol_charac where bc_ba_id in 
+--      (select ba_id from fish_duplicates);
+delete from sudoang.dbeel_mensurationindiv_biol_charac where bc_ba_id in (select ba_id from fish_duplicates); 
+-- 1681 rows
+commit;
+
+begin;
+with duplicates as (
+	Select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+	),-- joining the two tables on the gt6 side
+
+op_duplicates as (
+	select * from duplicates JOIN sudoang.dbeel_electrofishing on
+	(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
+	)
+--select * from sudoang.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates);
+delete from sudoang.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates); -- 816 rows
+commit;
+
+begin;
+with duplicates as (
+	Select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+	),-- joining the two tables on the gt6 side
+
+op_duplicates as (
+	select * from duplicates JOIN sudoang.dbeel_electrofishing on
+	(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
+	)
+--select * from sudoang.dbeel_batch_ope where ba_ob_id in (select ob_id from op_duplicates); -- 60 rows
+delete from sudoang.dbeel_batch_ope where ba_ob_id in (select ob_id from op_duplicates); -- 60 rows
+commit;
+
+begin;
+with duplicates as (
+	Select gt6_station.dbeel_op_id, gt6_station.id, gt6_ope.* from sudoang.gt6_station 
+	join sudoang.gt6_ope on gt6_station.sta_cod = gt6_ope.op_sta_id -- 94 rows
+	),-- joining the two tables on the gt6 side
+
+op_duplicates as (
+	select * from duplicates JOIN sudoang.dbeel_electrofishing on
+	(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
+	)
+--select * from sudoang.dbeel_electrofishing where ob_id in (select ob_id from op_duplicates); -- 15 rows
+delete from sudoang.dbeel_electrofishing where ob_id in (select ob_id from op_duplicates); -- 15 rows
+commit;
+```
+
+* The import of data about operations is done in different tables of the SUDOANG database:
+    + `dbeel_electrofishing` table with general information about the fishing method, the date, the data provider, the wetted surface and the number of pass
+    + `dbeel_batch_ope` table with information specific to the number caught for each pass, summed over all passed and estimated density (SQL code below)
+
+```{sql eval=FALSE}
+---- STEP 2: integrate all new data operations and then fish....there are no longer any duplicates
+
+-- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
+select count(distinct (op_cod, op_dat)) from sudoang.gt6_ope; -- 94 operations
+-- select * from sudoang.dbeel_station where op_gis_layername = ''; --  stations
+
+-- 		The id of sudoang.gt6_ope is 'op_cod', but it is text, so it cannot be inserted into 
+--        the column "locationid" from dbeel_electrofishing since "locationid" is numeric
+--		Remember that we use "locationid" to insert data from SIBIC ddbb.
+--		As solution, 'gt6_ob_id' is first created in the source table, and we use after 
+--        to insert data into dbeel_electrofishing table.
+alter table sudoang.gt6_ope add column gt6_ob_id uuid default uuid_generate_v4 ();
+
+begin;
+INSERT INTO sudoang.dbeel_electrofishing (
+	ob_id,
+	ob_no_origin,
+	ob_no_type,
+	ob_no_period,
+	ob_starting_date,
+	ob_ending_date,
+	ob_dp_id,
+	ef_no_fishingmethod,
+	ef_no_electrofishing_mean,
+	ef_wetted_area,
+	ef_fished_length,
+	ef_fished_width,
+	ef_nbpas,
+	ob_op_id
+	)
+	SELECT
+	gt6_ob_id AS ob_id,
+	observation_origin.no_id AS ob_no_origin,
+	observation_type.no_id AS ob_no_type, 
+	period_type.no_id AS ob_no_period,
+	op_dat AS ob_starting_date,
+	CAST(NULL AS DATE) as ob_ending_date,
+	data_provider.dp_id AS ob_dp_id, -- Isabel Domingos or each pilot basin leader?
+	scientific_observation_method.no_id AS ef_no_fishingmethod,
+	electrofishing_mean.no_id AS ef_no_electrofishing_mean,	
+	(op_length*op_width) AS ef_wetted_area, 
+	op_length AS ef_fished_length,
+	op_width AS ef_fished_width,
+	op_nbpass AS ef_nbpas, -- 1, 2 or 3
+	dbeel_op_id as ob_op_id
+	FROM 	dbeel_nomenclature.observation_origin,
+		dbeel_nomenclature.scientific_observation_method,
+		dbeel_nomenclature.observation_type,
+		dbeel_nomenclature.period_type, 
+		dbeel.data_provider,
+		dbeel_nomenclature.electrofishing_mean,
+		sudoang.gt6_station
+	join
+		sudoang.gt6_ope on gt6_ope.op_sta_id = gt6_station.sta_cod
+		
+	WHERE observation_origin.no_name='Raw data' 
+	AND scientific_observation_method.no_name='Unknown'
+	AND scientific_observation_method.sc_observation_category='Electro-fishing'
+	AND observation_type.no_name='Electro-fishing' 
+	AND electrofishing_mean.no_name='By foot' 
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Isabel Domingos'  -- or each pilot basin leader?
+	ANd dp_et_id = 22 -- two lines for Isabel Domingos (fcul and GT6)
+	; -- 94 rows
+commit;
+
+
+-- 	STEP 2.2. INSERT into dbeel_batch_ope: total number, run1, run2 and density
+-- 			TOTAL NUMBER (biological_characteristic_type.no_name='Number') 
+--      (see biological_characteristic_type.no_id=47)
+-- 			In sudoang.gt6_ope there is only information about eels
+begin;
+INSERT INTO sudoang.dbeel_batch_ope
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	op_nbeel AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	gt6_ob_id as ba_ob_id, 
+	cast(NULL as uuid) as ba_ba_id
+	FROM 
+	sudoang.gt6_ope,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 94 rows
+commit;
+
+-- 			op_p1 (biological_characteristic_type.no_name='Number p1') 
+--      (see biological_characteristic_type.no_id=231)
+begin;
+INSERT INTO sudoang.dbeel_batch_ope
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	op_p1 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	gt6_ob_id as ba_ob_id, 
+	cast(NULL as uuid) as ba_ba_id
+	FROM 
+	sudoang.gt6_ope,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p1' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 94 rows
+commit;
+
+-- 			op_p2 (biological_characteristic_type.no_name='Number p2') 
+--      (see biological_characteristic_type.no_id=232)
+begin;
+INSERT INTO sudoang.dbeel_batch_ope
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	op_p2 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	gt6_ob_id as ba_ob_id, 
+	cast(NULL as uuid) as ba_ba_id
+	FROM 
+	sudoang.gt6_ope,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p2' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	and op_p2 is not null -- this will be used for next time but we didn't use it during first integration
+	; -- 94 rows
+commit;
+
+-- 			op_p3 (biological_characteristic_type.no_name='Number p3') 
+--      (see biological_characteristic_type.no_id=233)
+begin;
+INSERT INTO sudoang.dbeel_batch_ope
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	op_p3 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	gt6_ob_id as ba_ob_id, 
+	cast(NULL as uuid) as ba_ba_id
+	FROM 
+	sudoang.gt6_ope,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p3' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	and op_p3 is not null
+	; -- 4 rows
+commit;
+
+-- 			Density (biological_characteristic_type.no_name='Density') 
+--      (see biological_characteristic_type.no_id=48)
+begin;
+INSERT INTO sudoang.dbeel_batch_ope
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	op_dens AS ba_quantity, -- ind/m2
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	gt6_ob_id as ba_ob_id, 
+	cast(NULL as uuid) as ba_ba_id
+	FROM
+	sudoang.gt6_ope, 
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Density' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 94 rows
+commit;
+```
+
+To import information about __fish__:
+
+* Identifiers are generated for each fish (when possible)
+* The presence of duplicates is checked for (samples of fish caught in the same operations) (SQL code below)
+
+```{sql eval=FALSE}
+---- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
+alter table sudoang.gt6_fish add column fish_id serial;
+alter table sudoang.gt6_fish add column ba_id uuid; -- We can't generate hte ba_id for the whole table because 
+                                                    --    there are more than 200 000 rows!
+
+---- 		Check duplicates: Joining gt6_fish and dbeel_batch_fish by "sampling" and "ob_id" 
+--          (to join "ob_id" we need to go through different tables)
+select * from sudoang.gt6_fish a join sudoang.gt6_ope o on a.op_cod = o.op_cod
+	join sudoang.dbeel_electrofishing l on l.ob_id = o.gt6_ob_id
+	join sudoang.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+```
+
+* Fish data are imported in the table `dbeel_batch_fish`. If the information exists, the stage of the eel (yellow or silver) is specified (SQL code below)
+
+```{sql eval=FALSE}
+----		Insert individuals that were measured into the dbeel_batch_fish
+-- There is a stage possible in biological characteristic, 
+-- but this stage is entered in the dbeel batch fish table,
+-- so we will not use it, because it comes from a table above in the hierarchy	
+
+begin;	
+INSERT INTO sudoang.dbeel_batch_fish
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	CASE WHEN ang_silver='FALSE' THEN 226 --'Yellow eel' 
+	     WHEN ang_silver='TRUE' THEN 227 -- 'Silver eel'
+	     END AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	1 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	4 AS ba_batch_level,
+	gt6_ope.gt6_ob_id as ba_ob_id, 	-- ob_id batch_ope_fyke
+	cast(NULL as uuid) as ba_ba_id,
+	gt6_fish.fish_id		-- repeated because of different tables (ebro_fish, nsp_efiplus_fish...)
+	FROM 
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status, 
+
+	sudoang.gt6_fish
+	join sudoang.gt6_ope
+	on gt6_fish.op_cod = gt6_ope.op_cod	
+
+	WHERE species.no_name='Anguilla anguilla' 
+	AND biological_characteristic_type.no_name='Number' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 4 463 rows
+commit;
+```
+
+* The identifier of each fish created in the SUDOANG database is returned to the source table
+* Importing the biometry and the characteristics of the silvering state of the eels caught in the table `dbeel_mensurationindiv_biol_charac` (SQL code below):
+
+    + Length
+    + Weight
+    + Vertical eye diameter
+    + Horizontal eye diameter
+    + Length of the pectoral fin
+    + Presence of neuromasts
+    + Colour contrast
+
+```{sql eval=FALSE}
+---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact
+---- 		To integrate length and weight of fish, "ba_id" must be included before in gt6_fish table
+select distinct op_gislocation from sudoang.dbeel_station;
+
+with fish_from_gt6 as
+	(select * from sudoang.dbeel_station 
+	join sudoang.dbeel_electrofishing on op_id = ob_op_id
+	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
+	where ob_dp_id = 20) -- 4463 rows
+--select * from fish_from_gt6 join sudoang.gt6_fish on fish_from_gt6.fish_id = gt6_fish.fish_id; -- 4463 rows
+UPDATE sudoang.gt6_fish b
+SET ba_id = fish_from_gt6.ba_id
+FROM fish_from_gt6
+WHERE fish_from_gt6.fish_id = b.fish_id; -- 4463 rows
+-- select * from sudoang.gt6_fish where ba_id is null; -- 3 rows
+
+---- 		Insert LENGTH (no_id = 39)
+-- with gt6_fish_extract as (
+-- select *, (row_number() OVER (PARTITION BY locationid ORDER BY "CPEZLTOTAL" DESC))%3 as modulo from sudoang.gt6e_fish order by locationid),
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null)
+
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+	value_type.no_id AS bc_no_value_type, 
+	ang_lng AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type, 
+	dbeel_nomenclature.value_type
+	WHERE ang_lng >0
+	AND biological_characteristic_type.no_name = 'Length' 
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 4463 rows (0 rows with length NULL)
+commit; 
+
+---- 		Insert WEIGHT (no_id = 42)
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null)
+
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+	value_type.no_id AS bc_no_value_type, 
+	ang_pds AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type, 
+	dbeel_nomenclature.value_type
+	WHERE ang_pds >0
+	AND biological_characteristic_type.no_name = 'Weight' 
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 4354 rows  (109 rows with weight NULL)
+commit;
+
+---- 		Insert VERTICAL EYE DIAMETER (no_id = 262)
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null)
+
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+	value_type.no_id AS bc_no_value_type, 
+	ang_eye_diam_vert AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type, 
+	dbeel_nomenclature.value_type
+	WHERE ang_eye_diam_vert IS not null
+	AND biological_characteristic_type.no_name = 'eye_diam_vert' 
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 385 rows (4079 rows with ang_eye_diam_vert NULL)
+commit;
+
+---- 		Insert HORIZONTAL EYE DIAMETER (no_id = 263)
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null)
+
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+	value_type.no_id AS bc_no_value_type, 
+	ang_eye_diam_horiz AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type, 
+	dbeel_nomenclature.value_type
+	WHERE ang_eye_diam_horiz > 0
+	AND biological_characteristic_type.no_name = 'eye_diam_horiz' 
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 381 rows (total: 387 rows)
+commit;
+
+
+---- 		Insert LENGTH OF THE PECTORAL FIN (no_id = 264)
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null)
+
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+	value_type.no_id AS bc_no_value_type, 
+	ang_pect AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type, 
+	dbeel_nomenclature.value_type
+	WHERE ang_pect > 0
+	AND biological_characteristic_type.no_name = 'length_pect' 
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 382 rows (total: 391 rows)
+commit;
+
+---- 		Insert PRESENCE OF NEUROMAST (no_id = 265)
+-- "ang_neuromast" from amber_portugal is text, it must be converted into boolean:
+alter table sudoang.gt6_fish
+alter column ang_neuromast
+set data type boolean
+using case
+    when ang_neuromast = 'TRUE' then true
+    when ang_neuromast = 'FALSE' then false
+    else null
+end;
+
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null and ang_neuromast is not null) -- 3832
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id,
+	biological_characteristic_type.no_id AS bc_no_characteristic_type,
+	value_type.no_id AS bc_no_value_type, 
+	CASE WHEN ang_neuromast = FALSE THEN 0 -- DOESN'T WORK (because of '')
+	     WHEN ang_neuromast = TRUE THEN 1
+	     END AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type
+	WHERE biological_characteristic_type.no_name = 'presence_neuromast'
+	and ang_neuromast is not null
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 3832 rows
+commit;
+
+---- 		Insert CONTRAST COLORS (no_id = 266)
+-- "ang_contrast" from gt6_fish is text, it must be converted into boolean:
+alter table sudoang.gt6_fish
+alter column ang_contrast
+set data type boolean
+using case
+    when ang_contrast = 'TRUE' then true
+    when ang_contrast = 'FALSE' then false
+    else null
+end;
+
+begin;
+with gt6_fish_extract as (
+select * from sudoang.gt6_fish where ba_id is not null and ang_contrast is not null) -- 4037
+INSERT INTO sudoang.dbeel_mensurationindiv_biol_charac
+	SELECT uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id,
+	biological_characteristic_type.no_id AS bc_no_characteristic_type,
+	value_type.no_id AS bc_no_value_type, 
+	CASE WHEN ang_contrast = FALSE THEN 0
+	     WHEN ang_contrast = TRUE THEN 1
+	     END AS bc_numvalue,
+	fish_id
+	FROM gt6_fish_extract,  
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type
+	WHERE biological_characteristic_type.no_name = 'contrast'
+	and ang_contrast is not null
+	AND value_type.no_name = 'Raw data or Individual data'
+; -- 4037 rows
+commit;
+```

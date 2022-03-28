@@ -1,0 +1,1769 @@
+---
+title: 'Mortality turbines : tests of turbine functions'
+author: "Cédric & Mathilde & Maria"
+date: "26 novembre 2019"
+output: html_document
+---
+
+
+```{r launch, echo=FALSE, include=FALSE}
+require(knitr)
+opts_knit$set(eval.after = 'fig.cap' ) # to be used in chunks used only to plot pictures
+knitr::opts_chunk$set(fig.width=12, fig.height=8, echo=FALSE)
+options(knitr.table.format = 'html') # options pour kable
+options(knitr.kable.NA = '.')
+# this will set figure caption to cap inside R chunk
+obj <- ls(all=TRUE)
+obj <- obj[!obj%in%c("passworddistant","passwordlocal")]
+getUsername <- function(){
+	name <- Sys.info()[["user"]]
+	return(name)
+}
+#memory.limit(size =4000)
+if(getUsername() == 'cedric.briand'|getUsername() == 'mmateo') setwd("C:/workspace/EDA/")
+rivernetwork <- "RIOS"
+source("EDACCM/init.r")
+#citation("sqldf")
+#citation("RPostgreSQL")
+#citation("RColorBrewer")
+#citation("plyr")
+#citation("ggplot2")
+#citation("stargazer")
+#citation("visreg")
+#citation("mgcv")
+#citation("PresenceAbsence")
+graphics.off() 
+
+#options(warn =  -1)
+options(sqldf.RPostgreSQL.user = "postgres", 
+		sqldf.RPostgreSQL.password = passwordlocal,
+		sqldf.RPostgreSQL.dbname = "eda2.3",
+		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+		sqldf.RPostgreSQL.port = 5432)
+#t <- tryCatch(sqldf("select gid from rht.rhtvs2 limit 1"),error =  function(e) e)
+#is_simple_error <- function(x) inherits(x, "simpleError")
+#if (is_simple_error(t)) stop("distant call using w3.eptb-vilaine.fr failed, check connection to the database")
+
+
+
+datawd<-"C:/workspace/EDAdata/" 	
+ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
+imgwd<-"C:/workspace/EDAdata/report2.3/images/"
+shpwd="C:/workspace/EDAdata/dataEDAlb2/shp/"
+edawd="C:/workspace/EDA/"
+
+
+
+# Attention il faut creer les repertoires
+options(warn =  0)
+#setwd("C:/workspace/EDA/report2.3")
+#datawd <- "C:/workspace/EDAdata/"
+ddatawd <- paste0(datawd,"/report2.3/data/")
+#imgwd <- "C:/workspace/EDAdata/reportt2.3/images/"
+#edawd =  "C:/workspace/EDA/"
+
+sanitizeLatexS <- function(str) {
+	gsub('([#$%&~_\\^\\\\{}])', '\\\\\\\\\\1', str, perl = TRUE);
+}
+# la fonction sn utilise maintenant le package siunitx
+# ajouter \usepackage{siunitx}
+#\sisetup{
+#round-mode = places, % nombre de decimales apres la virgule
+#round-precision = 3
+#}%
+# Dans le preambule
+num <- function(x,round_precision =  NULL)
+{
+	if (is.null(round_precision)) {
+		return(sprintf("\\num{%s}", x))
+	} else {
+		return(sprintf("\\num[round-precision=%s]{%s}",round_precision+1, x))
+	}
+}
+wd <- getwd()
+# choix de la version a charger
+rapport <- "2020" #"2012" "2015" "2009" donnees celine 
+sector <- "spain"
+open_in_excel <- function(some_df){
+	tFile <- paste("C:/temp/",gsub("\\\\","",tempfile(fileext =  paste0(substitute(some_df), ".csv"),tmpdir =  "")),sep =  "")
+	write.table(some_df, tFile, row.names = F, sep = ";", quote = F)
+	system(paste('open -a \"/ProgramData/Microsoft/Windows/Start Menu/Programs/Microsoft Office/Microsoft Excel 2010\"', tFile))
+}
+
+library(sf)
+require(RPostgreSQL)
+require(sqldf)
+require(kableExtra)
+require(tidyr)
+load_library("glue")
+load_library("ggmap")
+load_library("ggimage")
+load_library("ggrepel")
+
+blue_s <- "#00B8CD"
+orange_s <- "#DB6118"
+navy_s <- "#164193"
+green_s <- "#95C300"
+
+```
+
+
+
+
+# Calculate mortalities, per dam, per turbines.
+
+
+The EDA is based on S4 classes, a system which allow inheritance of methods
+  from parent classes and ensure the integrity of data. It also facilitates
+  class management. The main class for GT2 is available   [code in
+  trac](http://185.135.126.250/traceda/browser/eda/EDA_Rios/BaseEdaRiosRiversegmentsDamTurb.R) "Source code for the main turbine mortality class").
+
+
+This class has methods. The method `loaddb` loads everything from the database
+using the class methods. In particular it loads :
+
+* a table of all dams downstream from one segment. 
+* a table of all the dams in France, Spain and portugal,
+* a table if all riversegments in France and their attributes,
+* a table of all hydro power plant data in France, this table collates the
+  silver eel production upstream and the classified flows applied at each
+  idsegment with colnames
+  c("id", "op_id", "op_gis_systemname", "op_gis_layername", "op_gislocation",
+  "op_placename", "op_op_id", "id_original", "country", "ob_id", "ob_no_origin",
+  "ob_no_type", "ob_no_period", "ob_starting_date", "dp_name",
+  "ot_no_obstruction_type", "ot_obstruction_number", "ot_no_mortality_type",
+  "ot_no_mortality", "po_no_obstruction_passability", "po_obstruction_height",
+  "po_downs_pb", "po_downs_water_depth", "date_last_update",
+  "author_last_update", "comment_update", "mitigation_measure_no_id", "hpp_id",
+  "hpp_name", "hpp_main_grid_or_production", "hpp_presence_bypass",
+  "hpp_total_flow_bypass", "hpp_orient_flow_no_id", "hpp_presence_of_bar_rack",
+  "hpp_bar_rack_space", "hpp_surface_bar_rack", "hpp_inclination_bar_rack",
+  "hpp_presence_bypass_trashrack", "hpp_nb_trashrack_bypass",
+  "hpp_turb_max_flow", "hpp_reserved_flow", "hpp_flow_trashrack_bypass",
+  "hpp_max_power", "hpp_orientation_bar_rack", "hpp_id_original", "hpp_source",
+  "googlemapscoods", "idsegment", "cnfemale300450", "cnfemale450600",
+  "cnfemale600750", "cnfemale750", "cnmale150300", "cnmale300450",
+  "cnmale450600", "cnsilver150300", "cnsilver300450", "cnsilver450600",
+  "cnsilver600750", "cnsilver750", "cnsilver", "code_hydro_station",
+  "q_1004_10", "q_1004_20", "q_1004_30", "q_1004_40", "q_1004_50", "q_1004_60",
+  "q_1004_70", "q_1004_80", "q_1004_90", "q_1004_95", "q_1004_99" )
+
+
+* a table of all turbines in France as avalailable in the database,
+c("op_id", "op_gis_systemname", "op_gis_layername", "op_gislocation",
+  "op_placename", "observation_place_type_name", "op_op_id", "the_geom",
+  "id_original", "country", "ob_id", "ob_no_origin", "ob_no_type",
+  "ob_no_period", "ob_starting_date", "ob_ending_date", "ob_op_id", "dp_name",
+  "obstruction_type_code", "obstruction_type_name", "ot_obstruction_number",
+  "ot_no_mortality_type", "ot_no_mortality", "obstruction_impact_code",
+  "obstruction_impact_name", "po_obstruction_height", "po_downs_pb",
+  "po_downs_water_depth", "po_presence_eel_pass", "po_method_perm_ev",
+  "po_date_presence_eel_pass", "fishway_type_code", "fishway_type_name",
+  "downstream_mitigation_measure_name", "googlemapscoods", "idsegment",
+  "cnfemale300450", "cnfemale450600", "cnfemale600750", "cnfemale750",
+  "cnmale150300", "cnmale300450", "cnmale450600", "cnsilver150300",
+  "cnsilver300450", "cnsilver450600", "cnsilver600750", "cnsilver750",
+  "cnsilver", "code_hydro_station", "q_1004_10", "q_1004_20", "q_1004_30",
+  "q_1004_40", "q_1004_50", "q_1004_60", "q_1004_70", "q_1004_80", "q_1004_90",
+  "q_1004_95", "q_1004_99" )
+
+ 
+* a table of all silver eel productions from the upstream basin, so for
+  each riversegment the number of silver eels supposed to come from
+  upstream (EDA2.3).
+* a table of all the classified flows applied at the idsegment level.
+  
+The first table, containing all segments downstream from all
+  riversegments, has a lot of lines (about 6 million for France), so we try not
+  to run it unless changes have occured in the database. In the
+  end, it produces very simple tables with the mortality calculated at the
+  turbine level or at the dam level.
+  
+ 
+
+```{r classmethod_turbine_mortality, eval=FALSE, echo=TRUE}
+
+
+#**********************************************************#
+#     Downloading init (library & codes necessary)         #
+#**********************************************************#
+
+
+#setwd("C:/workspace/EDA")
+#source("EDACCM/init.r")
+###options(warn =  -1)
+#options(sqldf.RPostgreSQL.user = "postgres", 
+#		sqldf.RPostgreSQL.password = passwordlocal,
+#		sqldf.RPostgreSQL.dbname = "eda2.3",
+#		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+#		sqldf.RPostgreSQL.port = 5432)
+
+
+
+#**********************************************************#
+# Projection for the whole dataset (FR+ SP + PT)           #
+#**********************************************************#
+
+#  IF THE DATABASE OF RIVERS HAS BEEN UPDATED
+# LAUNCH edacommun/sql/dbeel_view_obstruction.sql
+#**********************************************************#
+# script to test the BaseEdaRiosRiversegmentsDamTurb Class                 #
+#**********************************************************#
+
+# loaddb method -------------------------------------------
+
+
+#DONE  bug arguments join_obstruction_rn_downstream, joinschema, jointable cannot be passed down by initialize...
+turb_rios <- new("BaseEdaRiosRiversegmentsDamTurb", 
+		join_obstruction_rn_downstream = "dbeel_rivers.join_obstruction_rn_downstream",
+		joinschema = "sudoang",
+		jointable = "view_obstruction",
+		baseODBC = "baseODBCrios",
+		schema= "dbeel_rivers",
+		table = "rn",
+		zonegeo =c("all"),
+		prkey="idsegment")
+
+
+turb_rios <- loaddb(turb_rios)
+#join_obstruction_rn_downstream  loaded 17247676 lines
+#time for query on downstream path (mins) = 0.78  
+#dam data loaded (@datadam): 106406 lines 
+#time for query on dams (mins) = 0.03  
+#time for query (mins) 1.6data from the riversegments loaded: 512714 lines 
+#time for query on rivers (mins) = 1.55  
+#Final join_downstream_obstruction_rn size 17247032 
+#time for query on hpp (secs) = 0.22  
+#hpp data loaded: 6687 lines
+#turbine data loaded: 1383 lines
+#time for query on turbines (secs) = 0.01  
+#upstream_productions_loaded: 515011 lines
+#time for query on upstream productions (mins) = 0.13  
+# now from 23/11 this method also loads the updstream production and paste it in tablehppdbeel and datadam
+
+
+
+# extract a simple table joining dams and segments, it exists in dam_rn_dwn which is the table of all dams downstream from a riversegment
+# including the riversegment itself.
+# correspond to the segments that have dams (on the first segment (upstream = idsegmentsource) the code of the idsegment on
+# the path to the sea is the same as the idsegmentsource.
+
+# I have to reproduce what is done in the method to get the size structures
+# the steps are to get the matrix of size for the calculations done in tableturbine so it is an inner join
+# it is done outside the class method
+
+
+hpp_turb <- left_join(turb_rios@tablehppdbeel, turb_rios@tableturbinedbeel, by=c("hpp_id"="turb_hpp_id")) #1073
+#hpp_turb[is.na(hpp_turb$idsegmentsource),]
+# only one dam not projected
+
+
+# some dams have sum zero, for these ones and 
+
+# applying the turbine_mortality function (see BaseEdaRiosRiversegmentsDamTurb.r), the function is reproduced
+# below
+
+
+
+
+#size_table_eel <- hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+#		rowSums(hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")])
+# for either missing segment or values where production is null I put 
+
+# Running turbine mortality function  ------------------------------------------------------------------------------
+
+# see ticket #144 #150 recalculate proper middle class, the mean of a class is not in the middle #c(375,525,675,825)
+# so the average values have been calculated in the next chunk (size structure). The values corresponding to mixed male and females are
+# 0.285,0.363,0.523,0.666,0.840
+
+
+turb_rios <- turbine_mortality (	turb_rios,					
+		size_table_eel= hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+				rowSums(hpp_turb[,c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]),
+		middle_class_eel = c(0.285,0.363,0.523,0.666,0.840)
+)
+#The following dams are dams considered with VLH 
+#ROE110284:barrage centrale de Randens,
+#ROE4400:Moulin du Duc (moulin de pont Menou),
+#ROE20876:Boussard,
+#ROE118520:Centrale de la Cavaletade,
+#ROE118520:Centrale de la Cavaletade,
+#ROE41885:Aubas,
+#ROE20891:St Baudelle,
+#ROE20829:La Verrerie,
+#ROE20732:L'Ame,
+#ROE8857:Ronsard usine,
+#ROE8857:Ronsard usine,
+#ROE20731:La Maignannerie,
+#ROE40049:Montgiroux (déversoir  des Communes amont),
+#ROE20861:Corçu,
+#ROE8593:BARRAGE DE PONT DU NAVOY,
+#ROE17600:Microcentrale de Larche,
+#ROE17600:Microcentrale de Larche,
+#ROE20856:Bas Hambert,
+#ROE20850:Le Port,
+#ROE118534:Microcentrale de Losse,
+#ROE68997:Seuil Moulin De Losse,
+#ROE118534:Microcentrale de Losse,
+#ROE20733:Moulin Oger,
+#ROE20734:La Fourmondière inférieure,
+#ROE20847:La Nourrière,
+#ROE20885:Grenoux,
+#ROE27285:Moulin de la Ville Centrale élect de St Pourçain,
+#ROE29001:Barrage du moulin de la Ville rive gauche,
+#ROE28948:Barrage du Moulin de la Ville rive droite (principal),
+#ROE20880:La Roche
+
+ddatawd <- paste0(datawd,"/report2.3/data/")
+save(hpp_turb,turb_rios, file=str_c(ddatawd,"turb_rios.Rdata"))
+#load( file=str_c(ddatawd,"turb_rios.Rdata"))
+
+```
+
+
+The R code for turbine mortalities is below
+
+```{r method_turbine_mortality, eval=FALSE, echo=TRUE}
+#' method to calculate turbine mortalities 
+#' calculates mortality at dam level and at turbine level
+#' @note This function takes as input an object of class BaseEdaRiosRiversegmentsDamTurb. This object 
+#' @returnType Object of class BaseEda
+#' @return BaseEdaRiosRiversegmentsDamTurb
+#' @author Cedric Briand \email{cedric.briand@@lavilaine.com}, 
+#' for test write 	assign("showmerequest",1,envir=.GlobalEnv)
+setMethod("turbine_mortality",signature=signature("BaseEdaRiosRiversegmentsDamTurb"),
+		definition=function(
+				object, 
+				size_table_eel= NULL,
+				size_table_sat= NULL,
+				middle_class_eel = c(0.5,0.7,0.9), 
+				middle_class_sat = c(0.15,0.18)				
+		) {
+			#debug object<-turb_rios		
+			#=========================================
+			# Initialize data from the object
+			#========================================		
+			
+			turbine <- object@tableturbinedbeel
+			hpp <- object@tablehppdbeel
+			hpp$op_id_pere<-hpp$op_id # par défaut l'ouvrage père est lui meme
+			hpp$op_id_pere[!is.na(hpp$op_op_id)]	<- hpp$op_op_id[!is.na(hpp$op_op_id)]	
+			hpp_turb <- inner_join(hpp, turbine, by=c("hpp_id"="turb_hpp_id")) 
+			
+			
+			# Default values for size class proporition, this is calculated at each idsegment in the sudoang project
+#			if (is.null(size_table_eel)) size_table_eel<-	data.frame(
+#						"3 - [300-450["=rep(0.25,nrow(hpp_turb)),
+#						"4 - [450-600["=rep(0.25,nrow(hpp_turb)),
+#						"5 - [600-750["=rep(0.25,nrow(hpp_turb)),
+#						">=750"=rep(0.25,nrow(hpp_turb)))
+			if (is.null(size_table_eel)) size_table_eel<-	data.frame(
+						"50"=rep(1/3,nrow(hpp_turb)),
+						"70"=rep(1/3,nrow(hpp_turb)),
+						"90"=rep(1/3,nrow(hpp_turb)))
+			stopifnot(ncol(size_table_eel)==length(middle_class_eel))
+			# these must be proportions : 
+			stopifnot(all(round(rowSums(size_table_eel))==1|is.na(round(rowSums(size_table_eel)))))
+			nbna <- sum((is.na(rowSums(size_table_eel))))
+			if (nbna>0) warning(sprintf("There are %s NA values for size_table_eel",nbna))
+			
+			if (is.null(size_table_sat)) size_table_sat<-	data.frame(
+						"15"=rep(1/2,nrow(hpp_turb)),
+						"18"=rep(1/2,nrow(hpp_turb)))			
+			stopifnot(ncol(size_table_sat)==length(middle_class_sat))
+			# these must be proportions : 
+			stopifnot(all(round(rowSums(size_table_sat))==1|is.na(round(rowSums(size_table_sat)))))
+			nbna <- sum((is.na(rowSums(size_table_sat))))
+			if (nbna>0) warning(sprintf("There are %s NA values for size_table_sat",nbna))
+			#=========================================
+			# Missing data treatment (initialisation and treatment function)
+			#========================================
+			
+			hpp_turb$typecalca<-NA
+			hpp_turb$typecalcs<-NA
+			# function to update missing values code if 2_1 and 2_2 will get 2_12
+			# along the script we will have vectors of index for reindexing, these will be used to set
+			# missing data
+			
+			
+			# Vectors to qualify data
+			# 1= (full) all data are available for calculations
+			# 2= (supplementary assumption) 
+			# 2_1 equiment_flow, assumption the turbines have equal flow and turbine flow missing is replaced by hpp max turbine flow
+			# 2_2 blades if the number of blades is not there add missing blades
+			# 2_3 missing equipment flow
+			# 2_4 Calculation of turbine diameter (From Rotation speed and Q) 
+			# 2_5 Calculation of turbine diameter (From Q)        
+			# 2_6 Dam_height (not present in HPP table => collected at dam level)
+			# 2_7 Diameter francis
+			# 3= Formula used
+			# 3_1 Bosc_Larinier_2000
+			# 3_2 Larinier_Dartiguelongue_1989 or "Larinier_Travade_2002"
+			# 3_3 Default for Pelton or VLH
+			# 3_4 =  QND  Eel mortalities Gomes and larinier 2008
+			# 3_5 =  QN  Eel mortalities Gomes and larinier 2008
+			# 3_7 =  ND  Eel mortalities Gomes and larinier 2008
+			# 3_8 =  Taux de mortalité pour les Pelton ou Ichtyocompatibles
+			# 4= (Mean.) Average all types : we don't know the type of turbines
+			# Average values kaplan 4_1
+			# Average values francis 4_2
+			# Average values All 4_3
+			# 5 Fine grid
+			# values will be separated by & (between large categories and _ to separate categories and subcateries and + within subcategories 
+#			update_code(c("2_1",NA,"3"),"4_2") #"2_1&4_2" "4_2"     "3&4_2"
+#			update_code(c("2_1",NA,"3"),"2_2") #"2_1+2" "2_2"   "3&2_2"
+			
+			update_code <- function(vector,value){
+				if (all(is.na(vector))) {
+					vector<-value 
+					return(vector)
+				}
+				# vector <-c("2_1",NA,"1"); value <-"2_2"
+				if (nchar(value)>1 & !grepl("_",value)) stop ("value length > 1 should contain an underscore")
+				vectorcodelevel1 <- sapply(strsplit(vector,"_"),function(x)x[1])
+				vectorcodelevel1[is.na(vectorcodelevel1)] <- "NA" # will not be used but avoid NA
+				valuecodelevel1 <- strsplit(value,"_")[[1]][1]
+				valuecodelevel2 <- strsplit(value,"_")[[1]][2]
+				vector[!is.na(vector) & vectorcodelevel1%in%valuecodelevel1] <- 
+						paste0(vector[!is.na(vector) & vectorcodelevel1%in%valuecodelevel1],"+",valuecodelevel2)		
+				vector[!is.na(vector) & !vectorcodelevel1%in%valuecodelevel1] <- 
+						paste0(vector[!is.na(vector) & !vectorcodelevel1%in%valuecodelevel1],"&",value)							
+				# if nothing yet in vector just put the value
+				vector[is.na(vector)]<-value
+				return(vector)
+			}
+			
+			
+			#==========================================
+			# Number of turbine per HPP
+			#==========================================
+			
+			tab_nb_turbines<-as.data.frame(table(hpp_turb$op_id_pere))
+			colnames(tab_nb_turbines)<-c("op_id_pere","nb_turbine_entree")
+			if ("nb_turbine_entree" %in% colnames(hpp_turb)){
+				hpp_turb<-hpp_turb[,-match("nb_turbine_entree",colnames(hpp_turb))]
+			}
+			hpp_turb<-merge(hpp_turb,tab_nb_turbines,by="op_id_pere",all.x=TRUE,all.y=FALSE)
+			rm(tab_nb_turbines)
+			
+			#==========================================
+			# Change types to only five types from types in dbeel
+			#==========================================
+			
+			level_key <- c("242"="Kaplan",
+					"243"="Other",
+					"244"="Francis",
+					"245"="Francis",
+					"246"="Kaplan",
+					"247"="Kaplan", #Kaplan not specified
+					"248"="Pelton",
+					"249"="Kaplan", # Reversible
+					"250"="Kaplan", #Turbine type;Kaplan (model of S-turbine)
+					"251"="Kaplan", #Turbine with fixed blade propeller and horizontal axis
+					"252"="Other",   #Turbine type;Unknown
+					"253"="Kaplan", #Turbine type;Vertical axis Kaplan
+					"254"="Francis", #Turbine type;Francis without volute
+					"255"="Francis", #Turbine type;Francis (spiral case)
+					"256"="Pelton", #Turbine type;Banki-Michell (cross-flow)
+					"257"="Ichtyocompatible",    #Turbine type;VLH
+					"258"="Ichtyocompatible",   #Turbine type;Archimedean screw turbine
+					"259"="Wheel",    #Turbine type;Water wheel turbine (aqualienne)
+					"260"="Wheel",   #Turbine type;Water wheel turbine (others)
+					"261"="Other")   #Turbine type;Propeller unspecified		
+			hpp_turb$typ_turbine_calcul <- NA # initialize variable
+			hpp_turb$typ_turbine_calcul <- recode(hpp_turb$turb_turbine_type_no_id, !!!level_key)
+			
+			
+# if the turbines is "other" and there is a mitigation measure at dam level saying Fish friendly turbine
+# and we are in France
+# then the type of turbine passes to VLH 
+			hpp_turb$typ_turbine_calcul[is.na(hpp_turb$typ_turbine_calcul)] <- "Other"
+			test <- hpp_turb$op_gis_layername=="roe" &
+					hpp_turb$mitigation_measure_no_id==283 &
+					!is.na(hpp_turb$mitigation_measure_no_id) &
+					hpp_turb$typ_turbine_calcul=="Other"
+			if (sum(test)>0){
+				cat( paste("The following dams with code \n",
+								hpp_turb$id_original[test], collapse=","),"\n", 
+						paste(hpp_turb$hpp_name[test], collapse=",\n"),
+						"\n =>  are dams considered with VLH\n")
+				hpp_turb$typ_turbine_calcul[test] <- "Ichtyocompatible"					
+			}
+			#==========================================
+			# flow (2_1)
+			#==========================================
+# The flow in the turbine, correspond the the maximum flow in the turbine
+# but may correspond to equipment flow divided by the number of turbines, when information is missing
+			
+			naturbQ <- is.na(hpp_turb$turb_max_turbine_flow) # turbine Q with NA
+			nahppQ <- is.na(hpp_turb$hpp_turb_max_flow)  # hpp Q with NA
+			hpp_turb$q_max_q_equipement[!naturbQ] <- hpp_turb$turb_max_turbine_flow[!naturbQ] 
+			test_not  <-  naturbQ&!nahppQ # when turbine flow is not there but we have max turbine flow at the dam
+			hpp_turb$q_max_q_equipement[test_not] <- hpp_turb$hpp_turb_max_flow[test_not]/hpp_turb$nb_turbine_entree[test_not] 
+			hpp_turb$typecalca[test_not] <- update_code(hpp_turb$typecalca[test_not],"2_1")
+			hpp_turb$typecalcs[test_not] <- update_code(hpp_turb$typecalcs[test_not],"2_1")
+			
+			
+			#==========================================
+			# Number of blades (2_2)
+			#==========================================
+# Turbines Kaplan for blade if missing values then 4 blades
+			
+			test_missing_blades_kaplan <- hpp_turb$typ_turbine_calcul=="Kaplan" & is.na(hpp_turb$turb_nb_blades)
+			hpp_turb[test_missing_blades_kaplan,"typecalca"] <- update_code(hpp_turb[test_missing_blades_kaplan,"typecalca"],"2_2")
+			hpp_turb[test_missing_blades_kaplan,"typecalcs"] <- update_code(hpp_turb[test_missing_blades_kaplan,"typecalcs"],"2_2")
+			hpp_turb[which(hpp_turb$typ_turbine_calcul=="Kaplan"&is.na(hpp_turb$turb_nb_blades)),"turb_nb_blades"]<-4
+			
+			#==========================================
+			# Missing equiment flow (2_3)
+			#==========================================
+# TODO check if we do this 
+#Pour les barrages en auto-consommation on met en débit d'équipement la moyenne des débits d'équipement où on a les données
+# this information is not available in our database
+#			hpp_turb[hpp_turb$autoconso_ou_production==1&is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production),"typecalca"]<-2
+#			hpp_turb[hpp_turb$autoconso_ou_production==1&is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production),"typecalcs"]<-2
+#			hpp_turb[hpp_turb$autoconso_ou_production==1&is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production),"q_max_q_equipement"]<-mean(hpp_turb[hpp_turb$autoconso_ou_production==1,"hpp_turb_max_flow"],na.rm=TRUE)/hpp_turb[hpp_turb$autoconso_ou_production==1&is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production),"nb_turbine_entree"]
+			
+#Pour les barrages en production on met un Qe=75% du module
+			
+#      test_missing_q_max_q_equipement <- is.na(hpp_turb$q_max_q_equipement)
+#			hpp_turb[hpp_turb$autoconso_ou_production==2&is.na(hpp_turb$q_max_q_equipement)
+#							&!is.na(hpp_turb$autoconso_ou_production),"typecalca"]<-2
+#			hpp_turb[hpp_turb$autoconso_ou_production==2&is.na(hpp_turb$q_max_q_equipement)
+#							&!is.na(hpp_turb$autoconso_ou_production),"typecalcs"]<-2
+#			hpp_turb[hpp_turb$autoconso_ou_production==2&is.na(hpp_turb$q_max_q_equipement)
+#							&!is.na(hpp_turb$autoconso_ou_production),"q_max_q_equipement"] <-(0.75*hpp_turb[hpp_turb$autoconso_ou_production==2&is.na
+#										(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production)
+#								,"module"])  /hpp_turb[hpp_turb$autoconso_ou_production==2&is.na
+#									(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$autoconso_ou_production),"nb_turbine_entree"]
+			
+			#==================================================================================================
+			# Turbine diameter recalculation (2_4) (2_5)
+			#
+			# The diameter of turbines wheel has been calculated with two formulas (Gomes et Larinier, 2008)
+			# without flow we are sure to get NA for mortality
+			# diameter_mc = diameter measured or calculated
+			#************************************************************************************************
+			hpp_turb$diameter_mc <- hpp_turb$turb_diameter  
+			test1 <- is.na(hpp_turb$turb_diameter)& 
+					hpp_turb$typ_turbine_calcul=="Kaplan"&
+					!is.na(hpp_turb$turb_rotation_speed) &
+					!is.na(hpp_turb$q_max_q_equipement)
+			test2 <- is.na(hpp_turb$turb_diameter)&
+					hpp_turb$typ_turbine_calcul=="Kaplan"&
+					is.na(hpp_turb$turb_rotation_speed) &
+					!is.na(hpp_turb$q_max_q_equipement)
+			hpp_turb$diameter_mc[test1]<-(3.82*hpp_turb$turb_rotation_speed^(-0.307)*hpp_turb$q_max_q_equipement^0.328)[test1]
+			hpp_turb$diameter_mc[test2]<-(0.618*hpp_turb$q_max_q_equipement^0.408)[test2]
+			hpp_turb[test1,"typecalcs"] <- update_code(hpp_turb[test1,"typecalcs"],"2_4")
+			hpp_turb[test1,"typecalca"] <- update_code(hpp_turb[test1,"typecalca"],"2_4")
+			hpp_turb[test2,"typecalcs"] <- update_code(hpp_turb[test2,"typecalcs"],"2_5")
+			hpp_turb[test2,"typecalca"] <- update_code(hpp_turb[test2,"typecalca"],"2_5")
+			# hpp_turb$typecalca
+			#==========================================
+			# Dam_height (2_6)
+			#==========================================
+			#***********************************************************************************************
+			# If the height is not given in turbine table, we collect from dam level
+			#************************************************************************************************			
+			
+			test_missing_height <- is.na(hpp_turb$turb_hpp_height) & !is.na(hpp_turb$po_obstruction_height)
+			hpp_turb$turb_hpp_height[test_missing_height] <- hpp_turb$po_obstruction_height[test_missing_height]
+			hpp_turb[test_missing_height,"typecalcs"] <- update_code(hpp_turb[test_missing_height,"typecalcs"],"2_6")
+			hpp_turb[test_missing_height,"typecalca"] <- update_code(hpp_turb[test_missing_height,"typecalca"],"2_6")
+			
+			#==========================================
+			# Rotation speed Francis (2_7)
+			#==========================================
+			
+			# Source devalpomi, recalculating rotation speed from dam's height
+			testrotation<-is.na(hpp_turb$turb_rotation_speed)&hpp_turb$typ_turbine_calcul=="Francis"&!is.na(hpp_turb$turb_hpp_height)
+			hpp_turb$turb_rotation_speed[testrotation] <- 71.725+log(hpp_turb$turb_hpp_height[testrotation])*43.776
+			hpp_turb[testrotation,"typecalcs"] <- update_code(hpp_turb[testrotation,"typecalcs"],"2_7")
+			hpp_turb[testrotation,"typecalca"] <- update_code(hpp_turb[testrotation,"typecalca"],"2_7")			
+			
+			
+			#==========================================
+			# diameter Francis (2_8)
+			#==========================================			
+			
+			testdiam <- is.na(hpp_turb$diameter_mc)&hpp_turb$typ_turbine_calcul=="Francis"&!is.na(hpp_turb$turb_hpp_height)
+			hpp_turb$diameter_mc[testdiam]<-pmin(0.26*hpp_turb$turb_hpp_height[testdiam],2.5)
+			hpp_turb[testdiam,"typecalcs"] <- update_code(hpp_turb[testdiam,"typecalcs"],"2_8")
+			hpp_turb[testdiam,"typecalca"] <- update_code(hpp_turb[testdiam,"typecalca"],"2_8")
+			
+			
+			
+			#========================================			
+			#========================================
+			# SALMON MORTALITIES
+			#========================================
+			#========================================			
+			
+			
+			
+			
+			
+			#==========================================
+			# Formula for salmon
+			# 3_1 Bosc_Larinier_2000
+			# 3_2 Larinier_Dartiguelongue_1989 or "Larinier_Travade_2002"
+			# 3_3 Default for Pelton or VLH
+			#==========================================					
+			
+			
+			hpp_turb$mortality_smolt <- smolt_mortality_allsize(
+					size_table = size_table_sat, 
+					middle_class = middle_class_sat,
+					Dr = hpp_turb$diameter_mc,
+					nbblade = hpp_turb$turb_nb_blades,  
+					typ = hpp_turb$typ_turbine_calcul,
+					H = hpp_turb$turb_hpp_height,
+					N = hpp_turb$turb_rotation_speed,
+					Q = hpp_turb$q_max_q_equipement,
+					formulek = "Bosc_Larinier_2000",
+					formulef = "Bosc_Larinier_2000",
+					return_type="vector")
+			
+			hpp_turb$typecalcs[is.na(hpp_turb$typecalcs) & !is.na(hpp_turb$mortality_smolt)] <- 1
+			# Kaplan
+			indexk <- hpp_turb$typ_turbine_calcul=="Kaplan" & !is.na(hpp_turb$diameter_mc) & !is.na(hpp_turb$turb_nb_blades)
+			hpp_turb[indexk,"typecalcs"] <- update_code(hpp_turb[indexk,"typecalcs"],"3_1")
+			
+			# Francis
+			indexf <- hpp_turb$typ_turbine_calcul=="Francis" & !is.na(hpp_turb$turb_hpp_height) & !is.na(hpp_turb$diameter_mc) & !is.na(hpp_turb$turb_rotation_speed)
+			hpp_turb[indexf,"typecalcs"] <- update_code(hpp_turb[indexf,"typecalcs"],"3_2")
+			
+			# Other
+			indexo <- hpp_turb$typ_turbine_calcul%in%c("Pelton","Ichtyocompatible") & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb[indexo,"typecalcs"] <- update_code(hpp_turb[indexo,"typecalcs"],"3_3")
+			
+			#==========================================			
+			#==========================================
+			# EEL MORTALITIES CALCULATIONS
+			#==========================================		
+			#==========================================			
+			#==========================================
+			# Eel mortalities Gomes and larinier 2008 QND=3_4 QN=3_5  ND=3_6 francis=3_7 other turbines=3_8
+			#==========================================			
+			
+			hpp_turb$q_vit_dia<-NA
+			idxQND <- !is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$turb_rotation_speed)&!is.na(hpp_turb$diameter_mc)
+			hpp_turb$q_vit_dia[idxQND]<-"QND"
+			
+			idxQN <- !is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$turb_rotation_speed)&is.na(hpp_turb$diameter_mc)
+			hpp_turb$q_vit_dia[idxQN]<-"QN"
+			
+			idxND <- is.na(hpp_turb$q_max_q_equipement)&!is.na(hpp_turb$turb_rotation_speed)&!is.na(hpp_turb$diameter_mc)
+			hpp_turb$q_vit_dia[idxND]<-"ND"
+			
+			
+			hpp_turb$mortality_eel <- eel_mortality_allsize(
+					size_table = size_table_eel, 
+					middle_class = middle_class_eel,		 
+					Dr =  hpp_turb$diameter_mc,
+					H = hpp_turb$turb_hpp_height,
+					N = hpp_turb$turb_rotation_speed,
+					Q = hpp_turb$q_max_q_equipement,
+					QND=hpp_turb$q_vit_dia,
+					typ = hpp_turb$typ_turbine_calcul,
+					return_type="vector")
+			
+			hpp_turb$typecalca[is.na(hpp_turb$typecalca) & !is.na(hpp_turb$mortality_eel)] <- 1
+			indexk <- hpp_turb$typ_turbine_calcul=="Kaplan" & !is.na(hpp_turb$diameter_mc) & !is.na(hpp_turb$turb_nb_blades)
+			hpp_turb[idxQND&indexk,"typecalca"] <- update_code(hpp_turb[idxQND&indexk,"typecalca"],"3_4")
+			hpp_turb[idxQN&indexk,"typecalca"] <- update_code(hpp_turb[idxQN&indexk,"typecalca"],"3_5")
+			hpp_turb[idxND&indexk,"typecalca"] <- update_code(hpp_turb[idxND&indexk,"typecalca"],"3_6")
+			indexf <- hpp_turb$typ_turbine_calcul=="Francis" & !is.na(hpp_turb$turb_hpp_height) & !is.na(hpp_turb$diameter_mc) & !is.na(hpp_turb$turb_rotation_speed)
+			indexo <- hpp_turb$typ_turbine_calcul%in%c("Pelton","Ichtyocompatible") & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb[indexf,"typecalca"] <- update_code(hpp_turb[indexf,"typecalca"],"3_7")
+			hpp_turb[indexo,"typecalca"] <- update_code(hpp_turb[indexo,"typecalca"],"3_8")
+			
+			#==========================================			
+			#==========================================
+			# Replacing missing with average values
+			#==========================================		
+			#==========================================			
+			mean_per_type <- hpp_turb %>% 
+					select(typ_turbine_calcul,mortality_smolt,mortality_eel) %>% 
+					group_by(typ_turbine_calcul) %>%
+					summarize(
+							mean_smolt=mean(mortality_smolt, na.rm=TRUE),
+							mean_eel=mean(mortality_eel, na.rm=TRUE),
+							sd_smolt=sd(mortality_smolt, na.rm=TRUE),
+							sd_eel=sd(mortality_eel, na.rm=TRUE)							
+					)
+			mean_global <- hpp_turb %>% select(typ_turbine_calcul,mortality_smolt,mortality_eel) %>% 
+					filter(typ_turbine_calcul!="Ichtyocompatible") %>%
+					summarize(
+							mean_smolt=mean(mortality_smolt, na.rm=TRUE),
+							mean_eel=mean(mortality_eel, na.rm=TRUE),
+							sd_smolt=sd(mortality_smolt, na.rm=TRUE),
+							sd_eel=sd(mortality_eel, na.rm=TRUE)							
+					)
+			
+			#==========================================
+			# Average values kaplan 4_1
+			#==========================================	
+			# smolt
+			index_recalc_sk2 <- is.na(hpp_turb$mortality_smolt) & hpp_turb$typ_turbine_calcul=="Kaplan" & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb$mortality_smolt[index_recalc_sk2] <-
+					as.numeric(mean_per_type[mean_per_type$typ_turbine_calcul=="Kaplan","mean_smolt"])
+			hpp_turb[index_recalc_sk2,"typecalcs"] <- update_code(hpp_turb[index_recalc_sk2,"typecalcs"],"4_1")
+			
+			# eel
+			index_recalc_ak2 <- is.na(hpp_turb$mortality_eel) & hpp_turb$typ_turbine_calcul=="Kaplan" & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb$mortality_eel[index_recalc_ak2] <-
+					as.numeric(mean_per_type[mean_per_type$typ_turbine_calcul=="Kaplan","mean_eel"])
+			hpp_turb[index_recalc_ak2,"typecalca"] <- update_code(hpp_turb[index_recalc_ak2,"typecalca"],"4_1")
+			
+			#==========================================
+			# Average values francis 4_2
+			#==========================================	
+			
+			# smolt
+			index_recalc_sf2 <- is.na(hpp_turb$mortality_smolt) & hpp_turb$typ_turbine_calcul=="Francis" & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb$mortality_smolt[index_recalc_sf2] <-
+					as.numeric(mean_global[mean_per_type$typ_turbine_calcul=="Francis","mean_smolt"])
+			hpp_turb[index_recalc_sf2,"typecalcs"] <- update_code(hpp_turb[index_recalc_sf2,"typecalcs"],"4_2")
+			
+			# eel
+			index_recalc_af2<-is.na(hpp_turb$mortality_eel) & hpp_turb$typ_turbine_calcul=="Francis" & !is.na(hpp_turb$typ_turbine_calcul)
+			hpp_turb$mortality_eel[index_recalc_af2] <-
+					as.numeric(mean_per_type[mean_per_type$typ_turbine_calcul=="Francis","mean_eel"])
+			hpp_turb[index_recalc_af2,"typecalca"] <- update_code(hpp_turb[index_recalc_af2,"typecalca"],"4_2")
+			
+			#==========================================
+			# Average values All 4_3
+			#==========================================	
+			
+			# smolt
+			index_recalc_sa2 <-is.na(hpp_turb$mortality_smolt) & (is.na(hpp_turb$typ_turbine_calcul) | hpp_turb$typ_turbine_calcul=="Other")
+			hpp_turb$mortality_smolt[index_recalc_sa2] <-
+					as.numeric(mean_global$mean_smolt)
+			hpp_turb[index_recalc_sa2,"typecalcs"] <- update_code(hpp_turb[index_recalc_sa2,"typecalcs"],"4_3")
+			
+			# eel
+			index_recalc_aa2<-is.na(hpp_turb$mortality_eel) &  (is.na(hpp_turb$typ_turbine_calcul) | hpp_turb$typ_turbine_calcul=="Other")
+			hpp_turb$mortality_eel[index_recalc_aa2] <-
+					as.numeric(mean_global$mean_eel)
+			hpp_turb[index_recalc_aa2,"typecalca"] <- update_code(hpp_turb[index_recalc_aa2,"typecalca"],"4_3")
+			
+			
+			#==========================================
+			# Grids 5
+			#==========================================	
+			
+			
+			
+			indx_grillefine<-!is.na(hpp_turb$hpp_bar_rack_space)&hpp_turb$hpp_bar_rack_space<=20
+			hpp_turb$typecalca[indx_grillefine]<-5
+			hpp_turb$typecalcs[indx_grillefine]<-5
+			hpp_turb[indx_grillefine,"mortality_eel"]<-0
+			hpp_turb[indx_grillefine,"mortality_smolt"]<-0
+			
+			
+#			hpp_turb$typecalca[indx_enservice]<-6
+#			hpp_turb$typecalcs[indx_enservice]<-6
+#			hpp_turb[indx_enservice,"mortalite_ang"]<-0
+#			hpp_turb[indx_enservice,"mortalite_sat"]<-0
+			
+			object@tablemortalityturbine <- hpp_turb
+			
+			#==========================================
+			# Treatment per dam
+			#==========================================	
+			# mortality corresponds to the weighted sum of  mortality according to the flow
+			tablemortalitydam <-					hpp_turb %>% 
+					mutate(
+							op_id_pere ={
+								list=is.na(op_id_pere)
+								replace(op_id_pere,list,op_id)
+							}) %>%
+					select(op_id_pere, mortality_eel, mortality_smolt, q_max_q_equipement) %>%
+					group_by(op_id_pere) %>%
+					mutate(
+							q_max_q_equipement ={
+								mask=is.na(q_max_q_equipement)
+								replace(q_max_q_equipement,mask,1)
+							})  %>%
+					summarize(
+							mortality_eel = sum(mortality_eel*q_max_q_equipement)/sum(q_max_q_equipement), 
+							qtottal=sum(q_max_q_equipement))
+			
+			# finish and give one value per dam
+			
+			object@tablemortalitydam <- tablemortalitydam
+			return(object)
+		}
+)
+
+```
+
+# Size structure of migrants
+
+The mortality in turbines is highly dependent on size. We have split the eel
+size into classes : 150-300mm (and yes they are rare but there are silver
+eels with size lower than 300), 300-450, ..., 600-750, and larger than 750 mm
+
+OK ... but what is the size you apply to the class 300-450, 375 ?, the largest
+size ? 
+
+To answer this question we use the silver eel dataset compiled in the main
+report. Here we load it and calculate the size structure of silver eel per size
+class. For instance in the class 150-300 the mean size is not 175. In most cases
+the mean size will be lower than the mean of the class because there are more
+small eels than large eels. In some cases (150-300)mm, as getting silver below a
+size of 300mm is quite rare we get closer to 300, for > 750 it depends also on
+the right hand side of the distribution.
+
+```{r size_structure, eval=TRUE, echo=TRUE}
+load(file=file.path(ddatawd, "silver_eel.Rdata"))
+silver_eel$country <- as.factor(silver_eel$country)
+
+
+# This is the size structure for males and females
+
+silver_eel %>% filter(sexe_durif!="immature") %>%
+		select("length", "sexe_durif", "size") %>%
+		group_by( sexe_durif, size) %>% 
+		summarize(N=n(),
+				Mean=round(mean(length)),
+				Min=min(length),
+				Q3=quantile(length,0.25),
+				Median=quantile(length,0.5),
+				Q5=quantile(length,0.75),
+				Max=max(length)) %>%
+		kable(escape = F, align = "c") %>%
+		kable_styling(c("striped", "condensed"), full_width = T)
+
+# This is the size structure for all
+
+silver_eel %>% filter(sexe_durif!="immature") %>%
+		select("length",  "size") %>%
+		group_by( size) %>% 
+		summarize(N=n(),
+				Mean=round(mean(length)),
+				Min=min(length),
+				Q3=quantile(length,0.25),
+				Median=quantile(length,0.5),
+				Q5=quantile(length,0.75),
+				Max=max(length)) %>%
+		kable(escape = F, align = "c") %>%
+		kable_styling(c("striped", "condensed"), full_width = T)
+
+```
+The turbine mortalities are calculated from the functions `eel_mortality_size`
+which compute the mortality for a single size, and `eel_mortality_allsize`
+which compute the mortalities for a size structure
+
+
+```{r test_of_individual_functions, eval=TRUE, echo=TRUE}
+
+#' Calculation of turbines mortality for eel for Kaplan and Francis turbines.
+#' For Kaplan Gomes et Larinier, 2008 propose three formulas given mortality percentage (M) according to eel size
+#'  size (TL in m), wheel diameter Dr (in m), nominal flow Q (in m3/s) and turbine rotation speed N (in trn/min) :
+#'  M1 : M (%) = 4.67 TL^1.53 Dr^-0.48 N^0.6
+#'  M2 : M (%) = 6.59 TL^1.63 Q^-0.24 N^0.63
+#'  M3 : M (%) = 12.42 TL^1.36 Q^-0.22 Dr^-0.10 N^0.49
+#' For Francis, we use the formula developped for salmon by Bosc and Larinier (2000)
+#'  M4 : M(%) =  100*sin((pi/180)*pmin(90,-17.98 + 45.62 *  H^0.181 * Q^-0.207 * TL^0.224))^2
+#' @param Size The fish size in meter : must be unique (not a vector) see smolt_mortality_all_size to use several size
+#' @param Dr Diameter of the wheel, in m
+#' @param Q Flow in the turbine in m3 per second
+#' @param N Rotation speed in turn per minute
+#' @param H height of dam in m
+#' @param QND A vector describing whether Q N and D are avalaible. Given data availabilities, different formulas are used
+#' see Gomez and Larinier, 2008
+#' @param typ PARAM_DESCRIPTION, Default: c("Kaplan", "Francis", "Pelton", "Ichtyocompatible")
+#' @return A vector of mortalities
+#' @examples 
+#' \dontrun{
+#' if(interactive()){
+#eel_mortality_size(Dr=1.78,Q=8,N=117,H=3,QND="QND",size=0.70, typ="Francis") #21.49
+#eel_mortality_size(Dr=1.3,Q=5.2,N=205,H=3,QND="QND",size=0.70, typ="Kaplan") #70.35
+#'  }
+#' }
+#' @rdname eel_mortality_size
+#' @export 
+eel_mortality_size<-function(
+		Dr,
+		Q,
+		N,
+		H,
+		QND,
+		size,
+		typ=c("Kaplan","Francis","Pelton","Ichtyocompatible"))
+{
+	# --- initial tests -----------------------------------------
+	
+	typ[is.na(typ)]<-"NA"
+	if (! all(typ%in%c("Kaplan","Francis","Pelton","Ichtyocompatible"))) 
+		warning(sprintf("typ %s not processed, should be one of 'Kaplan', 'Francis', 'Pelton', 'Ichtyocompatible'", 
+						unique( typ[!typ%in%c("Kaplan","Francis","Pelton","Ichtyocompatible")])))
+	QND[is.na(QND)]<-"NA"
+	if (! all(QND%in%c("QND","QN","ND","NA"))) {
+		warning(sprintf("QND %s not processed, should be one of 'QND','QN','ND'", 
+						unique(QND[!QND%in%c("QND","QN","ND")])))
+	}
+	if (size>1) warning("Size >1 : size should be provided in meter")
+	# --- Check types -----------------------------------------	
+	M <- rep(NA,length(typ))
+	indexk <- typ=="Kaplan" & !is.na(typ)
+	indexf <- typ=="Francis" & !is.na(typ)
+	indexp <- typ=="Pelton" & !is.na(typ)
+	indexi <- typ=="Ichtyocompatible" & !is.na(typ)
+	
+	# --- Kaplan ------------------------------------------------
+	idxQND  <-  QND=="QND"
+	idxQN  <-  QND=="QN"
+	idxND  <-  QND=="ND"
+	if (sum(indexk&idxQND)>0) 
+		M[indexk&idxQND] <- pmin(100,12.42*size^1.36*Q[indexk&idxQND]^-0.22*Dr[indexk&idxQND]^-0.10*N[indexk&idxQND]^0.49)
+	if (sum(indexk&idxQN)>0) 
+		M[indexk&idxQN] <- pmin(100,6.59*size^1.63*Q[indexk&idxQN]^-0.24*N[indexk&idxQN]^0.63)
+	if (sum(indexk&idxND)>0) 
+		M[indexk&idxND] <- pmin(100,4.67*size^1.53*Dr[indexk&idxND]^-0.48*N[indexk&idxND]^0.6)
+	# ---  Francis -----------------------------------------------
+	if (sum(indexf)>0)
+		M[indexf]  <-  
+				100*sin((pi/180)*pmin(90,-17.98 + 45.62 *  H[indexf]^0.181 * Dr[indexf]^-0.207 * size^0.224))^2
+	# --- Pelton --------------------------------------------------
+	if (sum(indexp)>0)
+		M[indexp] <- 100
+	# --- ichtyocompatible ----------------------------------------
+	if (sum(indexi)>0)
+		M[indexi] <- 0	
+	return(M)
+}
+eel_mortality_size(Dr=1.78,Q=8,N=117,H=3,QND="QND",size=0.70, typ="Francis") #21.49
+eel_mortality_size(Dr=1.3,Q=5.2,N=205,H=3,QND="QND",size=0.70, typ="Kaplan") #70.35
+
+#'  eel mortalities for a matrix of size class and abundance, Applies the eel_mortality_size to a matrix of size
+#' 
+#' This function takes the matrix of size class and the matrix of size number (these can vary from one turbine to the next)
+#' and return either a vector of the average mortality (weighted by proportion of the different size) or
+#' the matrix of mortality to get the detail of mortality per size
+#' @param size_table A table containing the proportion of size per turbine (the sum of row must be one)
+#' @param middle_class A table containing the "average" size to which the proportion applies, this
+#' can be the center of the class or the average value of the class center derived from the population structure if available
+#' @param return_type One of vector or matrix, if matrix the class will return a list with the mortality per size class
+#' otherwise it will return,  Default: c("vector", "matrix")
+#' @param ... Other parameters passed to the smolt_mortality_size function EXCEPT the size
+#' @return Either a matrix with size in column and turbine in line or a vector of mortalities per turbine
+#' @author Cédric Briand, Mathilde Labedan
+#' #' @examples 
+#' \dontrun{
+#' if(interactive()){
+#eel_mortality_allsize(
+#		size_table=data.frame(
+#				"s0.50"=rep(1/3,3),
+#				"s0.70"=rep(1/3,3),
+#				"s0.90"=rep(1/3,3))	, 
+#		middle_class = c(0.5,0.7,0.9)	,
+#		Dr = c(1.78,1.3,1.5,0,1.5), 
+#		H = c(3,   3,   4.4,0,5.2),
+#		N = c(117,205,122,0,223),
+#		Q = c(8,5.2,5.5,0,12),
+#		QND=c(NA,"QND",NA,NA,"QND"),
+#		typ = c("Francis","Kaplan","Francis","Pelton","Kaplan"),
+#		return_type="matrix")
+#[,1]      [,2]      [,3]
+#[1,]  16.94863  21.49516  25.39744
+#[2,]  44.52102  70.35569  99.02292
+#[3,]  23.47612  29.11836  33.86979
+#[4,] 100.00000 100.00000 100.00000
+#[5,]  38.05057  60.13057  84.63145
+#'  }
+#' }
+#' @rdname eel_mortality_allsize
+#' @export 		
+eel_mortality_allsize <-function(size_table, middle_class,return_type="vector",...) {
+	if (length(return_type)>1) stop("Return type choose one value, vector or matrix")
+	if (!return_type %in% c("vector","matrix")) stop("return_type should be one of vector or matrix")
+	if (ncol(size_table)!=length(middle_class)) stop("the number of column of size_table and the length of middle_class have to match")
+	# apply the  mortality size to each size class center	
+	mortality_table <- mapply(eel_mortality_size, size=middle_class, MoreArgs=list(...))
+	if (return_type=="vector"){
+		return(round(rowSums(mortality_table*size_table),2))
+	} else {
+		return(round(mortality_table,2))
+	}
+}
+
+
+eel_mortality_allsize(
+		size_table=data.frame(
+				"s0.50"=rep(1/3,3),
+				"s0.70"=rep(1/3,3),
+				"s0.90"=rep(1/3,3))	, 
+		middle_class = c(0.5,0.7,0.9)	,
+		Dr = c(1.78,1.3,1.5,0,1.5), 
+		H = c(3,   3,   4.4,0,5.2),
+		N = c(117,205,122,0,223),
+		Q = c(8,5.2,5.5,0,12),
+		QND=c(NA,"QND",NA,NA,"QND"),
+		typ = c("Francis","Kaplan","Francis","Pelton","Kaplan"),
+		return_type="matrix")
+```
+
+# Processing data on turbines and keeping track.
+
+In the main function on turbine calculation, we try to keep track of what we
+have done. In many cases you don't have the information needed to run the best
+model by which you can evaluate mortality. So sometimes you have to do some
+assumptions or run a degraded model. Here we show how we keep track of that.
+In the end we get the list of all the codes so for instance 2_4&3_4 will mean that the missing diameter has
+been estimated by Gomez and Larinier (2008) and that the full formula with QND has been used.
+
+Question Pierre et Mathilde : faut il mieux utiliser un recalcul des valeurs ou la formule dégradée ?
+
+```{r table_mortality_type, eval=TRUE, echo=FALSE}
+library("readxl")
+path <- file.path(ddatawd,"calculation_code_table.xlsx")
+calculation_code_table <- read_excel(path, 1 )
+kable(calculation_code_table) %>% kable_styling()
+
+```
+
+# Test of two dams : first output
+
+
+Two dams have beens selected, Barrage EDF de CASTETARBES and AGOS VIDALOS
+on the Gave de Pau. They comprise both Francis and Kaplan turbines.
+
+
+```{r test_set, eval=TRUE, echo=TRUE, cache=TRUE}
+load(file=str_c(ddatawd,"turb_rios.Rdata"))
+tablemortalityturbine <- turb_rios@tablemortalityturbine
+
+kable(tablemortalityturbine[tablemortalityturbine$idsegment%in%c('FR122044','FR119203'),]) %>%
+		kable_styling() %>%
+		scroll_box(width = "100%", height = "400px")
+```
+To get an idea of how the "mean mortalities" are calculated let's take a look
+at the results using the function
+
+```{r size, eval=TRUE, echo=TRUE, cache=TRUE}
+
+size_table_eel= hpp_turb[hpp_turb$idsegment%in%c('FR122044','FR119203'), c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+		rowSums(hpp_turb[hpp_turb$idsegment%in%c('FR122044','FR119203'), c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")])
+
+(silver_numbers <- hpp_turb[hpp_turb$idsegment%in%c('FR122044','FR119203'), 
+			c("id_original", "cnsilver150300", "cnsilver300450", "cnsilver450600", "cnsilver600750", "cnsilver750")])[c(1,4),]
+
+silver_number_long <- silver_numbers %>%
+		pivot_longer(cols=-id_original, names_to="size",values_to="number")
+
+ggplot(silver_number_long)+
+		geom_col(aes(x=size,y=number), fill=navy_s)+
+		facet_wrap(~ id_original, scales="free_y")+
+		theme_bw()
+
+```
+
+So with different distances we get different size structure of silver eel
+migrants from the upstream basin, for the first  With return matrix we have the
+mortality for each size :
+The results are the same as those produced by the excel table for both Francis
+and Kaplan in Casteltarbes (regression RR19 in the excel table).
+
+```{r test_using_function, eval=TRUE, echo=TRUE, cache=TRUE}
+t1 <- tablemortalityturbine[tablemortalityturbine$idsegment%in%c('FR122044','FR119203'),] 
+rownames(t1) <- str_c(t1$hpp_id_original, "turb_id=",t1$turb_id)
+size_table_eel <- data.frame("50"=rep(1/3,3),"70"=rep(1/3,3),"90"=rep(1/3,3))
+mat <- eel_mortality_allsize(
+		size_table= size_table_eel,
+		middle_class = c(0.5,0.7,0.9),
+		Dr =  t1$diameter_mc,
+		H = t1$turb_hpp_height,
+		N = t1$turb_rotation_speed,
+		Q = t1$q_max_q_equipement,
+		QND=t1$q_vit_dia,
+		typ = t1$typ_turbine_calcul,
+		return_type="matrix")
+mat <- as.data.frame(mat)
+colnames(mat) <- c("50","70","90")
+rownames(mat) <- c("AGOS VIDALOS", "CASTELTARBES_t3","CASTELTARBES_t2","CASTELTARBES_t1")
+mat <- mat[c(4,3,2,1),]
+kable(mat)
+```
+
+The following function (using return type="vector") calculates the average
+mortality in the turbines weighted by number in in size class.
+
+```{r test_using_function2, eval=TRUE, echo=TRUE, cache=TRUE}
+print(size_table_eel)
+eel_mortality_allsize(
+		size_table= size_table_eel,
+		middle_class = c(0.5,0.7,0.9),
+		Dr =  t1$diameter_mc,
+		H = t1$turb_hpp_height,
+		N = t1$turb_rotation_speed,
+		Q = t1$q_max_q_equipement,
+		QND=t1$q_vit_dia,
+		typ = t1$typ_turbine_calcul,
+		return_type="vector")
+```
+
+
+
+# Degradation of the dataset for tests
+
+The first degrading consists of not having any size, so we just calculate
+mortality for size 50, 70 and 90 mm
+
+```{r model_degradation, eval=TRUE, echo=TRUE}
+
+eel_mortality_allsize(
+		size_table= matrix(1/3,nrow=4,ncol=3),
+		middle_class = c(0.50,0.70,0.90)	,
+		Dr =  t1$diameter_mc,
+		H = t1$turb_hpp_height,
+		N = t1$turb_rotation_speed,
+		Q = t1$q_max_q_equipement,
+		QND="ND",
+		typ = t1$typ_turbine_calcul,
+		return_type="matrix")
+```
+
+For this model degradation we get a NA  as the average of all turbines in the
+dataset is NaN
+
+```{r model_degradation2, eval=TRUE, echo=TRUE}
+reduced<-turb_rios
+# reducing turbines table to only the two HPP
+reduced@tableturbinedbeel <- reduced@tableturbinedbeel[
+		reduced@tableturbinedbeel$turb_hpp_id%in%c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@tablehppdbeel <- reduced@tablehppdbeel[reduced@tablehppdbeel$hpp_id%in% c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@datadam <- reduced@datadam[reduced@datadam$id_original%in% c("ROE44855","ROE46186"),	]
+saveme <- reduced@tableturbinedbeel[,c("turb_diameter","turb_rotation_speed")]
+reduced@tableturbinedbeel[,"turb_diameter"] <- NA
+reduced@tableturbinedbeel[,c("turb_rotation_speed")] <- NA
+
+reduced <- turbine_mortality (	reduced,					
+		size_table_eel= matrix(1/3,nrow=4,ncol=3),
+		middle_class_eel = c(0.5,0.7,0.9)	
+)
+
+kable(reduced@tablemortalityturbine[,
+						c( "id_original", 
+								"hpp_name", 
+								"typecalca",
+								"typ_turbine_calcul",
+								"q_max_q_equipement",
+								"diameter_mc",
+								"q_vit_dia", 
+								"mortality_eel" )]
+		)%>%
+		kable_styling() %>%
+		scroll_box(width = "100%", height = "400px")
+```
+
+Model degradation with QN, now using the real dataset for size structure... it
+is recalculated anyways 
+
+
+```{r model_degradationQN, eval=TRUE, echo=TRUE}
+size_table_eel= hpp_turb[hpp_turb$idsegment%in%c('FR122044','FR119203'), c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")]/
+		rowSums(hpp_turb[hpp_turb$idsegment%in%c('FR122044','FR119203'), c("cnsilver150300","cnsilver300450","cnsilver450600","cnsilver600750","cnsilver750")])
+
+reduced<-turb_rios
+# reducing turbines table to only the two HPP
+reduced@tableturbinedbeel <- reduced@tableturbinedbeel[
+		reduced@tableturbinedbeel$turb_hpp_id%in%c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@tablehppdbeel <- reduced@tablehppdbeel[reduced@tablehppdbeel$hpp_id%in% c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@datadam <- reduced@datadam[reduced@datadam$id_original%in% c("ROE44855","ROE46186"),	]
+reduced@tableturbinedbeel[,c("turb_diameter")]<-NA
+
+
+reduced <- turbine_mortality (	reduced,					
+		size_table_eel= size_table_eel,
+		middle_class_eel = c(0.285,0.363,0.523,0.666,0.840)	)
+
+kable(reduced@tablemortalityturbine[,
+						c( "id_original", 
+								"hpp_name", 
+								"typecalca",
+								"typ_turbine_calcul",
+								"q_max_q_equipement",
+								"diameter_mc",
+								"q_vit_dia", 
+								"mortality_eel" )]
+		)%>%
+		kable_styling() %>%
+		scroll_box(width = "100%", height = "400px")
+```
+
+```{r model_degradationND, eval=TRUE, echo=TRUE}
+reduced<-turb_rios
+# reducing turbines table to only the two HPP
+reduced@tableturbinedbeel <- reduced@tableturbinedbeel[
+		turb_rios@tableturbinedbeel$turb_hpp_id%in%c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@tablehppdbeel <- reduced@tablehppdbeel[reduced@tablehppdbeel$hpp_id%in% c('20b775fa-c062-457e-8b83-53730919ff0b',
+				'e5732277-89f1-4bc5-b20d-38b886364f1b'),]
+reduced@datadam <- reduced@datadam[reduced@datadam$id_original%in% c("ROE44855","ROE46186"),	]
+reduced@tableturbinedbeel[,c("hpp_turb_max_flow")] <- NA
+reduced@tableturbinedbeel[,c(",turb_max_turbine_flow")] <- NA
+
+
+
+reduced <- turbine_mortality (	reduced,					
+		size_table_eel= size_table_eel,
+		middle_class_eel = c(0.285,0.363,0.523,0.666,0.840)	
+)
+
+kable(reduced@tablemortalityturbine[,
+						c( "id_original", 
+								"hpp_name", 
+								"typecalca",
+								"typ_turbine_calcul",
+								"q_max_q_equipement",
+								"diameter_mc",
+								"q_vit_dia", 
+								"mortality_eel" )]
+		)%>%
+		kable_styling() %>%
+		scroll_box(width = "100%", height = "400px")
+```
+
+# Basin scale test : the Adour
+
+The method loads all data concerning hydropower plants. Then a selection of the
+hpp within the basin is done by the  `segment_mortality` method.
+
+segment mortality will reduce the dataset to the idsegment_sea selected
+It will also use argument migrationflow to select only the Qi selected for
+calculation (e.g remove Q97.5 and Q75 if those are not used for migration flow).
+
+It will then calculate the mortality at all dams and use the matrix of dam
+mortality to calcule the mortality during the downstream run from any single
+riversegment of the basin. The mortality per segment multiplied by the
+production of silver eel of each segment allows to calculate mortality at the
+level of the basin. 
+
+The morality calculated at each individual dam is more tricky to calculate as
+several dam may belong to the same riversegment. I don't try to explain this
+it's too complex and I've still made an error that I need to fix anyways.
+
+Two methods are run below, the second uses a "default" mortality for all the dams where we don't have any information while the first only uses dams where turbine data are reported.
+
+The methods displaying various maps at the basin level or at the level of a dam are tested.
+
+```{r test_adour, eval=TRUE, echo=FALSE}
+
+
+
+load( file=str_c(ddatawd,"turb_rios.Rdata"))
+# seaidsegment <- 'FR118671'
+
+# 60 dams ancestor (tablemortalitydam)
+# 122 turbines (tablemortalityturbine)
+# 310 rows in tablehpp_dbeel => check how we deal with missing dams
+# 1383 => tableturbinedbeel 
+# 1872 => datadam Corresponds to the number of dams on the basin
+# 165806 => dam_rn_dwn
+# shpdams NULL
+# traveled segments 1872
+# shp NULL
+# data 3283
+
+#Migration flow.
+# This will need to be corrected. Actually q_1004_10 is the first class of flow, and corresponds
+# to eel having migrated between 0 and Q10
+
+tmigration_flow <- readRDS("C:/workspace/EDAdata/report2.3/data/migration_flow_temp.Rds")
+# In France reserved flow are 10% of the module
+# TODO MAYBE ADAPT THIS CASE BY CASE
+turb_rios@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios@tablemortalitydam))
+
+turb_adour <- segment_mortality(turb_rios, 
+		seaidsegment = 'FR118671',
+		migrationflow=tmigration_flow[7,],
+		default_mortality =NULL)
+
+
+
+# this is a simplified version of dam level mortalities after running the program on the Adour.
+
+default_mortality <- c(
+		mortality_q_1004_10 = 0.12, 
+		mortality_q_1004_20 = 0.13, 
+		mortality_q_1004_30 = 0.13, 
+		mortality_q_1004_40 = 0.13, 
+		mortality_q_1004_50 = 0.12,
+		mortality_q_1004_60 = 0.11,
+		mortality_q_1004_70 = 0.10,
+		mortality_q_1004_80 = 0.08,
+		mortality_q_1004_90 = 0.06,
+		mortality_q_1004_95 = 0.05,
+		mortality_q_1004_99 = 0.04)
+
+turb_adour_inputed <- segment_mortality(turb_rios, 
+		seaidsegment = 'FR118671',
+		migrationflow=tmigration_flow[7,],
+		default_mortality = default_mortality)           
+
+# test for maps for one dam
+m1 <- map(turb_adour, bv="Adour", 
+		output ="hpp", 
+		ouv_id= 'ROE38115', 
+		seaidsegment = "FR118671")
+m3 <- map(turb_adour,
+		bv="Adour", 
+		output ="hpp", 
+		ouv_id='c7705883-4826-4efd-b5fb-ec2a6e78ccbc',
+		seaidsegment = "FR118671")
+print(m1$hpp)
+m2 <- map(turb_adour_inputed, bv="Adour_inputed", 
+		output =c("rate", "nb",  "hpp_mort"), 
+		seaidsegment = "FR118671")
+print(m2$rate)
+print(m2$nb)
+print(m2$hpp_mort)
+m4 <- map(turb_adour, bv="Adour", 
+		output =c("rate",  "hpp_mort"), 
+		seaidsegment = "FR118671")
+#saveRDS(turb_adour, file = str_c(ddatawd, "turb_adour.rds"))
+turb_adour<- readRDS(file = str_c(ddatawd, "turb_adour.rds"))
+```
+
+```{r tableau_adour, eval=TRUE, echo=FALSE, results='asis'}
+
+library(kableExtra)
+turb_adour <- readRDS(file = str_c(ddatawd, "turb_adour.rds"))
+(nr <- nrow(turb_adour@tablehppdbeel)) # 30
+table_hpp <-
+		left_join(
+				turb_adour@tablehppdbeel %>% 
+						filter(is.na(op_op_id)) %>%
+						select("op_id", "op_placename", "id_original",  "ob_id",   "po_obstruction_height", 
+								"po_downs_pb", "po_downs_water_depth", "date_last_update", "author_last_update", 
+								"comment_update", "mitigation_measure_no_id", 
+								"hpp_id", "hpp_name", "hpp_main_grid_or_production", "hpp_presence_bypass", 
+								"hpp_total_flow_bypass", "hpp_orient_flow_no_id", "hpp_presence_of_bar_rack", 
+								"hpp_bar_rack_space", "hpp_surface_bar_rack", 
+								"hpp_inclination_bar_rack", "hpp_presence_bypass_trashrack", "hpp_nb_trashrack_bypass",
+								"hpp_turb_max_flow", "hpp_reserved_flow", "hpp_flow_trashrack_bypass", "hpp_max_power",
+								"hpp_orientation_bar_rack", "hpp_id_original", "hpp_source", "googlemapscoods", 
+								"idsegment", "cnfemale300450", "cnfemale450600", "cnfemale600750", "cnfemale750", 
+								"cnmale150300", "cnmale300450", "cnmale450600", "cnsilver150300", "cnsilver300450", 
+								"cnsilver450600", "cnsilver600750", "cnsilver750", "cnsilver", 
+								"code_hydro_station", "station_idsegment", "station_q50", "station_source_flow", "station_surfacebvm2", 
+								"idsegment_q50", "idsegment_source_flow", "idsegment_surfacebvm2"),
+				turb_adour@tablemortalitydam %>% select (
+						c("op_id_pere", "mortality_eel", "mortality_smolt",
+								"q_equipment_dam", "prop_preserve",
+								"segment_q_1004_10", "segment_q_1004_20", "segment_q_1004_30", "segment_q_1004_40", "segment_q_1004_50",
+								"segment_q_1004_60", "segment_q_1004_70", "segment_q_1004_80", "segment_q_1004_90", "segment_q_1004_95",
+								"segment_q_1004_99", 
+								"mortality_q_1004_10", "mortality_q_1004_20", "mortality_q_1004_30", "mortality_q_1004_40",
+								"mortality_q_1004_50", "mortality_q_1004_60", "mortality_q_1004_70", "mortality_q_1004_80",
+								"mortality_q_1004_90", "mortality_q_1004_95", "mortality_q_1004_99",
+								"production_upstream", 
+								"net_production_upstream", 
+								"net_survival_q_1004_10", "net_survival_q_1004_20", "net_survival_q_1004_30", "net_survival_q_1004_40", 
+								"net_survival_q_1004_50", "net_survival_q_1004_60", "net_survival_q_1004_70", "net_survival_q_1004_80",
+								"net_survival_q_1004_90", "net_survival_q_1004_95", "net_survival_q_1004_99", 
+								"pot_nb_killed_q_1004_10", "pot_nb_killed_q_1004_20", "pot_nb_killed_q_1004_30", "pot_nb_killed_q_1004_40",
+								"pot_nb_killed_q_1004_50", "pot_nb_killed_q_1004_60", "pot_nb_killed_q_1004_70", "pot_nb_killed_q_1004_80",
+								"pot_nb_killed_q_1004_90", "pot_nb_killed_q_1004_95", "pot_nb_killed_q_1004_99",
+								"net_nb_killed", 
+								"potential_nb_killed", 
+								"mort_rate" )),		
+				by=c("op_id"="op_id_pere"))
+
+(nr1 <- nrow(table_hpp)) # 30
+
+table_hpp1 <- table_hpp %>%
+		arrange(idsegment_q50) %>%
+		select ("op_placename", "id_original","mort_rate","net_nb_killed", 
+				"potential_nb_killed") %>%
+		mutate(op_placename=iconv(op_placename, to = "UTF-8"))%>%
+		filter(!is.na(mort_rate)) 
+#nrow(table_hpp1) # 17
+
+table_hpp1 %>%
+		kable(caption = "Test") %>%
+		kable_paper(full_width = F)  %>%		
+		column_spec(3, color = "white",
+				background = spec_color(table_hpp1$mort_rate, end = 1)
+		) %>%
+		column_spec(4, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		) %>%
+		column_spec(5, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		)
+
+#  select("op_id","net_nb_killed")%>%
+#  slice_head() %>%
+#   kable(escape = F, align = "c") %>%
+#   kable_paper(c("striped", "condensed"), full_width = F)
+
+```
+
+
+```{r test_a_like, eval=FALSE, echo=TRUE}
+
+#Trying to reproduce excactly the results of Antoine Martelet report.
+# Martelet 2019 - Mise à jour des diagnostics de mortalité pour des anguilles dévalant au droit de centrales
+# hydroélectriques
+
+load(file=str_c(ddatawd,"turb_rios.Rdata"))
+
+# Migration equal between Q75 Q90 Q95 Q975 and Q99 as in Martelet report --------
+
+tmigration_flow <- read.table(text="loc q_1004_75 q_1004_90 q_1004_95 q_1004_975 q_1004_99
+				gave	0.2	0.2		0.2	0.2	0.2", header= TRUE)
+
+# only select values from the upper Gave de Pau ---------------------------------
+
+con=dbConnect(PostgreSQL(),
+		dbname="eda2.3",
+		host="localhost",
+		port=5432,
+		user= userlocal,
+		password= passwordlocal)
+# Subsetting data to only get the downstream part of Gave de Pau
+# downstream segment vector from the upper reach of Gave de Pau
+gave_de_Pau <- dbGetQuery(con, "select dbeel_rivers.downstream_segments_rn('FR123495')")[,1]
+# Using this segment to subset the tables in cascade
+turb_rios_m <- turb_rios # (turb rios martelet)
+
+turb_rios_m@tablehppdbeel <- subset(
+		turb_rios_m@tablehppdbeel,
+		turb_rios_m@tablehppdbeel$idsegment %in% gave_de_Pau)
+#nrow(turb_rios_m@tablehppdbeel) # 42
+turb_rios_m@tablemortalityturbine <- subset(
+		turb_rios_m@tablemortalityturbine,
+		turb_rios_m@tablemortalityturbine$hpp_id %in% turb_rios_m@tablehppdbeel$hpp_id)
+#nrow(turb_rios_m@tablemortalityturbine) # 45
+turb_rios_m@tablemortalitydam <- subset(turb_rios_m@tablemortalitydam,
+		turb_rios_m@tablemortalitydam$op_id_pere %in% turb_rios_m@tablehppdbeel$op_id)
+# nrow(turb_rios_m@tablemortalitydam) # 18
+turb_rios_m@tableturbinedbeel <- subset(
+		turb_rios_m@tableturbinedbeel,
+		turb_rios_m@tableturbinedbeel$turb_hpp_id %in% turb_rios_m@tablehppdbeel$hpp_id)
+# nrow(turb_rios_m@tableturbinedbeel) # 45
+
+# reserved flow to 0.1 (TODO check if Antoine used that)----------------------
+
+turb_rios_m@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios_m@tablemortalitydam))
+
+#ROE22999 deplacer sur le gave
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE118456', "idsegment"] <- "FR121639"
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE22999',]
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE43938',]
+turb_rios@datadam[turb_rios@datadam$id_original=='ROE43938',] #
+
+
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE35372',]
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE40565',]
+turb_rios@tablemortalitydam[turb_rios@tablemortalitydam$id_original=='ROE40565',]
+turb_rios@tablemortalitydam[turb_rios@tablemortalitydam$op_id_pere=='b6b10c50-65ff-4cba-a5c3-05333db2e498',]
+turb_rios@tablemortalityturbine[turb_rios@tablemortalityturbine$op_id_pere=='b6b10c50-65ff-4cba-a5c3-05333db2e498',]
+#ROE63800 => ??? heid à virer
+
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE40569',]
+turb_rios@tablehppdbeel[turb_rios@tablehppdbeel$id_original=='ROE40562',]
+
+
+# calculate within turbines mortalities with the same assumption than martelet--------
+
+# size 0.5 0.7 0.9 with equal proportions
+# proportions 1/3 1/3 1/3
+
+hpp_turb <- left_join(turb_rios_m@tablehppdbeel, 
+		turb_rios_m@tableturbinedbeel, 
+		by=c("hpp_id"="turb_hpp_id")) #45
+
+
+#  Step 1 calculate mortality in the turbines --------------
+
+# this one is just used to get the right number of lines.....
+turb_rios_m <- turbine_mortality (turb_rios_m,					
+		size_table_eel= matrix(1/3,nrow=nrow(hpp_turb),ncol=3),
+		middle_class_eel = c(0.50,0.70,0.90)	
+)
+
+
+# set the same value of reserved flow as in excel
+turb_rios_m@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios_m@tablemortalitydam))
+id_casteltarbe <- turb_rios_m@tablehppdbeel$op_id[turb_rios_m@tablehppdbeel$id_original=='ROE44855'] #"f4aa9490-66df-4c54-9bd7-07a6cbcfaf53"
+turb_rios_m@tablehppdbeel[turb_rios_m@tablehppdbeel$id_original=='ROE44855',]
+
+turb_rios_m@tablemortalitydam$prop_preserve[turb_rios_m@tablemortalitydam$op_id_pere==id_casteltarbe] <- 
+		8.1 / turb_rios_m@tablehppdbeel[turb_rios_m@tablehppdbeel$id_original=='ROE44855',"idsegment_q50"] # 0.11
+turb_gave_m <- segment_mortality(turb_rios_m, 
+		seaidsegment = 'FR118671',
+		migrationflow=tmigration_flow[1,])
+turb_gave_m@tablemortalitydam[turb_gave_m@tablemortalitydam$op_id_pere==id_casteltarbe,]
+```
+
+
+
+```{r table_test_a_like, eval=FALSE, echo=FALSE, results='asis'}
+table_hpp <-
+		left_join(
+				turb_gave_m@tablehppdbeel %>% 
+						filter(is.na(op_op_id)) %>%
+						select("op_id", "op_placename", "id_original",  "ob_id",   "po_obstruction_height", 
+								"po_downs_pb", "po_downs_water_depth", "date_last_update", "author_last_update", 
+								"comment_update", "mitigation_measure_no_id", 
+								"hpp_id", "hpp_name", "hpp_main_grid_or_production", "hpp_presence_bypass", 
+								"hpp_total_flow_bypass", "hpp_orient_flow_no_id", "hpp_presence_of_bar_rack", 
+								"hpp_bar_rack_space", "hpp_surface_bar_rack", 
+								"hpp_inclination_bar_rack", "hpp_presence_bypass_trashrack", "hpp_nb_trashrack_bypass",
+								"hpp_turb_max_flow", "hpp_reserved_flow", "hpp_flow_trashrack_bypass", "hpp_max_power",
+								"hpp_orientation_bar_rack", "hpp_id_original", "hpp_source", "googlemapscoods", 
+								"idsegment", "cnfemale300450", "cnfemale450600", "cnfemale600750", "cnfemale750", 
+								"cnmale150300", "cnmale300450", "cnmale450600", "cnsilver150300", "cnsilver300450", 
+								"cnsilver450600", "cnsilver600750", "cnsilver750", "cnsilver", 
+								"code_hydro_station", "station_idsegment", "station_q50", "station_source_flow", "station_surfacebvm2", 
+								"idsegment_q50", "idsegment_source_flow", "idsegment_surfacebvm2"),
+				turb_gave_m@tablemortalitydam %>% select (
+						c("op_id_pere", "mortality_eel", "mortality_smolt",
+								"q_equipment_dam", "prop_preserve",
+								"segment_q_1004_75", "segment_q_1004_90", "segment_q_1004_95", "segment_q_1004_975",
+								"segment_q_1004_99", 
+								"mortality_q_1004_75", 
+								"mortality_q_1004_90", "mortality_q_1004_95", "mortality_q_1004_975","mortality_q_1004_99",
+								"production_upstream", 
+								"net_production_upstream", 
+								"net_survival_q_1004_75", "net_survival_q_1004_90", "net_survival_q_1004_95",
+								"net_survival_q_1004_975", "net_survival_q_1004_99", 
+								"pot_nb_killed_q_1004_75",
+								"pot_nb_killed_q_1004_90", "pot_nb_killed_q_1004_95", "pot_nb_killed_q_1004_975", "pot_nb_killed_q_1004_99",
+								"net_nb_killed", 
+								"potential_nb_killed", 
+								"mort_rate" )),		
+				by=c("op_id"="op_id_pere"))
+
+(nr1 <- nrow(table_hpp)) # 243
+
+table_hpp1 <- table_hpp %>%
+		arrange(idsegment_q50) %>%
+		select ("op_placename", "id_original","mort_rate","net_nb_killed", 
+				"potential_nb_killed") %>%
+		mutate(op_placename=iconv(op_placename, from = "UTF-8", to = "latin1"))%>%
+		filter(!is.na(mort_rate)) 
+
+table_hpp1 %>%
+		kable(caption = "Test") %>%
+		kable_paper(full_width = F)  %>%		
+		column_spec(3, color = "white",
+				background = spec_color(table_hpp1$mort_rate, end = 1)
+		) %>%
+		column_spec(4, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		) %>%
+		column_spec(5, color = "white",
+				background = spec_color(table_hpp1$potential_nb_killed, option= "E", end = 1)
+		)
+
+```
+
+```{r export_shiny, eval=FALSE, echo=FALSE, results='asis'}
+# Migration flow --------------------------------------
+tmigration_flow <- readRDS("C:/workspace/EDAdata/report2.3/data/migration_flow_temp.Rds")
+tmigration_flow <- tmigration_flow [tmigration_flow$loc%in%c("Vilaine","Elorn","Touques"),]
+mf <- pivot_longer(tmigration_flow, cols=starts_with("q"),names_to="Q",names_prefix="q_1004_", values_to="Percentage")
+mf$Q <- as.numeric(mf$Q)
+dput(mf) # export to shiny
+# test graph in shiny
+ggplot(mf, aes(Q, Percentage, fill=loc)) +
+		geom_line(aes(color = loc)) + geom_point(aes(color=loc)) +
+		geom_col( alpha=0.5, data= subset(mf, loc=="Touques"))+
+		theme_bw()
+
+# GT6 basin shapefile --------------------------------------
+
+library("sf")
+library("maptools")
+library("ggmap")
+library("RPostgreSQL")
+library("mapview")
+library("rmapshaper")
+con=dbConnect(PostgreSQL(),
+		dbname="eda2.3",
+		host="localhost",
+		port=5432,
+		user= userlocal,
+		password= passwordlocal)
+# zone for whole area
+gt6_basin <- read_sf(con,query=paste("select * FROM dbeel_rivers.gt6_basin"))
+gt6_basin <- gt6_basin[-c(5,6),]
+# plot(st_voronoi(st_geometry(st_cast(gt6_basin, "POINT")))) marche pas
+zonew <-ms_simplify(zonew,keep=0.01,keep_shapes=TRUE)
+
+format(object.size(gt6_basin),units="MB") #7.6
+gt6_basin <- st_transform(st_simplify(gt6_basin), 4326) 
+gt6_basin <- ms_simplify(gt6_basin, keep=0.01,keep_shapes=TRUE) #7.6
+plot(gt6_basin)
+save(gt6_basin, file = file.path("C:/workspace/Shiny_results/GT2_data","gt6_basin.Rdata"))
+#load(file = file.path("C:/workspace/Shiny_results/GT2_data","gt6_basin.Rdata"))
+dbDisconnect(con)
+
+# Calculations for different options and store them in a list ----------------------
+
+
+#turb_rios@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios@tablemortalitydam))
+
+
+# this is for the migration scenario
+con=dbConnect(PostgreSQL(),
+		dbname="eda2.3",
+		host="localhost",
+		port=5432,
+		user= userlocal,
+		password= passwordlocal)
+other_silver <- dbGetQuery(con, "SELECT rn.idsegment, rn.seaidsegment, pi.name as basin, nsilver, nsilver_pmax_tr, nsilver_wd 
+				FROM dbeel_rivers.rne
+				JOIN dbeel_rivers.rn ON rn.idsegment=rne.idsegment
+				JOIN  eda_gerem.pilot_basins pi ON pi.seaidsegment=rn.seaidsegment;")
+dbDisconnect(con)
+#WHERE seaidsegment in ('PT56183','SP224290','SP128132','FR118671','SP109916','SP118297','PT31034');")
+save(other_silver, file=str_c(ddatawd, "othersilver.Rdata"))
+
+load(file=str_c(ddatawd, "othersilver.Rdata"))
+load( file=str_c(ddatawd,"turb_rios.Rdata"))
+tmigration_flow <- readRDS("C:/workspace/EDAdata/report2.3/data/migration_flow_temp.Rds")
+
+con=dbConnect(PostgreSQL(),
+		dbname="eda2.3",
+		host="localhost",
+		port=5432,
+		user= userlocal,
+		password= passwordlocal)
+basins <- dbGetQuery(con, "SELECT * FROM eda_gerem.pilot_basins")
+current_nsilver <- turb_rios@data$nsilver # saved before
+# this is all dams in sudoe 
+
+# basin.<-'Adour'
+# this will create a list of all combinations
+
+
+
+
+
+gt2list <- list()
+first_run <- TRUE
+# Currently I've only done Adour
+for (basin. in "Adour"){
+	seaidsegment. <- subset(basins, name==basin.)$seaidsegment
+	gt2list[[basin.]] <- list()
+	cat("basin :",basin.,"\n")
+	gt2list[[basin.]][["seaidsegment"]] <- seaidsegment.
+	if (basin. == 'Adour') {
+		turb_rios@tablemortalitydam$prop_preserve <- rep(0.1, nrow(turb_rios@tablemortalitydam))
+	} else {
+		turb_rios@tablemortalitydam$prop_preserve <- rep(0, nrow(turb_rios@tablemortalitydam))
+	}
+	query <- glue_sql( "SELECT idsegment, geom FROM dbeel_rivers.rn_rna where seaidsegment={seaidsegment.}", .con=con)
+	bv_layer <-  read_sf(con, query=query)
+	bv_layer <- st_transform(bv_layer,4326)
+	#saveRDS(bv_layer, file= file.path("C:/workspace/Shiny_results/GT2_data",str_c(basin.,".rds")))
+	gt2list[[basin.]][["bv_layer"]] <- bv_layer
+	for (repartition. in c("Current", "Transport","Pristine")){
+		cat("...repartition :",repartition.,"\n")
+		gt2list[[basin.]][[repartition.]] <- list()
+		if (repartition. == "Current"){
+			# do nothing			 
+		} else if (repartition. == "Transport"){
+			# This will replace "nsilver" column by transport "nsilver_pmax_tr" estimates
+			# TODO recalculate mortalities in turb_rios, according to size structure change
+			new_silver <- other_silver %>% filter(basin==basin.) %>% pull(nsilver_pmax_tr)
+			indexns = match(other_silver$idsegment, turb_rios@data$idsegment)
+			if (any(is.na(indexns))) stop("Missing values in new_silver")
+			turb_rios@data$nsilver[indexns] <- new_silver			
+		} else if (repartition. == "Pristine"){
+			# This will replace "nsilver" column by pristine "nsilver_wd" estimates
+			new_nilver <- other_silver %>% filter(basin==basin.) %>% pull(nsilver_wd)
+			indexns = match(other_silver$idsegment, turb_rios@data$idsegment)
+			if (any(is.na(indexns))) stop("Missing values in new_silver")
+			turb_rios@data$nsilver[indexns] <- new_silver			
+		} else {
+			warning("Undefined value ")
+		}
+				
+		for (migration. in c("Vilaine","Elorn","Touques")){	
+			cat("......migration :",migration.,"\n")
+			gt2list[[basin.]][[repartition.]][[migration.]] <- list()
+			for (model_missing. in c(FALSE, TRUE)){
+		    cat("......model missing :",model_missing.,"\n")
+				# this will test missing values for basins, using default...
+				# TODO check how to collect default values for all basins
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]] <- list()
+				if (model_missing.==FALSE){
+					default_mortality.=NULL
+				} else {
+					default_mortality. <- c(
+							mortality_q_1004_10 = 0.12, 
+							mortality_q_1004_20 = 0.13, 
+							mortality_q_1004_30 = 0.13, 
+							mortality_q_1004_40 = 0.13, 
+							mortality_q_1004_50 = 0.12,
+							mortality_q_1004_60 = 0.11,
+							mortality_q_1004_70 = 0.10,
+							mortality_q_1004_80 = 0.08,
+							mortality_q_1004_90 = 0.06,
+							mortality_q_1004_95 = 0.05,
+							mortality_q_1004_99 = 0.04)
+				}
+				# Main calculation !!!
+				turb_adour <- segment_mortality(
+						object =turb_rios, 
+						seaidsegment = seaidsegment.,
+						migrationflow=tmigration_flow[tmigration_flow$loc==migration.,],
+						default_mortality = default_mortality.)	
+				load(file=str_c(ddatawd,"/list_sauv",seaidsegment,".Rdata")) # list_sauv
+				# this dataset is created by segment_mortality
+				if (first_run){
+					first_run <- FALSE
+					# here I add constant parts
+					gt2list[["datadam"]] <- turb_adour@datadam
+					gt2list[["tableflow"]] <- turb_adour@tableflow
+					gt2list[["tableturbinedbeel"]] <- turb_adour@tableturbinedbeel
+					gt2list[["tablehppdbeel"]] <- turb_adour@tablehppdbeel	
+					query <- glue_sql ("SELECT op_id, the_geom FROM sudoang.view_dbeel_hpp ", .con= con)
+					hpp_layer <- read_sf(con, query=query)
+					hpp_layer <- st_transform(hpp_layer, 4326)
+					gt2list[["hpp_layer"]] <- hpp_layer
+					# TODO add datadam tableflow tableturbinedbeel tablehppdbeel default_mortality.
+				} # end loop model_missing.
+				# Here I add changing parts
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]][["tablemortalityturbine"]] <-
+						turb_adour@tablemortalityturbine	
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]][["tablemortalitydam"]] <-
+						turb_adour@tablemortalitydam
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]][["default_mortality"]] <-
+						default_mortality.
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]][["data"]] <-
+						turb_adour@data
+				gt2list[[basin.]][[repartition.]][[migration.]][[as.character(model_missing.)]][["main_results"]] <-
+						list_sauv
+			} # end loop migration ---------
+			
+		} # end for model missing loop ---------
+		
+		turb_rios@data$nsilver <- 	current_nsilver
+		
+		
+	} # end for repartition. loop ----------------
+	
+} # end for basin. loop ----------------
+save(gt2list, file = str_c(ddatawd, "gt2list.Rdata"))
+save(gt2list, file = file.path("C:/workspace/Shiny_results/GT2_data","gt2list.Rdata"))
+dbDisconnect(con)
+# constant
+# datadam tableflow tableturbinedbeel tablehppdbeel 
+
+
+
+```

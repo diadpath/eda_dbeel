@@ -1,0 +1,1869 @@
+---
+title: "Cumul des hauteurs d'ouvrage - base sudoang"
+author: "Cedric and Maria and Mathilde"
+date: "07 november 2019"
+output: 
+  html_document:
+    number_sections: true
+---
+
+
+
+```{r launch, echo=FALSE, include=FALSE}
+require(knitr)
+opts_knit$set(eval.after = 'fig.cap')
+#options(error = browser())
+# this will set figure caption to cap inside R chunk
+obj <- ls(all=TRUE)
+obj <- obj[!obj%in%c("passworddistant","passwordlocal")]
+getUsername <- function(){
+	name <- Sys.info()[["user"]]
+	return(name)
+}
+#memory.limit(size =4000)
+if(getUsername() == 'cedric.briand'|getUsername() == 'mmateo') setwd("C:/workspace/EDA/")
+rivernetwork <- "RIOS"
+source("EDACCM/init.r")
+#citation("sqldf")
+#citation("RPostgreSQL")
+#citation("RColorBrewer")
+#citation("plyr")
+#citation("ggplot2")
+#citation("stargazer")
+#citation("visreg")
+#citation("mgcv")
+#citation("PresenceAbsence")
+graphics.off() 
+
+#options(warn =  -1)
+options(sqldf.RPostgreSQL.user = "postgres", 
+		sqldf.RPostgreSQL.password = passwordlocal,
+		sqldf.RPostgreSQL.dbname = "eda2.3",
+		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+		sqldf.RPostgreSQL.port = 5432)
+#t <- tryCatch(sqldf("select gid from rht.rhtvs2 limit 1"),error =  function(e) e)
+#is_simple_error <- function(x) inherits(x, "simpleError")
+#if (is_simple_error(t)) stop("distant call using w3.eptb-vilaine.fr failed, check connection to the database")
+
+
+#baseODBCccm[1] <- "eda2"
+#baseODBC[1] <- "ouvragelb"
+#baseODBCdbeel[1] <- "dbeel"
+#baseODBCrht[1] <- "eda2rht"
+
+# Attention il faut crï¿½er les rï¿½pertoires
+options(warn =  0)
+#setwd("C:/workspace/EDA/report2.3")
+datawd <- "C:/workspace/EDAdata/"
+ddatawd <- paste0(datawd,"/report2.3/data/")
+#imgwd <- "C:/workspace/EDAdata/reportt2.3/images/"
+#edawd =  "C:/workspace/EDA/"
+
+sanitizeLatexS <- function(str) {
+	gsub('([#$%&~_\\^\\\\{}])', '\\\\\\\\\\1', str, perl = TRUE);
+}
+# la fonction sn utilise maintenant le package siunitx
+# ajouter \usepackage{siunitx}
+#\sisetup{
+#round-mode = places, % nombre de decimales apres la virgule
+#round-precision = 3
+#}%
+# Dans le preambule
+num <- function(x,round_precision =  NULL)
+{
+	if (is.null(round_precision)) {
+		return(sprintf("\\num{%s}", x))
+	} else {
+		return(sprintf("\\num[round-precision=%s]{%s}",round_precision+1, x))
+	}
+}
+wd <- getwd()
+# choix de la version ï¿½ charger
+rapport <- "2020" #"2012" "2015" "2009" donnï¿½es cï¿½line 
+sector <- "spain"
+open_in_excel <- function(some_df){
+	tFile <- paste("C:/temp/",gsub("\\\\","",tempfile(fileext =  paste0(substitute(some_df), ".csv"),tmpdir =  "")),sep =  "")
+	write.table(some_df, tFile, row.names = F, sep = ";", quote = F)
+	system(paste('open -a \"/ProgramData/Microsoft/Windows/Start Menu/Programs/Microsoft Office/Microsoft Excel 2010\"', tFile))
+}
+library(readxl)
+library(sf)
+library(scam)
+
+# vvv <- list()
+# save(vvv, file=paste0(ddatawd,"vvv.Rdata"))
+```
+
+
+
+# Importation des données de Geobs (BDOe, ICE et ROE) 
+
+
+Le script dans sa dernière version est accessible en ligne sur le trac [script d'import](http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/EDAcommun/sql/sudoang/import_dam_france.sql)
+
+## Importation générale
+
+
+Dans un premier temps, la table du ROE déjà présente dans la base de
+données SUDOANG est supprimée pour pouvoir ensuite la mettre à jour. La
+table sera alors recréée et remplie à partir des données de Geobs.
+
+Les données sont ensuite projetées sur le réseau RHT, les points situés
+à moins de 300 m d'un cours d'eau sont projetés sur ce dernier.
+
+```{sql sql_projection, eval=FALSE}
+DROP TABLE IF EXISTS roe.roesudo;
+CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 
+
+SELECT UpdateGeometrySRID('roe','roesudo','ref_position_carthage',3035);
+update roe.roesudo set ref_position_carthage= ST_Transform(ST_SetSRID(ref_position_carthage,4326),3035);
+reindex TABLE roe.roesudo;
+SELECT * FROM roe.roesudo WHERE ref_position_carthage is NULL
+-- projection des données ROE ICE sur le réseau RHT (couche france.rn)
+
+SELECT addgeometrycolumn('roe','roesudo','geom_reproj',3035,'POINT',2);
+
+-- SELECT count (*) FROM roe.roesudo WHERE ref_position_carthage is not null; -- 101995
+update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
+SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
+SELECT roe.ref_id, 
+ST_ClosestPoint(r.geom,roe.ref_position_carthage) AS geom_reproj ,
+ST_distance(r.geom,roe.ref_position_carthage) AS distance
+FROM roe.roesudo roe  join
+france.rn r on st_dwithin(r.geom,roe.ref_position_carthage,300) 
+ORDER BY ref_id, distance
+)sub )sub2
+WHERE sub2.ref_id= roesudo.ref_id; -- 91224
+
+/* For those missing adding the geom from ref_position not ref_position_carthage
+*/
+update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
+SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
+SELECT roe.ref_id, 
+ST_ClosestPoint(r.geom,st_transform(roe.ref_position,3035)) AS geom_reproj ,
+ST_distance(r.geom,st_transform(roe.ref_position,3035)) AS distance
+FROM roe.roesudo roe  join
+france.rn r on st_dwithin(r.geom,st_transform(roe.ref_position,3035),300) 
+WHERE ref_position_carthage is NULL  -- là ou le ref_postition_carthage est null
+ORDER BY ref_id, distance
+)sub )sub2
+WHERE sub2.ref_id= roesudo.ref_id; -- 4835
+
+
+--SELECT count(*) FROM roe.roesudo --112934 
+
+CREATE INDEX 
+  ON roe.roesudo
+  USING gist
+  (geom_reproj);
+
+
+---------------
+-- TODO
+---------------
+/*
+les informations de reprojection sur la bd_carthage sont présentes sur le ROE (colonne cd_Entite_hy et semble correspondre au code cd_hyd_cdo
+Voir si il est possible de récupérer le rang de strahler de la bd_carthage ou attacher l'information concernant la jointure entre tronçons rht et bd_carthage.
+http://www.sandre.eaufrance.fr/ftp/documents/fr/scn/obsgeo/1/sandre_sc_geo_obs_1.pdf
+http://id.eaufrance.fr/ddd/ETH/2002-1/IdTronconHydrograElt
+*/
+
+
+DELETE  FROM sudoang.dbeel_obstruction_place WHERE country='FR'; --80324 => 92078 rows affected, 11:44 minutes  
+
+INSERT INTO sudoang.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id, 
+	'AFB' AS op_gis_systemname, 
+	'roe' AS op_gis_layername, 
+	3035 AS op_gislocation, 
+	ref_nom AS op_placename, 
+	281 AS op_no_observationplacetype, 
+	NULL op_op_id, 
+	geom_reproj AS the_geom, 
+	ref_id_national AS id_original, 
+	'FR' AS country
+	FROM (SELECT * FROM roe.roesudo WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)) unique_obs
+	; --  95067 rows affected, 03:59 minutes execution time. => 84457 03:27  => including pb geom 88743
+
+--VACUUM FULL ANALYSE sudoang.dbeel_obstruction_place;--17s
+--REINDEX TABLE sudoang.dbeel_obstruction_place; -- 8s
+	--2414 / only the one projected on rivers
+-- SELECT * FROM sudoang.dbeel_obstruction_place
+-- record back the link with dbeel
+
+
+
+-----------------------------------------------
+--  Dans le dictionnaire du sandre il y a un type 6 installation industrielle, ce type n'est pas intégré dans le ROE pourquoi ?
+-------------------------------------------------
+```
+
+En ce qui concerne le traitement des ouvrages liés, lorsque la colonne
+faisant référence aux ouvrages liés est remplie dans le ROE on récupère
+cette information pour l'introduire dans la base SUDOANG. Le code de
+l'ouvrage père est référencé dans la ligne de l'ouvrage fils.
+
+```{sql sql_ouvrage_pere, eval=FALSE}
+-----------------------------------------------
+--  Ouvrages liés
+-------------------------------------------------
+-- Dans ROE quand la colonne ouvrageLie est remplie on récupére cette information pour l'introduire dans SUDOANG
+-- premiere requete récuperatio du lien fils
+WITH recupere_moi_le_code_op_id_pere AS (
+SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM sudoang.dbeel_obstruction_place join
+     roe.liens  on 'ROE'||liens.liens_ref_id=id_original),
+     recupere_moi_le_code_op_id_fils AS (
+   SELECT op_id_pere, op_id AS op_id_fils, liens_ref_id,liens_ref_id_fils FROM recupere_moi_le_code_op_id_pere join
+     sudoang.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
+-- on référence le code du père dans la ligne de l'ouvrage fils
+update sudoang.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
+WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --5951 2.2 s
+
+```
+
+
+Ensuite, seuls les ouvrages «validés par point» et les ouvrages
+validés par échantillonnage ont été conservés. Puis les digues, les épis
+en rivière, ont été supprimés des données ainsi que les ouvrages
+détruits entièrement, dérasés, en construction ou en projet.
+
+```{sql sql_isnserouvrage, eval=FALSE }
+/*
+Adaptation du script de Soizic pour le choix des ouvrages, merci Soizic !!!
+*/
+
+BEGIN;
+DELETE FROM sudoang.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
+-- On vire les digues
+DELETE FROM sudoang.dbeel_obstruction_place 
+	WHERE op_id in (
+	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id 
+	JOIN roe.type ON ref_typ_id=typ_id
+	WHERE typ_nom = 'Digue' );--282
+	
+DELETE FROM sudoang.dbeel_obstruction_place 
+	WHERE op_id in (
+	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id 
+	JOIN roe.type ON ref_typ_id=typ_id
+	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture'));--644
+
+DELETE FROM sudoang.dbeel_obstruction_place 
+	WHERE op_id in (
+	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id 
+	JOIN roe.etat ON ref_eta_id=eta_id
+	WHERE eta_nom In ('Détruit entièrement','En construction','En projet'));--3347 -- ceux qui ne sont pAS physiquement présent
+
+DELETE FROM sudoang.dbeel_obstruction_place 
+	WHERE op_id in (
+	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id 
+	JOIN bdoe.ouvrage on 'ROE'||ouv_id=ref_id_national
+	WHERE ouv_derasement);--196 
+COMMIT;
+--ROLLBACK;
+SELECT count(*) FROM sudoang.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 88741 (avant suppression) 84272 (après suppression)
+ 
+/*
+ * On repasse dessus pour supprimer les liens qui n'existent plus (meme requete que precedement)
+ */
+UPDATE roe.roesudo set dbeel_op_id = NULL;--112394
+
+UPDATE roe.roesudo SET dbeel_op_id = op_id 
+FROM sudoang.dbeel_obstruction_place 
+WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--84272 rows affected, 8.6 secs execution time.
+```
+
+
+## Importation de la hauteur de chute
+
+
+Dans un premier temps, les hauteurs de chute présentes dans les trois
+bases ROE, ICE et BDOe sont importées.
+
+### BDOE 
+
+La récupération de ces données est simple. Plusieurs relevés peuvent
+avoir été réalisés sur un même ouvrage à différentes dates, le relevé le
+plus récent sera conservé.
+
+### ICE
+
+#### Valeur de hauteur de chute des structures
+
+Pour ICE c'est un peu plus compliqué, il y a une hauteur de chute
+différente pour chaque structure d'ouvrage. Dans un premier temps, seuls
+les structures qui ont un écoulement (continu ou discontinu) vont être
+conservées. Les différentes structures ont ensuite été ordonnées (voir
+ci-dessous) en tenant compte de leur franchissabilité
+éventuelle par les anguilles. La première de ces structures qui possède
+une hauteur de chute sera la hauteur de chute sélectionnée pour ICE.
+
+1.  Voie de reptation sur berge
+
+2.  Ouvrage à marée
+
+3.  Seuil
+
+4.  Vannage
+
+5.  Seuil en enrochement
+
+6.  Prise d'eau
+
+7.  Ouvrage routier
+
+8.  Dispositif de franchissement piscicole
+
+Il est possible que plusieurs ICE aient été réalisés sur une même
+structure à différentes dates, la hauteur la plus faible sera alors
+conservée.
+
+#### Valeur des hauteurs de chute globale de la fiche ICE
+
+Une hauteur de chute globale à tout l'ouvrage est relevée lors de la
+réalisation des protocoles ICE. Plusieurs protocoles ICE peuvent avoir
+été réalisés sur un même ouvrage, la hauteur la plus grande (la plus
+limitante) sera alors conservée. 
+
+La hauteur de chute des structures d'obstacles sera la hauteur de chute
+prioritairement conservée. Si cette valeur n'est pas disponible mais
+qu'on a une hauteur de chute globale, cette dernière valeur sera
+utilisée.
+
+### ROE
+
+Pour la hauteur de chute ROE on a des classes (Inférieur à 0.5, 0.5-1,
+1-1.5, 1.5-2, 2-3, 3-5, 5-10, supérieur à 10) (Il y a une classe de plus
+par rapport à ce qu'on avait initialement écrit... Je crois qu'il manque
+la classe 3 dans le code. Problème aussi pour la classe de 5 à 10: 7
+dans le script alors que normalement c'est 7,5). Mais aussi des valeurs
+anciennement mesurées présentes en lecture seule sur Geobs.
+
+En ce qui concerne les hauteurs de chute en classes du ROE, le centre de
+chaque classe sera utilisé comme valeur de hauteur de chute:
+
+-   Classe inférieure à 0.5 => 0.25
+
+-   Classe 0.5-1 => 0.75
+
+-   Classe 1-1.5 => 1.25
+
+-   Classe 1.5-2 => 1.75
+
+-   Classe 2-3 => 2.5
+
+-   Classe 3-5 => 4
+
+-   Classe 5-10 => 7.5
+
+-   Classe supérieur à 10 => 20
+
+Bilan:
+
+-   On prend en premier ICE
+
+-   En deuxième BDOe
+
+-   En troisième les anciennes valeurs de ROE
+
+-   En dernier les classes de ROE
+
+-   S'il n'y a qu'une seule valeur disponible on la prend
+
+
+
+```{r figure_regle_decision, out.width="500px", echo=FALSE, fig.cap = cap}
+knitr::include_graphics("C:/workspace/EDAdata/report2.3/images/choix_hauteur.png")
+cap <- "Règle de décision pour le choix des hauteurs "
+```
+
+```{sql sql_hauteurchute, eval=FALSE}
+
+WITH 
+hauteur_chute_bdoe_nlignes AS (
+	
+	SELECT hco_hauteur AS h_chute_bdoe, hco_ouv_id::integer AS ouv_id FROM  bdoe.hauteur_chute 
+	),--58380
+hauteur_chute_bdoe AS (	
+	SELECT avg(h_chute_bdoe) h_chute_bdoe,ouv_id FROM  hauteur_chute_bdoe_nlignes GROUP BY ouv_id
+	),
+--SELECT * FROM hauteur_chute_bdoe -- 57895
+/*
+HAUTEUR DE CHUTE DES TURBINES PAS UTILISEE	
+hauteur_chute_pre AS (
+	SELECT pre.pre_id, min(tuh_hauteur_chute) AS tuh_hauteur_chute FROM  ice.turbine_usine_hydrolelectrique 
+	join ice.prise_eau pre on tuh_pre_id=pre_id
+	WHERE tuh_hauteur_chute is not null
+	GROUP by pre_id
+	    ),
+	    
+*/    
+/*
+PAS d'INTERET A ALLER CHERCHER DANS STRUCTURE D'OBSTACLE (réunion du 22/08) on a l'info dans opi
+PAS d'accord on fait notre propre choix, car on choisit aussi l'opi la moins limitante
+*/
+hauteur_chute_sto AS (
+	SELECT   ooi_ref_id AS ouv_id, *
+	FROM ice.obstacle_operation_ice JOIN
+	ice.operation_ice on opi_ooi_id=ooi_id JOIN
+	ice.partie_obstacle ON pao_opi_id=opi_id LEFT JOIN
+	ice.structure_obstacle on sto_pao_id=pao_id --LEFT JOIN
+	--hauteur_chute_pre on pre_id=sto_id
+	),
+
+hauteur_chute_reordonne AS (
+	SELECT *,
+	 CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
+	               WHEN sto_tso_id=1 THEN 3 -- seuil
+	               WHEN sto_tso_id=3 THEN 4 -- vannage
+	               WHEN sto_tso_id=2 THEN 5	-- seuil en enrochement	
+	               WHEN sto_tso_id=7 THEN 6 -- prise d'eau 
+	               WHEN sto_tso_id=4 THEN 7 -- ouvrage routier
+	               WHEN sto_tso_id=6 THEN 8	  -- dispositif de franchissement piscicole             
+	               WHEN sto_tso_id=8 THEN 1 --voie sur berge
+	               END AS order_sto_tso_id 
+	 FROM hauteur_chute_sto     
+	 WHERE pao_eco_id in (1,3) -- oui, ou discontinu
+	 ORDER BY order_sto_tso_id),
+--SELECT * FROM hauteur_chute_reordonne
+	 
+-- Au sein d'une opération on prend la première chute parmis l'ordre précédent	 
+hauteur_chute_ice_sto AS (
+	SELECT distinct on (ouv_id,opi_id) *
+	 FROM hauteur_chute_reordonne                	               
+	),
+--SELECT * FROM hauteur_chute_ice_sto limit 50
+	
+ 
+-- si on deux chutes lors d'opérations successives, on prend la plus petite
+hauteur_chute_ice_par_ouvrage As
+(SELECT ouv_id, 
+	min(sto_hauteur_chute) AS hauteur_chute_ice,
+	max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante	
+	FROM hauteur_chute_ice_sto
+	GROUP BY ouv_id),
+-- Nos hauteurs sont en général égales, parfois plus faibles, mais pAS systématiquement ???. 
+-- Dans certains cAS on a une hauteur_chute venant de opi alors que pour nous rien ... peut être parce que dans ICE ils traitent mieux les nulls
+
+hauteur_chute_ice AS
+(SELECT ouv_id, 
+	coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) AS hauteur_chute_ice
+	FROM hauteur_chute_ice_par_ouvrage),
+
+
+selectionne_roe AS (	
+	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
+	CASE WHEN ref_typ_id = 0 THEN 291 -- barrage
+	     WHEN ref_typ_id = 1 AND (ref_sty_id=10 OR ref_sty_id=11) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND (ref_sty_id IS NULL) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND ref_sty_id=12 THEN 293 -- enrochement
+	     WHEN ref_typ_id = 2 THEN 298 -- digue (en vrai va virer car non inclus)
+	     WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=21) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND (ref_sty_id IS NULL) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage à gué
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 18 THEN 294 -- culvert
+	     WHEN ref_sty_id = 9 OR  ref_sty_id = 19 OR ref_sty_id=13 THEN 297 -- other
+	     WHEN ref_typ_id = 5 THEN 299 -- grille de pisciculture (en vrai va virer car non inclus)
+	     ELSE 219 -- Physical unknown
+	     END AS obstruction_type_no_id,
+	* 
+	FROM roe.roesudo
+ 	WHERE geom_reproj IS NOT NULL and
+ 	ref_sta_id in(0,4) 
+ 	 ),
+-- SELECT count(*) FROM SELECTionne_roe	--88743
+hauteur_chute_roe AS (
+ 	  SELECT ouv_id, dbeel_op_id, ref_hauteur_chute_etiage_classe, ref_hauteur_chute_etiage AS h_chute_roe, obstruction_type_no_id  
+ 	  FROM selectionne_roe
+ 	  ),
+--SELECT * FROM hauteur_chute_roe
+height AS (
+ 	  SELECT  
+ 	 coalesce(hauteur_chute_bdoe.ouv_id,hauteur_chute_ice.ouv_id,hauteur_chute_roe.ouv_id) AS ouv_id,
+ 	 dbeel_op_id,
+ 	 obstruction_type_no_id,
+ 	 round(
+ 	 CASE 
+ 	 WHEN hauteur_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
+ 	 WHEN hauteur_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN h_chute_bdoe --bdoe ensuite
+ 	 WHEN h_chute_bdoe is NULL and hauteur_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe::numeric -- ROE ensuite
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND ref_hauteur_chute_etiage_classe='INDETERMINEE' THEN NULL 
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND ref_hauteur_chute_etiage_classe='INFERIEURE A 0,5m' THEN 0.25 --valeurs unique classe <0.5
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 0,5m A INFERIEURE A 1m' THEN 0.75
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 1m A INFERIEURE A 1,5m' THEN 1.25
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 1,5m A INFERIEURE A 2m' THEN 1.75
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 2m A INFERIEURE A 3m' THEN 2.5	   
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 3m A INFERIEURE A 5m' THEN 4
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='DE 5m A INFERIEURE A 10m' THEN 7.5
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND   ref_hauteur_chute_etiage_classe='SUPERIEURE OU EGALE A 10m' THEN 20
+	 ELSE NULL	
+	 END,2) AS hauteur_chute,	 
+	 CASE 
+	 WHEN hauteur_chute_ice is NOT NULL THEN 'Choix ice (1)' --ice d'abord (parce que sinon on en a aucun)
+ 	 WHEN hauteur_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN  'Choix bdoe (2)' --bdoe ensuite
+ 	 WHEN h_chute_bdoe is NULL and hauteur_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN 'Choix roe (3)' -- très rare
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and hauteur_chute_ice is NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
+  	 AND ref_hauteur_chute_etiage_classe!='INDETERMINEE' THEN 'Choix classe (4)' --jamais, merci de vous êtres fait c...
+ 	 ELSE 'Pas de hauteur'	
+	 END  AS commentaire_hauteur_chute  
+ 	 FROM hauteur_chute_roe 
+ 	 LEFT JOIN  hauteur_chute_ice on hauteur_chute_roe.ouv_id=hauteur_chute_ice.ouv_id 
+ 	 LEFT JOIN hauteur_chute_bdoe On hauteur_chute_bdoe.ouv_id= hauteur_chute_roe.ouv_id
+        -- WHERE coalesce(h_chute_roe, hauteur_chute_ice, h_chute_bdoe) IS NOT NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
+        ),
+--SELECT count(*) FROM  height    --88743
+```
+
+Au bilan les données de hauteur sont rentrées comme suit : 
+
+```{r countheight, echo=FALSE}
+# this is just to load the method
+require(kableExtra)
+rios <- new('BaseEdaRiosRiversegments',
+		baseODBC = "baseODBCrios",
+		schema = "dbeel_rivers", 		
+		table = "rn",
+		prkey = "idsegment")
+# object <- rios
+sql="with counts as (
+select count(*) as n, comment_update from sudoang.dbeel_physical_obstruction group by comment_update),
+counts_france AS (
+select n, substring(comment_update from position('Height' in comment_update) for 50) as type_height from counts where comment_update like '%initial%' order by n desc),
+--select * from counts_france)
+total AS (
+SELECT sum(n) as n, 'Height:Total'::text as type_height from counts_france)
+SELECT type_height, n from counts_france UNION SELECT type_height, n FROM total;"
+pretty_table(rios, sql)%>%  
+	kable_styling(bootstrap_options = c("striped", "hover",	"condensed"))
+
+```
+
+La provenance de la hauteur (ICE, BDOe, ROE ou ROE classe) est inscrite
+dans la colonne commentaire. Une seule hauteur de chute sera alors conservée par ouvrage dans la base de données SUDOANG.
+
+## Importation des types de passe
+
+
+### ICE
+    
+
+  Liste des passes d'ICE     A priori utilisée par l'anguille
+  -------------------------- ----------------------------------
+  Passe à bassin successif   Oui
+  Rivière de contournement   Oui
+  Ascenseur                  Non
+  Passe à ralentisseur       Non
+  Rampe en enrochement       Oui
+  Ecluse                     Oui
+  Pré-barrage                Oui
+  Passe à anguilles          Oui
+  Autre                      Non
+
+Il est possible d'avoir plusieurs passes au niveau d'un seul ouvrage. Pour traiter ces cas-là, les types de passes vont être ordonnés (en fonction de leur franchissabilité éventuelle par les anguilles). Au niveau d'un ouvrage possédant plusieurs passes, seul le premier type de passe rencontré (d'après l'ordre ci-dessous) sera conservé.
+
+1.  Rivière de contournement
+
+2.  Rampe en enrochements
+
+3.  Passe à anguilles
+
+4.  Passe à bassins successifs
+
+5.  Pré-barrages
+
+6.  Ecluse
+
+7.  Ascenseur
+
+8.  Passe à ralentisseur
+
+9.  Autre
+
+Un champ supplémentaire "passe à anguille" a été créé, lorsque le type de  passe peut être utilisée par l'anguille (voir tableau ci-dessus), la modalité "True" est utilisée et lorsqu'il ne peut pas être utilisée par les anguilles la modalité "False" est utilisée. Les ouvrages possédant la modalité "True" verront leur hauteur de chute ramenée à 0.
+
+### ROE
+
+
+On réalise la même chose que pour ICE, les types de passes à poissons ne sont pas exactement les mêmes.
+
+  Liste des passes ROE                     A priori utilisée par l'anguille
+  ---------------------------------------- ----------------------------------
+  Absence de passe                         Non
+  Passe à ralentisseurs                    Non
+  Passe à bassins successifs               Oui
+  Ecluse à poissons                        Oui
+  Exutoire de dévalaison                   Non
+  Passe à anguilles                        Oui
+  Ascenseur à poissons                     Non
+  Pré-barrages                             Oui
+  Rampe                                    Oui
+  Rivière de contournement                 Oui
+  Autre type de passe                      Non
+  Type de dispositif (piscicole) inconnu   Non
+
+1.  Rivière de contournement
+
+2.  Rampe en enrochements
+
+3.  Passe à anguilles
+
+4.  Passe à bassins successifs
+
+5.  Pré-barrages
+
+6.  Ecluse
+
+7.  Ascenseur
+
+8.  Passe à ralentisseur
+
+9.  Autre type de passe et type de dispositif (piscicole) inconnu
+
+Il arrive que les passes ne soient pas de même type dans ICE et ROE, 11
+cas, avec dans 7 cas un conflit sur la franchissabilité:
+
+-   dans 2 cas, il s'agit du type passe à bassin classé en autre types
+    dans ROE et donc considérés comme non franchissables
+
+-   1 passe à bassin classée en passe à ralentisseur dans ROE
+
+-   1 rampe en enrochement classée passe ralentisseur dans ROE
+
+-   1 rivière artificielle classée inconnue dans ROE
+
+-   1 rampe en enrochement classé en inconnu dans ROE
+
+-   1 passe à ralentisseur classée en passe à bassins dans ROE
+
+Les types de passes présents dans ROE et ICE seront ensuite réassignés aux différents codes de passe présents dans la base de données SUDOANG.
+
+On prendra dans un premier temps les passes ICE puis les passes ROE (si
+absence de passe dans ICE).
+
+
+```{sql sql_pass, eval=FALSE}
+ice_presence_eel_pass AS(
+-- On récupère la première des passes 
+SELECT  distinct on (ouv_id) 
+	ouv_id,
+	CASE WHEN dfp_tdfp_id in (1,2,5,6,7,8) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
+	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
+	CASE WHEN dfp_tdfp_id = 2 THEN 278
+		WHEN dfp_tdfp_id = 5 THEN 275
+		WHEN dfp_tdfp_id = 8 THEN 276
+		WHEN dfp_tdfp_id = 1 THEN 271
+		WHEN dfp_tdfp_id = 7 THEN 271 -- pre barrage est identique à pool type fishway
+		WHEN dfp_tdfp_id = 6 THEN 272
+		WHEN dfp_tdfp_id = 3 THEN 274		
+		WHEN dfp_tdfp_id = 4 THEN 273
+		WHEN dfp_tdfp_id = 9 THEN 279 -- de toutes façons on récupère mais on mettra non
+		ELSE NULL END AS fishway_type	
+	FROM ice.obstacle_operation_ice 
+	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+	JOIN ice.structure_obstacle on sto_pao_id=pao_id
+        JOIN ice.dispositif_franchissement_piscicole  on sto_id= dfp_id 
+         JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
+        ),
+ --SELECT * FROM ice_presence_eel_pass --125
+union_roe_pass AS (
+          SELECT fty_code::numeric AS cdtypedisp, 
+          fpi_ref_id AS ouv_id
+          FROM roe.franchissement_piscicole 
+          join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+          
+ 	  ),
+roe_presence_eel_pass AS (
+	SELECT DISTINCT on (ouv_id)
+	ouv_id,
+	CASE WHEN cdtypedisp in (2,3,5,7,8,9) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
+	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
+	CASE WHEN cdtypedisp = 9 THEN 278
+		WHEN cdtypedisp = 8 THEN 275
+		WHEN cdtypedisp = 5 THEN 276
+		WHEN cdtypedisp = 2 THEN 271
+		WHEN cdtypedisp = 7 THEN 271 -- pre barrage est identique à pool type fishway
+		WHEN cdtypedisp = 3 THEN 272
+		WHEN cdtypedisp = 6 THEN 274		
+		WHEN cdtypedisp = 1 THEN 273
+		WHEN cdtypedisp in (10,11) THEN 279 -- de toutes façons on récupère mais on mettra non
+		ELSE NULL -- correpond au type 0 absence de passe
+		END AS fishway_type	
+	FROM union_roe_pass 	
+),
+
+/*
+SELECT * FROM roe_presence_eel_pass JOIN ice_presence_eel_pass on roe_presence_eel_pass.ouv_id=ice_presence_eel_pass.ouv_id WHERE 
+roe_presence_eel_pass.fishway_type!=ice_presence_eel_pass.fishway_type
+
+On a regardé la comparaison roe et ice, il arrive que les passes ne soient pAS de meme type, 11 cAS, avec dans 7 cAS un conflit sur la franchissabilité,
+dans 2 cAS, il s'agit de pool type qui sont clASsés en autre types dans ROE et donc considérés comme non franchissables, 1 ppol type denil, 1 rock ramp passe ralentisseur,
+1 rivière artif et inconnul, 1 rampe enrochement inconnu, le dernier denil passe à bASsins.
+On considère toujours que ICE c'est mieux !!
+*/
+presence_eel_pass AS (
+
+	SELECT coalesce(ice.ouv_id,roe.ouv_id) AS ouv_id,
+	CASE WHEN ice.fishway_type is not NULL THEN ice.fishway_type else roe.fishway_type END AS fishway_type,
+	CASE WHEN ice.po_presence_eel_pass is not NULL THEN ice.po_presence_eel_pass else roe.po_presence_eel_pass END AS po_presence_eel_pass  
+       FROM roe_presence_eel_pass roe FULL OUTER JOIN ice_presence_eel_pass ice on roe.ouv_id=ice.ouv_id),
+
+
+--SELECT * FROM presence_eel_pass--58754
+--SELECT DISTINCT on (ouv_id) * FROM presence_eel_pass
+/*
+PLUS BESOIN CAR ON DEGAGE LES GELES EN DEBUT DE SCRIPT (ILS NE SONT PAS DANS LA DBEEL DES LE DEPART, DONC ILS NE SERONT PAS DANS LA JOINTURE)
+presence_eel_pass_no_gele AS (
+	SELECT pep.* FROM presence_eel_pass pep JOIN
+	hauteur_chute_roe_with_null hh on hh.ouv_id=pep.ouv_id
+), 
+*/  
+```
+
+
+## Expertises 
+
+
+### Expertise de dévalaison
+   
+
+En ce qui concerne l'expertise de dévalaison, il existe trois
+modalités: turbines ichtyocompatibles, équipement de prise d'eau et
+gestion. Il est possible que pour un même ouvrage on ait plusieurs de
+ces modalités. Afin d'avoir une seule modalité par ouvrage on va
+ordonner ces modalité:
+
+1.  Turbine ichtyocompatible
+
+2.  Equipement de prise d'eau
+
+3.  Gestion
+
+Seule la première de ces modalités rencontrée sera conservée.
+
+```{sql sql_expertise_deval, eval=FALSE}
+expertise_devalaison_tous AS (
+SELECT dou.* FROM bdoe.devalaison_ouvrage dou
+JOIN	hauteur_chute_roe hh on hh.ouv_id=dou.doe_ouv_id
+ORDER BY CASE WHEN doe_mcd_id=3 THEN 1
+	  WHEN doe_mcd_id=2 THEN 2
+	  WHEN doe_mcd_id=1 THEN 3
+	  END
+	  ), --126
+expertise_devalaison AS (
+SELECT DISTINCT on (doe_ouv_id) doe_ouv_id AS ouv_id, 
+	CASE WHEN doe_mcd_id =3 THEN 283  -- turbine ichtyocompatible
+	WHEN doe_mcd_id=2 THEN 282 -- equipement de prise d'eau
+	WHEN doe_mcd_id=1 THEN 284  -- Gestion (fish adapted management)
+	END AS mitigationmeasureid
+FROM expertise_devalaison_tous  
+), --119
+
+```
+
+
+### Expertise de montaison
+    
+
+#### ICE
+
+Il y a trois modalités de franchissement des obstacles dans ICE:
+
+* 0  Barrière infranchissable
+
+* 0.33 Barrière partielle à impact majeur
+
+* 0.66. Barrière franchissable à impact significatif
+
+* 1 Barrière franchissable à impact limité
+
+Les différentes parties de l'obstacle auront une note ICE, la note la
+moins pénalisante sera sélectionnée, sans choix de date (il n'y a que 15
+doublons) et pour à la fois les civelles et les anguilles. La note de
+franchissement des civelles ne sera prise en compte qu'à moins de 50 km
+de la mer. Si à cette distance, l'obstacle est expertisé comme étant franchissable pour l'anguille ou la civelle, nous le considérons franchissable. Pour les ouvrages situés à plus de 50 km de la mer, seuls les expertises anguilles seront prises en compte. Si la date du relevé n'est pas disponible on prend la date de création de la fiche ICE. 
+La modalité qui sera estimée franchissable par les anguilles est : "Barrière franchissable à impact limité".
+
+#### BDOE
+
+
+Il y a 6 modalités de franchissement dans BDOe:
+
+1.  Absence d'obstacle
+
+2.  Franchissable sans difficulté apparente
+
+3.  Franchissable mais avec risque d'impact
+
+4.  Difficilement franchissable
+
+5.  Très difficilement franchissable
+
+6.  Infranchissable
+
+S'il y a eu différentes expertises réalisées, on prend la plus récente. En ce qui concerne les expertises pour lesqelles nous n'avons pas de date, on a utilisé arbitrairelent la date '1900-01-01'. Les deux modalités qui seront estimées comme franchissables sont : "Absence d'obstacle" et "Franchissement sans difficulté apparente".
+
+Lorsqu'on a une note BDOe et une note ICE nous coservons le dignostic le pplus récent.
+
+```{sql sql_notexpertise, eval=FALSE}
+-- FRANCHISSABILITES ICE
+-- On prends dans l'ICE la note d'expertise la moins pénalisante, sans choix de date, et pour à la fois civelles et anguilles
+-- A faire plus tard, la note de franchissement civelle ne sera prise en compte qu'à moins de 50 km de la mer (vérifier)
+notes_expertise AS (
+SELECT calcul_ice.*,
+ooi_ref_id,
+CASE WHEN opi_date_releve is NULL THEN opi_date_creation::date 
+else opi_date_releve END AS opi_date_releve,
+ cli_code, 
+ cli_libelle,
+ coalesce(ouv_lineaire_aval,9999) AS ouv_lineaire_aval -- si pAS de valeur on calcule pAS 
+FROM ice.obstacle_operation_ice JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+JOIN ice.structure_obstacle on sto_pao_id=pao_id 
+JOIN ice.calcul_ice ON sto_id=cai_sto_id
+join ice.classe_ice on calcul_ice.cai_cli_id=classe_ice.cli_id 
+LEFT JOIN bdoe.ouvrage on ouvrage.ouv_id=ooi_ref_id
+WHERE cai_gre_id in (19,20)
+ORDER BY ooi_ref_id,cai_gre_id,opi_date_releve),
+--Select count(ooi_ref_id) OVER( PARTITION BY ooi_ref_id), * FROM notes_expertise ORDER BY count desc, cai_gre_id, cli_code desc) --11221
+union_civ_ang AS (
+SELECT DISTINCT on (ooi_ref_id) * FROM notes_expertise WHERE cai_gre_id = 20 and ouv_lineaire_aval <50  -- SELECTing notes for glASs eel only WHEN < 50 km
+UNION
+SELECT DISTINCT on (ooi_ref_id) * FROM notes_expertise WHERE cai_gre_id = 19),
+-- Si une des deux notes est  franchissable on considère que c'est franchissable
+ice_both_stages AS (
+SELECT  * FROM union_civ_ang WHERE cli_code NOT IN ('DNA','NC','DA') ORDER BY ooi_ref_id,  cli_code desc), -- on prend d'abord 1 puis 0.66 puis 0.33 
+
+ice_unique AS (
+SELECT DISTINCT on (ooi_ref_id) * FROM ice_both_stages), --on prend la moins pénalisante
+
+--  FRANCHISSABILITES DANS ROE
+---PAS de données	
+
+--  FRANCHISSABILITES DANS BDOE
+-- SELECTion finale, je prends comme pour ICE la note la moins pénalisante (et tant pis pour la date il n'y avait que 15 doublons)
+-- On choisira de rendre franchissable les ouvrages ayant zero et 1
+orderedbdoe AS (
+SELECT exm_ouv_id, exm_not_id,  
+coalesce (exm_date, '1900-01-01') AS exm_date
+FROM bdoe.expertise_montaison WHERE exm_esp_id=5 ORDER BY exm_not_id ASC),
+distinctbdoe AS (
+SELECT distinct on (exm_ouv_id) * FROM orderedbdoe ),--7645
+
+decision_note AS (
+	SELECT
+	exm_ouv_id,
+	exm_date,
+-- En fonction de la date, on prend le plus récent 
+-- quand on a a la fois un ice et un bdoe, et que la date de ice est plus récente que celle de bdoe (ou alors dboe est null et alors on a mis 1900)
+ CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND exm_date < opi_date_releve THEN NULL
+            ELSE exm_not_id END AS exm_not_id,
+       CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND  opi_date_releve< exm_date THEN NULL
+            ELSE cli_code END AS cli_code,            
+            ooi_ref_id,
+            opi_date_releve
+-- alors on efface la note bdoe
+-- A partir de maintenant on a soit l'une soit l'autre dans deux colonnes séparées , donc dans le CASE WHEN qui suit on prendra
+-- toujours soit BDOE soit ICE
+ FROM distinctbdoe FULL OUTER JOIN ice_unique on exm_ouv_id=ooi_ref_id), --10918
+ 
+ --SELECT * FROM decision_note WHERE exm_ouv_id is not null and ooi_ref_id is NOT NULL 
+final_franch AS( 
+SELECT  COALESCE(exm_ouv_id,ooi_ref_id) AS ouv_id,
+CASE	 WHEN exm_not_id=0 THEN 209
+		WHEN exm_not_id=1 THEN 210
+		WHEN exm_not_id=2 THEN 211	
+		WHEN exm_not_id=3 THEN 212		
+		WHEN exm_not_id=4 THEN 213		
+		WHEN exm_not_id=5 THEN 214
+		WHEN cli_code='1' THEN 287
+		WHEN cli_code='0.66' THEN 288
+		WHEN cli_code='0.33' THEN 289
+		WHEN cli_code='0' THEN 290
+		END AS	po_no_obstruction_passability,
+	CASE WHEN coalesce(exm_date,opi_date_releve)  = '1900-01-01' THEN NULL ELSE COALESCE(exm_ouv_id,ooi_ref_id) END AS exm_date
+FROM decision_note),--10879
+
+```
+
+
+#### Problème de réception à l'aval
+
+```{sql sql_reception_devalaison, eval=FALSE}
+reception_devalaison_tous AS (
+	SELECT ooi_ref_id AS ouv_id, 
+	TRUE AS po_downs_pb
+	FROM ice.obstacle_operation_ice 
+	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+	JOIN ice.probleme_reception_devalaison_operation_ice ON  prdoi_opi_id=opi_id
+	JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
+	ORDER BY ouv_id, coalesce(opi_date_releve,'1900-01-01') desc
+	),
+	
+reception_devalaison AS (SELECT DISTINCT on (ouv_id) * FROM reception_devalaison_tous),
+```
+
+
+Juste deux possibilités: True ou False.
+
+### Types d'obstuction
+
+Le script insère les types d'obstruction à partir des types et sous types du roe
+
+```{sql sql_types_ouvrage, eval=FALSE}
+selectionne_roe AS (	
+	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
+	CASE WHEN ref_typ_id = 0 THEN 291 -- barrage
+	     WHEN ref_typ_id = 1 AND (ref_sty_id=10 OR ref_sty_id=11) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND (ref_sty_id IS NULL) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND ref_sty_id=12 THEN 293 -- enrochement
+	     WHEN ref_typ_id = 2 THEN 298 -- digue (en vrai va virer car non inclus)
+	     WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=21) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND (ref_sty_id IS NULL) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage à gué
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 18 THEN 294 -- culvert
+	     WHEN ref_sty_id = 9 OR  ref_sty_id = 19 OR ref_sty_id=13 THEN 297 -- other
+	     WHEN ref_typ_id = 5 THEN 299 -- grille de pisciculture (en vrai va virer car non inclus)
+	     ELSE 219 -- Physical unknown
+	     END AS obstruction_type_no_id,
+	* 
+	FROM roe.roesudo
+ 	WHERE geom_reproj IS NOT NULL and
+ 	ref_sta_id in(0,4) 
+ 	 ),
+-- SELECT count(*) FROM selectionne_roe	--88743
+
+```
+
+Les types de sudoang sont définis ici :
+
+```{r obstruction_type, echo=TRUE}
+# this is just to load the method
+require(kableExtra)
+rios <- new('BaseEdaRiosRiversegments',
+		baseODBC = "baseODBCrios",
+		schema = "dbeel_rivers", 		
+		table = "rn",
+		prkey = "idsegment")
+# object <- rios
+sql="SELECT * FROM dbeel_nomenclature.obstruction_type limit 10;"
+pretty_table(rios, sql)%>%  
+	kable_styling(bootstrap_options = c("striped", "hover",
+				"condensed"))
+
+```
+
+Au final la carte des types d'ouvrage montre les données par type pour la France.
+
+
+![Obstacle code][obstacle_type]
+
+## Importation des données concernant les prises d'eau
+
+
+En ce qui concerne l'espacement entre les grilles, l'information peut
+être trouvée dans BDOe et dans ICE. La valeur d'ICE sera conservée dans
+un premier temps et celle de BDOe dans un second temps. Il en est de
+même pour le débit maximal turbiné, le débit réservé et le débit alloué
+à la dévalaison.
+
+Les données ICE sont intégrées dans un premier temps
+
+```{sql sqlicehpp, eval=FALSE}
+
+WITH roe_usage_hydro AS(
+SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=5
+        EXCEPT
+        SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=12 --obsolete
+        ), --5406
+        
+bdoe_usage_hydro AS (
+	SELECT bdoe.ouvrage.* FROM bdoe.ouvrage 
+	JOIN  roe_usage_hydro on roe_usage_hydro.ouv_id='ROE'||ouvrage.ouv_id
+	),
+	
+--SELECT * FROM bdoe_usage_hydro --5326 
+prise_eau_ice AS (
+SELECT * FROM ice.obstacle_operation_ice 
+	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+	JOIN ice.structure_obstacle on sto_pao_id=pao_id
+        JOIN ice.prise_eau  on sto_id= pre_id
+        ORDER BY opi_date_releve DESC
+        ),
+prise_eau_ice_unique AS (
+	SELECT distinct ON (ooi_id) * FROM  prise_eau_ice
+	),
+	
+--SELECT * FROM prise_eau_ice_unique --562
+
+bdoe_ice_sudoang AS (  
+	SELECT * 
+	FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id
+	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN prise_eau_ice_unique on ref_id_national='ROE'||ooi_ref_id
+    LEFT JOIN bdoe_usage_hydro on 'ROE'||bdoe_usage_hydro.ouv_id=ref_id_national 
+         ),
+-- SELECT count(*) FROM bdoe_ice_sudoang WHERE (pre_id is not NULL OR usa_uty_id=5); --4727
+-- SELECT count(*) FROM bdoe_ice_sudoang WHERE (pre_id is not NULL ); --505 (après jointure sudoang)
+-- SELECT count(*) FROM bdoe_ice_sudoang WHERE usa_uty_id=5;--4462 (source roe après jointure sudoang) 
+--SELECT * FROM bdoe_ice_sudoang limit 10;
+union_roe_pass AS (
+          SELECT fty_code::numeric AS cdtypedisp, 
+          fpi_ref_id AS ouv_id
+          FROM roe.franchissement_piscicole 
+          join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+          WHERE fty_code='4'--365
+          and 'ROE'||fpi_ref_id in (SELECT ref_id_national FROM bdoe_ice_sudoang)          
+ 	  ),
+ 	  
+roe_presence_bypass AS (
+	SELECT DISTINCT on (ouv_id)
+	ouv_id,
+	TRUE AS hpp_presence_bypass
+	FROM union_roe_pass 	
+),  
+ 
+--SELECT * FROM roe_presence_bypass-- 261 
+
+angle_between_0_and_90 AS (
+SELECT CASE WHEN pre_seuil_barrage_angle >90 THEN pre_seuil_barrage_angle - 90 
+else pre_seuil_barrage_angle  end AS pre_seuil_barrage_angle_recode ,
+*
+FROM bdoe_ice_sudoang),
+
+recode_angle AS (
+SELECT 
+CASE WHEN pre_seuil_barrage_angle_recode <30 THEN 241 --<30°
+     WHEN pre_seuil_barrage_angle_recode >=30 AND pre_seuil_barrage_angle_recode <50 THEN 240 --[30-50°[
+     WHEN pre_seuil_barrage_angle_recode >=50 AND pre_seuil_barrage_angle_recode <70 THEN 239 --[50-70°[
+     WHEN pre_seuil_barrage_angle_recode >=70 AND pre_seuil_barrage_angle_recode <=90 THEN 238 --[70-90°] 
+     END AS hpp_orient_flow_no_id,
+     *
+FROM angle_between_0_and_90),
+-- On prend d'abord ICE puis bdoe
+/*
+Dans le Tableau ice il y a une partie ouvrage en dérivation, elle est appelée pre_derivation_debit mais c'est bien le débit réservé qui passe
+dans l'ouvrage en dérivation, même si la representation de l'ouvrage principal comme un ouvrage en dérivation
+ne correspond pas à la réalité terrain (pour les migrations).
+*/
+choix_bdoe_ice AS (
+SELECT CASE WHEN pre_sppe_entrefer is NOT NULL THEN pre_sppe_entrefer
+ELSE ouv_ecartement_grille -- celui là vient de bdoe
+END AS pre_sppe_entrefer_final,
+CASE WHEN pre_debit_maximum is NOT NULL THEN pre_debit_maximum
+ELSE ouv_debit_maximal --  bdoe
+END AS pre_debit_maximum_final,
+CASE WHEN pre_derivation_debit is NOT NULL THEN  pre_derivation_debit
+ELSE ouv_debit_reserve --  bdoe
+END AS pre_derivation_debit_final,
+CASE WHEN pre_debit_devalaison is NOT NULL THEN pre_debit_devalaison
+ELSE ouv_debit_devalaison --  bdoe
+END AS pre_debit_devalaison_final,
+*
+FROM
+recode_angle),
+--SELECT * FROM choix_bdoe_ice limit 10
+final_insert AS (
+SELECT 
+  uuid_generate_v4() AS hpp_id,
+  choix_bdoe_ice.ob_id AS hpp_ob_id,
+  ref_nom AS hpp_name,
+  NULL::integer hpp_main_grid_or_production , 
+  roe_presence_bypass.hpp_presence_bypass AS hpp_presence_bypass, 
+  NULL::numeric AS hpp_total_flow_bypass, 
+  hpp_orient_flow_no_id,
+  pre_existe_systeme_protection AS hpp_presence_of_bar_rack,
+  choix_bdoe_ice.pre_sppe_entrefer_final AS hpp_bar_rack_space ,
+  pre_lpg*pre_ltg AS hpp_surface_bar_rack,
+  pre_b AS hpp_inclination_bar_rack,
+  pre_a AS hpp_orientation_bar_rack, 
+  pre_existence_exutoire AS hpp_presence_bypass_trAShrack,
+  pre_nombre_exutoire AS hpp_nb_trAShrack_bypass,
+  choix_bdoe_ice.pre_debit_maximum_final AS hpp_turb_max_flow,
+  choix_bdoe_ice.pre_derivation_debit_final AS hpp_reserved_flow, -- oui c'est pAS une erreur voir explication plus bAS
+  choix_bdoe_ice.pre_debit_devalaison_final AS hpp_flow_trAShrack_bypass,
+  choix_bdoe_ice.pre_puissance_amenagement AS hpp_max_power,
+  'ROE'||pre_id AS hpp_id_original,
+  'ICE' AS hpp_source
+  FROM choix_bdoe_ice 
+  FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
+INSERT INTO sudoang.dbeel_hpp
+  (hpp_id ,
+  hpp_ob_id ,
+  hpp_name ,
+  hpp_main_grid_or_production ,
+  hpp_presence_bypass,
+  hpp_total_flow_bypass , 
+  hpp_orient_flow_no_id,
+  hpp_presence_of_bar_rack,
+  hpp_bar_rack_space,
+  hpp_surface_bar_rack,
+  hpp_inclination_bar_rack,
+  hpp_orientation_bar_rack,
+  hpp_presence_bypass_trAShrack,
+  hpp_nb_trAShrack_bypass,
+  hpp_turb_max_flow,
+  hpp_reserved_flow,
+  hpp_flow_trAShrack_bypass,
+  hpp_max_power, 
+  hpp_id_original,
+  hpp_source) SELECT * FROM final_insert; --505 => 528 (after correcting for missing geom bd_carthage)
+```
+
+Dans un deuxième temps les données sont intégrées à partir des ouvrages ROE ayant un usage hydroélectricité. Un problème est que les ouvrages liés aux prises d'eaux ont un usage hydroélectricité mais ne sont pas des prises d'eau. Il faut donc aller chercher tous les ouvrages liés aux prises d'eaux déjà rentrées à l'aide d'une fonction récursive, et les enlever de la sélection.
+
+```{sql sql_hpp, eval=FALSE}
+/*
+ * CETTE TABLE CORRESPOND AUX OUVRAGES AYANT UN USAGE HYDROELECTRIQUE
+ * QUI NE SONT PAS AUSSI OBSOLETE DANS L'USAGE
+ * ET QUI SONT INSERES DANS LA TABLE DES OUVRAGES (dbeel_physical_obstruction)
+ * 
+ */
+DROP TABLE IF EXISTS france.ouvrages_inseres_hpp;
+CREATE TABLE france.ouvrages_inseres_hpp AS (
+WITH roe_usage_hydro AS(
+	SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=5
+        EXCEPT
+        SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=12 --obsolete
+        ),
+--SELECT count(*) FROM roe_usage_hydro --5393
+roe_sudoang AS (  
+	SELECT * 
+	FROM sudoang.dbeel_obstruction_place 
+	Join roe.roesudo on dbeel_op_id = op_id
+	JOIn sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN roe_usage_hydro on ref_id_national=roe_usage_hydro.ouv_id
+         )
+
+SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_sudoang  ) ; --4697  
+
+/*
+ * CETTE TABLE FAIT LA LISTE DES OUVRAGES QUI ONT UN USAGE HYDROELECTRICITE
+ * MAIS QUI N'ONT PAS ETE INSERES DANS LA TABLE OUVRAGE DE LA DBEEL, SOIT PARCE
+ * QU'ILS SONT OBSOLETES OU DETRUITS OU DU MAUVAIS TYPE
+ */
+
+DROP TABLE IF EXISTS france.ouvrages_missing_hpp;
+CREATE TABLE france.ouvrages_missing_hpp AS (
+ WITH roe_usage_hydro AS(
+	SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=5
+        EXCEPT
+        SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
+        FROM  roe.usage  
+        WHERE usa_uty_id=12 --ouvrage obsolete
+        ), --5406
+ -- filter using an except cause       
+ roe_filtered AS (
+   SELECT ouv_id,
+   st_transform(ref_position, 3035) AS geom
+   FROM roe_usage_hydro JOIN roe.obstacle_referentiel on ouv_id=ref_id_national),
+  --SELECT * FROM roe_filtered
+  missing_dams AS (
+  SELECT ouv_id FROM roe_filtered 
+  EXCEPT
+  SELECT ouv_id FROM france.ouvrages_inseres_hpp)
+  --SELECT * FROm missing_dams
+  --696
+
+  SELECT * FROM roe_filtered WHERE ouv_id IN (SELECT ouv_id FROM missing_dams)
+  ); --696
+ /*
+  * 
+  * VUE DES OUVRAGES INSERES A PARTIR D'ICE (et qui ont une description de la prise d'eau
+  * et des turbines)
+  */
+DROP MATERIALIZED VIEW if EXISTS sudoang.view_dbeel_hpp;
+CREATE MATERIALIZED VIEW sudoang.view_dbeel_hpp AS (
+SELECT row_number() OVER (PARTITION BY true) AS id, * FROM sudoang.dbeel_obstruction_place
+	JOIN sudoang.dbeel_physical_obstruction on op_id=ob_op_id 
+    JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id
+   --WHERE hpp_source='ICE' 
+   ); --1532 
+
+--SELECT * FROM sudoang.view_dbeel_hpp LIMIT 10; 
+
+/*
+* 
+* INSERTION DES OUVRAGES MANQUANTS
+* il faut qu'ils aient un usage hydroélectriques, qui soient entrés dans la TABLE physical_obstruction
+* et qu'ils ne soient pAS déjà insérés
+* et qu'il n'existe pAS dans les déjà insérés d'ouvrages liés.
+* 
+*/
+
+-- linked dam renvoit une récurisive avec tous les liens 
+-- union ALL n'enlève pAS les enregitrements répétés comme UNION
+-- mais le problème reste car le chemin ne sera jamais le meme
+-- d'arrête dès qu'un gid est déjà dans chemin (id_original=ANY(chemin) =TRUE pour boucle)
+WITH RECURSIVE linkeddams(op_id,op_op_id,profondeur,chemin,boucle) AS (
+    SELECT op_id, op_op_id,1, 
+    ARRAY[id_original::TEXT] AS chemin,
+    FALSE AS boucle
+    FROM sudoang.dbeel_obstruction_place 
+    WHERE op_op_id IS NOT NULL
+  UNION ALL
+    SELECT * FROM (
+    SELECT o.op_id,o.op_op_id, l.profondeur+1,
+    array_append(chemin,id_original::TEXT) AS chemin,
+    id_original::TEXT = ANY(chemin) AS boucle
+    FROM linkeddams l JOIN
+    sudoang.dbeel_obstruction_place o ON l.op_id=o.op_op_id) sub
+    WHERE NOT sub.boucle
+),
+--SELECT * FROM linkeddams WHERE profondeur>1
+dams_already_integrated AS (
+	SELECT ouv_id FROM france.ouvrages_inseres_hpp JOIN
+	sudoang.view_dbeel_hpp ON id_original=ouv_id
+),
+-- SELECT * FROM dams_already_integrated
+dams_with_ancestor AS (
+	SELECT ouv_id FROM france.ouvrages_inseres_hpp 
+	JOIN linkeddams  ON ouv_id=ANY(chemin)
+),
+--SELECT * FROM dams_with_ancestor),
+-- SELECT * FROM dams_with_ancestor
+-- Finally we insert dams that are not linked in anyway with other hpp dam either 
+-- if they have been already inserted or they are linked (even degree 3) to a 
+-- dam that wAS already inserted
+ouv_id_to_insert AS (
+	SELECT ouv_id FROM france.ouvrages_inseres_hpp
+	EXCEPT (
+	SELECT ouv_id FROM dams_with_ancestor
+	UNION
+	SELECT ouv_id FROM dams_already_integrated
+)),
+--SELECT count(*) FROM ouv_id_to_insert --3725  --(On enlève depuis 5393 des ouvrages déjà insérés ayant un usage Hydroélectrique)
+bdoe_sudoang AS (  
+	SELECT * 
+	FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id
+	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	LEFT JOIN bdoe.ouvrage ON 'ROE'||ouvrage.ouv_id=ref_id_national 
+         ),
+union_roe_pass AS (
+  SELECT fty_code::numeric AS cdtypedisp, 
+  fpi_ref_id AS ouv_id
+  FROM roe.franchissement_piscicole 
+  join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+  WHERE fty_code='4'), 	  
+roe_presence_bypass AS (
+	SELECT DISTINCT on (ouv_id)
+	ouv_id,
+	TRUE AS hpp_presence_bypass
+	FROM union_roe_pass 	
+)
+
+
+INSERT INTO sudoang.dbeel_hpp
+  (hpp_id ,
+  hpp_ob_id ,
+  hpp_name,
+  hpp_main_grid_or_production ,
+  hpp_presence_bypass,
+  hpp_total_flow_bypass , 
+  hpp_orient_flow_no_id,
+  hpp_presence_of_bar_rack,
+  hpp_bar_rack_space,
+  hpp_surface_bar_rack,
+  hpp_inclination_bar_rack,
+  hpp_orientation_bar_rack,
+  hpp_presence_bypass_trAShrack,
+  hpp_nb_trAShrack_bypass,
+  hpp_turb_max_flow,
+  hpp_reserved_flow,
+  hpp_flow_trAShrack_bypass,
+  hpp_max_power, 
+  hpp_id_original,
+   hpp_source) 
+
+
+SELECT 
+  uuid_generate_v4() AS hpp_id,
+  p.ob_id AS hpp_ob_id,
+  r.ref_nom AS hpp_name,
+  NULL hpp_main_grid_or_production , 
+  rp.hpp_presence_bypass AS hpp_presence_bypass, 
+  NULL AS hpp_total_flow_bypass, 
+  NULL AS hpp_orient_flow_no_id,
+  NULL AS hpp_presence_of_bar_rack,
+  bdoe_sudoang.ouv_ecartement_grille AS hpp_bar_rack_space ,
+  NULL AS  hpp_surface_bar_rack,
+  NULL AS  hpp_inclination_bar_rack,
+  NULL AS  hpp_orientation_bar_rack, 
+  NULL AS  hpp_presence_bypass_trAShrack,
+  NULL AS  hpp_nb_trAShrack_bypass,
+  bdoe_sudoang.ouv_debit_maximal AS hpp_turb_max_flow,
+  bdoe_sudoang.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pAS une erreur voir explication plus bAS
+  bdoe_sudoang.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
+  NULL AS hpp_max_power,
+  ouv_id_to_insert.ouv_id AS hpp_id_original,
+  'ROE' AS hpp_source
+  FROM ouv_id_to_insert
+  JOIN sudoang.dbeel_obstruction_place o ON ouv_id_to_insert.ouv_id=id_original
+  JOIN sudoang.dbeel_physical_obstruction p ON ob_op_id=op_id
+  JOIN roe.roesudo r ON ref_id_national=ouv_id_to_insert.ouv_id
+  LEFT JOIN bdoe_sudoang ON 'ROE'||bdoe_sudoang.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
+  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --3725
+
+/*
+THIS VIEW MUST BE RELAUNCHED NOW WE HAVE INTEGRATED NEW DATA
+*/
+DROP MATERIALIZED VIEW if EXISTS sudoang.view_dbeel_hpp;
+CREATE MATERIALIZED VIEW sudoang.view_dbeel_hpp AS (
+SELECT row_number() OVER (PARTITION BY true) AS id, * FROM sudoang.dbeel_obstruction_place
+	JOIN sudoang.dbeel_physical_obstruction on op_id=ob_op_id 
+    JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id
+   --WHERE hpp_source='ICE' 
+   ); --1532 
+```
+
+![Carte des prises d'eau inserées dansla base][hpp_map]
+
+## Importation des données concernant les turbines
+
+Les turbines viennent toutes de la base ICE. La conversion des types est faite vers les données de sudoang qui comprends plus de détail dans les types de turbines.
+
+```{sql turbines, eval=FALSE}
+/*
+tur_id;tur_libelle
+1;Pelton    --248
+2;Francis   --245
+3;Kaplan    --247
+4;Autre     --243
+
+no_id;no_code;no_type;no_name
+242;;Turbine type;Horizontal axis Kaplan (bulb)
+243;;Turbine type;Other (pleASe specify)
+244;;Turbine type;Double Francis (spiral case)
+245;;Turbine type;Francis unspecified
+246;;Turbine type;Turbine with fixed blade propeller and vertical axis
+247;;Turbine type;Kaplan not specified
+248;;Turbine type;Pelton
+249;;Turbine type;Reversible
+250;;Turbine type;Kaplan (model of S-turbine)
+251;;Turbine type;Turbine with fixed blade propeller and horizontal axis
+252;;Turbine type;Unknown
+253;;Turbine type;Vertical axis Kaplan
+254;;Turbine type;Francis without volute
+255;;Turbine type;Francis (spiral case)
+256;;Turbine type;Banki-Michell (cross-flow)
+257;;Turbine type;VLH
+258;;Turbine type;Archimedean screw turbine
+259;;Turbine type;Water wheel turbine (aqualienne)
+260;;Turbine type;Water wheel turbine (others)
+261;;Turbine type;Propeller unspecified
+*/
+/*
+BEGIN;
+ALTER TABLE sudoang.dbeel_turbine DROP  CONSTRAINT c_fk_turb_hpp_id;
+ALTER TABLE sudoang.dbeel_turbine ADD  CONSTRAINT c_fk_turb_hpp_id
+FOREIGN KEY (turb_hpp_id)
+      REFERENCES sudoang.dbeel_hpp (hpp_id) MATCH SIMPLE
+      ON UPDATE CASCADE ON DELETE CASCADE;
+COMMIT;
+
+SELECT * FROM ice.turbine_usine_hydrolelectrique; --378
+*/
+ 
+/*
+ * BEGIN;
+ * DELETE FROM sudoang.dbeel_turbine;
+ * COMMIT;
+ */
+--SELECT * FROM sudoang.dbeel_turbine;
+--SELECT * FROM sudoang.dbeel_hpp
+WITH hpp_full AS(
+SELECT * 
+	FROM sudoang.dbeel_obstruction_place 
+	JOIN roe.roesudo on dbeel_op_id = op_id
+	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id),
+ice_pre_turbine AS(
+SELECT pre_id, turbine_usine_hydrolelectrique.* FROM ice.prise_eau 	
+JOIN ice.turbine_usine_hydrolelectrique on tuh_pre_id=pre_id),
+--SELECT * FROM hpp_full
+final_insert AS (
+ SELECT op_id, op_placename, hpp_id, ref_auteur_modification, ice_pre_turbine.* 
+ FROM hpp_full JOIN ice_pre_turbine on hpp_id_original='ROE'||pre_id) --290
+--SELECT * FROM final_insert
+
+INSERT INTO sudoang.dbeel_turbine
+SELECT
+  uuid_generate_v4() AS turb_id ,
+  hpp_id AS turb_hpp_id,
+  CASE WHEN tuh_tur_id=1 THEN 248 
+       WHEN tuh_tur_id=2 THEN 245 
+       WHEN tuh_tur_id=3 THEN 247 
+       WHEN tuh_tur_id=4 THEN 243 END AS turb_turbine_type_no_id,
+  NULL::boolean AS turb_in_service,
+  NULL::NUMERIC AS turb_max_power,
+  tuh_debit_armement AS turb_min_working_flow ,
+  tuh_hauteur_chute AS turb_hpp_height, -- TODO LATER USE OTHER HEIGHT WHEN AVAILABLE
+  tuh_diametre_roue AS turb_diameter ,
+  tuh_vitesse_rotation AS turb_rotation_speed,
+  tuh_nombre_pale AS turb_nb_blades,
+  tuh_debit_max AS turb_max_turbine_flow,
+  NULL AS turb_description
+  FROM final_insert; --343
+```
+
+
+# Import des types en Espagne et Portugal
+
+
+```{sql sqltypes, eval=FALSE}
+-- AMBER
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Weir'; -- 9422 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Dam'; -- 649 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '294'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Culvert'; -- 2 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '295'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Ford'; -- 41 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and (labelsource = 'Bridge. Out of WB' or labelsource = 'Bridge'); -- 2719 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and (labelsource = 'Gauging Station. Out of WB' or labelsource = 'Gauging station'); -- 8 rows
+
+-- AMBER PORTUGAL
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Weir'; -- 33 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and (type_barrier = 'Other' or type_barrier = '' or type_barrier = ' '); -- 338 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Big dam'; -- 142 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Mini-hídraulic'; -- 68 rows
+
+-- CATALONIA
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.catalonia_obstruction_dams WHERE dbeel_op_id = ob_op_id and obs_type = 'Weir'; -- 894 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.catalonia_obstruction_dams WHERE dbeel_op_id = ob_op_id and obs_type = 'Dam'; -- 53 rows
+
+-- GALICIA
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.galicia_obstruction WHERE dbeel_op_id = ob_op_id and (tipologia = 'Presa Sumergida' or tipologia = 'Presa' 
+	or tipologia = 'Gran Presa' or tipologia = 'Presa M.H.'); -- 25387 rows
+
+-- MINHO
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.minho_obstruction WHERE dbeel_op_id = ob_op_id; -- 44 rows
+
+
+	-- MITECO
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id; -- 644 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 92 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 14 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'OM' and "CIERTO" = 'SI'; -- 0 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'CV' and "CIERTO" = 'SI'; -- 1 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chebro_obstruction WHERE dbeel_op_id = ob_op_id; -- 1681 rows (total 1785 rows)
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chebro_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 450 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '294'
+	from sudoang.chebro_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PE' and "CIERTO" = 'SI'; -- 9 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chebro_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 178 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chebro_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'OM' and "CIERTO" = 'SI'; -- 30 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chguad_obstruction WHERE dbeel_op_id = ob_op_id; -- 101 rows (total 103 rows)
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chguad_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 53 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chguad_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 10 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.chguad_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'CV' and "CIERTO" = 'SI'; -- 4 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id; -- 173 rows (total 183 rows)
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 66 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '294'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PE' and "CIERTO" = 'SI'; -- 9 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 75 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'OM' and "CIERTO" = 'SI'; -- 11 rows
+		
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.chseg_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'CV' and "CIERTO" = 'SI'; -- 2 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id; -- 1480 rows (total 1504 rows)
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 512 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '294'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PE' and "CIERTO" = 'SI'; -- 3 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 100 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'OM' and "CIERTO" = 'SI'; -- 2 rows
+		
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.chmin_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'CV' and "CIERTO" = 'SI';
+
+-- ANDALUCIA
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.andalucia_obstruction_dams WHERE dbeel_op_id = ob_op_id; -- 170 rows
+
+-- BASQUE COUNTRY
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.bc_obstruction_dams WHERE dbeel_op_id = ob_op_id and tipo = 'A'; -- 1179 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.bc_obstruction_dams WHERE dbeel_op_id = ob_op_id and tipo = 'C'; -- 95 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.bc_obstruction_dams WHERE dbeel_op_id = ob_op_id and tipo = 'E'; -- 50 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.bc_obstruction_dams WHERE dbeel_op_id = ob_op_id and tipo = 'P'; -- 33 rows
+
+-- PORTUGAL: NOT INFO
+select * from sudoang.fcul_obstruction_dams; -- 277 rows (all dams)
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.fcul_obstruction_dams WHERE dbeel_op_id = ob_op_id; -- 265 rows
+
+-- SPANISH INVENTORY OF DAMS
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.spain_obstruction_in_spain WHERE dbeel_op_id = ob_op_id; -- 1929 rows
+```
+
+Dams in Spain and portugal have been classified according to their label or t
+
+![Carte des prises d'eau inserées dansla base en incluant les données espagnoles][obstacle_type_sp]
+
+# Jointure des obstacles avec le reseau hydrographique
+
+## Jointure des obstacles au tronçons avec projection
+
+We will create a table with the following structure, where idsegment corresponds to all
+segments located downstream from the dam. On the most upstream segment (where the dam is)
+we will calculate the distance at which the dam lies as a proportion of the length of the segment. _In the following data, the dam **1** is upstream from 3 segments_
+
+| Dam_id | riversegment | proportion segment |
+|--------|-------------|------------------|
+|  1     | FR1         |                   |
+|  1     | FR2         |                   |
+|  1     | FR3         |0.5                |
+
+
+```{r figuredist, out.width="250px", echo=FALSE, fig.cap = cap}
+knitr::include_graphics("C:/workspace/EDAdata/report2.3/images/distance_downstream.PNG")
+cap <- "The distance of the dam from the downstream part of the segment is computed as a fraction of the segment length. Random example using dam id FR210149. "
+```
+
+```{sql downstream_dist, eval=FALSE}
+-- this function returns the distance at which the dam lies according to the downstream point in percentage.
+WITH quellejolieselection as (
+SELECT view_obstruction.*, 
+rn.geom FROM france.join_obstruction_rn  jo
+JOIN france.rn on rn.idsegment=jo.idsegment
+JOIN sudoang.view_obstruction on jo.op_id = ob_op_id
+where jo.idsegment='FR210149')
+
+SELECT 
+1-ST_LineLocatePoint(ST_GeometryN(geom,1),ST_ClosestPoint(geom,the_geom)) 
+from quellejolieselection; --0.87
+```
+
+The downstream distance is 1 minus the distance from the upstream point for all segments as
+the segments are oriented upstream to downstream for all layers (France, Spain, Portugal)
+
+
+## Calculating the distance projection for all segments
+
+The [dbeel_view_obstruction](http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/EDAcommun/sql/sudoang/dbeel_view_obstruction.sql) script creates a view of all dams in the sudoang area
+**sudoang.view_obstruction** and creates the projection table for all countries
+**france.join_obstruction_rn**, **spain.join_obstruction_rn** and **portugal.join_obstruction_rn**
+
+```{sql projection, eval=FALSE}
+DROP TABLE IF EXISTS spain.join_obstruction_rn;
+CREATE TABLE spain.join_obstruction_rn as(
+  
+   with projection as (	
+               SELECT r.idsegment, 
+               op_id,               						
+		geom,
+		st_distance(r.geom,d.the_geom) as distance ,
+        1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
+
+		FROM spain.rn r
+		JOIn sudoang.dbeel_obstruction_place  d
+		ON st_dwithin(r.geom, d.the_geom,0.01)
+		order by idsegment, distance desc)
+SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment  from projection
+);
+--20606 18s
+```
+
+La requete ci-dessous va selectionner trois ouvrages correspondant à deux idsegments sélectionnés en amont. La deuxième partie de la requète utilise les ltree (chemins) pour extraire un vecteur des idsegments situés à l'aval et sur les tronçons selectionnés. Le vecteur chemin correspond donc à l'ensemble  des tronçons situés à l'aval de chaque idsegment de la colonne idsegment. La table lie donc chaque idsegment à tous les ouvrages qui sont situés en aval.
+
+
+```{sql projection2, eval=FALSE}
+With questcequonseclate as(
+ SELECT idsegment as idsegmentsource FROM france.rn where idsegment in ('FR210026','FR210323')),
+
+    downstreamjoin As (
+ select unnest(regexp_split_to_array(ltree2text(path),E'\\.+')) as vecteurchemin,
+  questcequonseclate.idsegmentsource  
+  from france.rn 
+ JOIN questcequonseclate On rn.idsegment=questcequonseclate.idsegmentsource
+ order by questcequonseclate.idsegmentsource)
+
+ SELECT j.op_id, j.position_ouvrage_segment, downstreamjoin.* FROm downstreamjoin 
+ JOIN france.join_obstruction_rn j on j.idsegment=downstreamjoin.vecteurchemin
+```
+
+
+
+```{r figurejoint, out.width="400px", echo=FALSE, fig.cap = cap}
+knitr::include_graphics("C:/workspace/EDAdata/report2.3/images/jointure_downstream.png")
+cap <- "Principle of the downstream route, the obstacles (in blue) are attached to the selected segments (surrounded)."
+```
+<html>	<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<style>table {font-family:"Lucida Sans Unicode", "Lucida Grande", Sans-Serif;font-size:12px;text-align:left;border-collapse:collapse;margin:10px;} th{font-size:14px;font-weight:normal;color:#039;padding:10px 8px;} td{color:#669;padding:8px;}.odd{background:#e8edff;}img{padding:5px; border:solid; border-color: #dddddd #aaaaaa #aaaaaa #dddddd; border-width: 1px 2px 2px 1px; background-color:white;}</style>
+</head><body><table>
+<tr><th>op_id</th><th>position_ouvrage_segment</th><th>vecteurchemin</th><th>idsegmentsource</th></tr><tr class="odd"><td>37e7779e-8e3b-459f-8905-a83f57115be1</td><td>0,8226977087</td><td>FR210149</td><td>FR210323</td></tr>
+<tr><td>e64cbeed-ddf2-49da-a760-08ebbfba23f1</td><td>0,2576126554</td><td>FR209823</td><td>FR210026</td></tr>
+<tr class="odd"><td>22038383-ef25-4e7d-83c2-ef951cb6dd86</td><td>0,6238871303</td><td>FR209823</td><td>FR210026</td></tr>
+</table></body></html>
+
+Run in France, the table has 6 million lines.
+
+```{r loaddatadamheight, echo=FALSE, eval=TRUE}
+# chunk de chargement des données de hauteur
+# On charge la table de jointure view_obstruction à partir de la classe EDA
+# Je ne comprends pas pourquoi lancé dans markdown se chunk plante
+dam_rios <- new("BaseEdaRiosRiversegmentsDam", 
+		baseODBC = "baseODBCrios", # must be set in init length 1
+		schema = "dbeel_rivers",
+		table = "rn",
+		zonegeo = "France",
+		basin=as.character(NULL),
+		prkey = "idsegment")
+dam_rios@join_obstruction_rn_downstream <-	"france.join_obstruction_rn_downstream"
+dam_rios@joinschema <- "sudoang"
+dam_rios@jointable <- "view_obstruction"
+
+# object <- dam_rios # pour débug
+dam_rios <- loaddb2(dam_rios) 
+# time for query on dams (mins) = 0.05  
+# time for query (mins) 1.2data from the riversegments loaded: 114384 lines 18/12
+# time for query on rivers (mins) = 0.2  
+# Final join_downstream_obstruction_rn size  6268008 
+save(dam_rios, file=str_c(ddatawd,"dam_rios.Rdata"))
+
+# Predicting missing values RUNONCE (this will work for France only, adapt another model to spain and portugal
+
+require(dplyr)
+dams <- dam_rios@datadam # 85035 18/12
+rm(dam_rios)
+# slope was used in eda2.3 why not ? let's get it back from rht
+#load(file=paste(datawd,"/dataEDArht/rht_","France","2018",".RData",sep=""))
+#rht <- rht[,c("id_drain","slope","module")]
+#rht$idsegment <- str_c("FR",rht$id_drain)
+#rht <- rht[,-1]
+# load the rios (this one was loaded using loaddball() see report2.3/EDA_build main_rios_France) chunk 
+ddatawd <- paste0(datawd,"/report2.3/data/")
+load(file = paste0(ddatawd,"rios_france.RData"))
+rn <- rios@data 
+
+join_dam_rn <- sqldf("select * from france.join_obstruction_rn") # 85037
+
+dd <- dplyr::inner_join(join_dam_rn,dams, by="op_id") # 84272 => 85037
+rr <- dplyr::inner_join(dd,rn, by="idsegment") # 84269 =>85035
+# table joining 
+
+rr<- rename(rr,"h"="po_obstruction_height")
+save(rr,file=str_c(ddatawd,"rr.Rdata"))
+```
+
+```{r modeldamheight, echo=TRUE, eval=TRUE}
+library(colorspace)
+library(tidyr)
+load(file=str_c(ddatawd,"rr.Rdata"))
+# recodage du jeu de données
+rr$basinh <- gsub("]","",sapply(strsplit(rr$basin, "\\["), "[", 2))
+rr$basinh<-substring(rr$basinh,1,1)
+
+rr$obstruction_type_code <- replace(
+		rr$obstruction_type_code,
+		which(rr$obstruction_type_code=='OT'), # OTHER
+		"UN")
+rrm<-rr[rr$h<50&!is.na(rr$h)&rr$h>0,]# 51740 rrmodele
+
+ggplot(rrm)+geom_point(aes(x=log(slope+1),y=log(h)))+
+		geom_smooth(aes(x=log(slope+1),y=log(h)),method = "lm", color="purple")+
+		facet_wrap(~ obstruction_type_code)+
+		ggtitle("Trend between slope and dam height according to dam type")
+
+
+ggplot(rrm)+geom_point(aes(x=log(medianflowm3ps+1),y=log(h)))+
+		geom_smooth(aes(x=log(medianflowm3ps+1),y=log(h)),method = "lm", color="green")+
+		facet_wrap(~ obstruction_type_code)+
+		ggtitle("Trend between module and dam height according to dam type")
+
+
+ggplot(rrm)+geom_boxplot(aes(x=basinh,y=log(h),fill=basinh))+
+		scale_fill_discrete_qualitative(palette = "Warm")+
+		facet_wrap(~ obstruction_type_code)+
+		ggtitle("Trend between dam height and basin according to dam type")
+
+
+
+# GLM for the prediction of obstacles heights -------------------
+
+
+# The responses are linear after log transformation
+
+
+densityplot(log(rrm$h)) 
+
+
+gg<-glm(log(h)~log(medianflowm3ps+1)*obstruction_type_code+log(slope+1)*obstruction_type_code+basinh*obstruction_type_code,data=rrm)
+# diagnostic du modèle
+
+summary(gg)
+# toutes les variables sont significatives
+# voir xtable dans le chunk qui suit
+#anova(gg,test="Chisq")
+
+
+# GLM diagnostics ------------------------
+
+
+pdev<-function(mod){
+	(mod$null.deviance-mod$deviance)/mod$null.deviance
+}
+pdev(gg) # 24 (previous time) now 29.9 18/12
+plot(gg,ask=FALSE)
+save(gg, file=str_c(ddatawd,"gg_glm_hauteur_obstacle.Rdata"))
+```
+```{r xtableanova, results="asis", echo=FALSE, eval=TRUE}
+xtable::print.xtable(xtable::xtable(anova(gg,test="F"),
+				caption="Anova du modèle des hauteurs"),
+				caption.placement="top",
+type='html'
+)
+```
+```{r  predictmodeldamheight, echo=TRUE, eval=TRUE}
+load(file=str_c(ddatawd,"gg_glm_hauteur_obstacle.Rdata")) # gg glm model
+load(file=str_c(ddatawd,"rr.Rdata"))
+# recodage du jeu de données
+rr$basinh <- gsub("]","",sapply(strsplit(rr$basin, "\\["), "[", 2))
+rr$basinh<-substring(rr$basinh,1,1)
+
+rr$obstruction_type_code <- replace(
+		rr$obstruction_type_code,
+		which(rr$obstruction_type_code=='OT'), # OTHER
+		"UN")
+rr$pred <- predict(gg, newdata=rr)
+rr$is_height_predicted<-FALSE
+rr$is_height_predicted[is.na(rr$h)]<-TRUE # 28340
+rr$hpred<-rr$h
+rr$hpred[is.na(rr$h)] <- exp(rr$pred[is.na(rr$h)])
+# note this will be loaded later in the class method BaseEdaRiosriversegmentsDam
+rrp<-rr[,c("id_original","is_height_predicted","hpred")] 
+save(rrp,file=str_c(ddatawd,"rrp.Rdata"))
+
+```
+
+This part is now calculated together with Spain and Portugal.
+
+```{r  calculating_cumuls, echo=TRUE, eval=FALSE}
+ddatawd <- paste0(datawd,"/report2.3/data/")
+load(file=str_c(ddatawd,"rrp.Rdata")) # gg glm model
+load(file=str_c(ddatawd,"dam_rios.Rdata"))
+dam_rios<-cumulated_dam_impact2(dam_rios,predicted_height=rrp)
+# TODO 
+dam_rios_p <-dam_rios # predicted
+save(dam_rios_p,file=str_c(ddatawd,"dam_rios_p.Rdata"))
+str(dam_rios@data)
+
+ddatawd <- paste0(datawd,"/report2.3/data/")
+load(file=str_c(ddatawd,"dam_rios_p.Rdata"))
+		names_to = c("cs_heightpps"),
+		values_to = "h",
+		values_drop_na = TRUE)
+x11()
+ggplot(test)+geom_point(aes(x=distanceseam,y=h,color=cs_heightpps))
+
+
+# sea idsegments for Gave de Pau, FR118671
+
+x11()
+ggplot(test[test$seaidsegment=="FR118671",])+geom_point(aes(x=distanceseam,y=h,color=cs_heightpps))
+
+test = pivot_longer(dam_rios_p@data, 
+		cols=c("cs_height_10_n","cs_height_10_p","cs_height_10_pp","cs_height_10_pps"),
+		names_to = c("cs_height10"),
+		values_to = "h",
+		values_drop_na = TRUE)
+
+x11()
+ggplot(test[test$seaidsegment=="FR118671",])+
+		geom_point(aes(x=distanceseam/1000,y=h,color=cs_height10),size=0.5, alpha=0.5)
+
+```
+
+```{r  write_database, echo=TRUE, eval=FALSE}
+# note this method has been removed. Find best candidates and put them in rn.rna database
+# import_column(dam_rios, columns=c("cs_height", "cs_nbdams"),
+# 			columnsbase=c("cumheightdam","cumnbdam"),
+# 			ask=TRUE) 
+```

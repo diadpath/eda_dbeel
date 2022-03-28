@@ -1,0 +1,1416 @@
+---
+title: "E 2.2.1. Data collection and storage"
+author: "M. Mateo and C.Briand"
+date: "January 8,  2020"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    overflow: hidden;
+---
+
+```{r, echo=FALSE}
+htmltools::img(src = knitr::image_uri("C:/workspace/EDAdata/report2.3/images/logoSUDOANG.png"), 
+               alt = 'logoSUDOANG', 
+               style = 'position:absolute; top:0; right:0; padding:10px;')
+```
+
+# Introduction
+
+Collecting data from various sources about eel populations and impact is the first step to the estimation of silver eel biomass. All data received have been collated in the SUDOANG database, whose structure is inherited from the database for eels (DBEEL), developed during the POSE project. The POSE project objective was to provide methods to estimate the current and potential (without mortality) biomass of silver eel in the Baltic, Atlantic and Mediterranean regions. The database is managed in PostgreSQL, an object-relational database management system, free and open-source. Using this kind of database allows an easy sharing of complex data structures between operators from different countries! Furthermore, PostGIS, a spatial database extender, is used to store GIS objects and work with spatial data.
+
+The SUDOANG database has further been expanded from the POSE structure to allow the integration of all the relevant information compiled by other GT's. The information that has been collected refers to:
+
+* electrofishing surveys 
+* hydrographic network and environmental characteristics
+* hydrographic waterbodies connected to the river network (ponds, estuaries, lakes ....)
+* physical attributes from the river network such as the flow, the water surface and width
+* physical obstacles in rivers (dams that may be associated with hydroelectric
+  power plants).
+  
+This deliverable presents the routine of importing data concerning physical obstacles and hydropower plants in Spain and Portugal. The document called "Cumul des hauteurs d'ouvrage - base sudoang" includes the french data import on obstacles. The data on electrofishng surveys is presented in deliverable 1.2.1. The hydrographic network is presented in deliverable 1.1.2 where the spatial database is presented.
+
+# Source of data
+
+The import of data on physical obstacles and hydropower plants in Spain and Portugal has been developed in three phases phases, using first the data obtained from the Ministry of Ecological Transition (miteco), second, the data coming form AMBER (https://amber.international/) and then importing the rest of the data obtained by the partners and managers.
+
+Therefore, different partners and project managers have provided their data, which is listed below:
+
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+library(kableExtra)
+
+layer_name <- c("SUDOANG_dams_powerplants_UdG", "Llistat de centrals", "Galicia_Obstaculos (shape file)", "ANGUILA_TURBINAS (pdf)",
+                "ANEXO_VIII_FICHAS_CENTRALES_HIDROELECTRICAS (word)", "tabla_obstaculos_SUDOANG_E.2.1-15-04-19_ANDALUCIA", 
+                "BD_INVENTARIO OBSTACULOS CAPV_2018.xlsx", "fichas", "Tiposdeturbinas Endesa Anguila", 
+                "miteco folder (with 8 zips)", "Aprovechamiento-Hidroelectrico file", "AMBER_ATLAS_2018_02_19_app", 
+                "Atlas_2019_01_21_app", "obstaculos_portugal_datacollectionFCULMARE_04_2019", "BARRAGENS_BACIA", 
+                "PO-Grandes e medias PGRH2_INFRAESTRUTURAS_HIDRAULICAS_ENG", "Mini_hidricas")
+
+source <- c("Catalan Water Agency, Ll. Zamora", "Catalan Water Agency, Ll. Zamora", "The Xunta of Galicia, F. Hervella", 
+            "The Xunta of Galicia, F. Hervella", "The Xunta of Galicia, F. Hervella", "UCO, C. F. Delgado", "URA, F. Silván", 
+            "Ministry for Ecological Transition, B. Muñóz", "Ministry for Ecological Transition, B. Muñóz", 
+            "Ministry for Ecological Transition, B. Muñóz", "Ministry for Ecological Transition, B. Muñóz", "AMBER, rosa del Amo",
+            "AMBER, Rosa del Amo", "FCUL MARE, I. Domingos", "UP, C. Antunes", "AMBER, Rosa del Amo", "AMBER, Rosa del Amo")
+
+place <- c("Catalonia", "Catalonia", "Galicia", "Galicia", "Galicia", "Andalucía", "País Vasco", "Spain", "Spain", "Spain", "Spain",
+           "Spain", "Spain", "Portugal", "Minho basin", "Portugal", "Portugal")
+
+obstacles <- c("YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES", "YES")
+
+HPP <- c("NO", "YES", "NO", "YES", "YES", "YES", "YES", "NO", "YES", "NO", "YES", "NO", "NO", "YES", "NO", "NO", "YES")
+
+dbeel_source <- data.frame(layer_name, source, place, obstacles, HPP)
+
+kable(dbeel_source) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "bordered"), full_width = F, font_size = 10)
+```
+
+The data import and the data transformation into a common format is mainly done in two steps:
+
+1. The data received (in any format) must be inserted in PostgreSQL
+2. Once the data are in PostgreSQL, they must be imported into the SUDOANG database.
+
+To explain the two steps, the data from miteco, AMBER, Portugal and the Cantabrico basin are used as an example. In the Cantabrian basin, data from hydroelectric power stations is imported. The rest of the code can be found here: 
+
+* http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/sudoang/GT2_obstacles.R
+* http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/EDAcommun/sql/sudoang/obstruction_aggregation.sql
+* http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/EDAcommun/sql/sudoang/dbeel_sudoang_obstruction_creation.sql
+
+
+## Data import in PostgreSQL
+
+```{r eval=FALSE}
+#############################################################
+# OBSTACLES DATA TO INSERT IN POSTGRESQL
+# 		Have a first look to present int La Coruña meeting
+#		
+#############################################################
+
+############################################################################################
+#### fichas table (sent by Belen Muñoz) - 
+
+## Data from Spanish Inventory of Dams
+
+path <- "C://workspace//EDAdata//sudoang//fichas.csv"
+ebro_datos<- read.csv2(path,header=TRUE, sep=";",na.strings=c(""," ","NA","n/a"), quote = "",check.names=FALSE,
+		stringsAsFactors=FALSE)
+str(spain_obstruction)
+
+spain_obstruction<-killfactor(spain_obstruction)
+colnames(spain_obstruction) <- stringi::stri_trans_general(colnames(spain_obstruction),"ASCII-Latin")
+colnames(spain_obstruction)[1] <- "PRESA"
+colnames(spain_obstruction)[34] <- "CAU_PUNTA_2"
+colnames(spain_obstruction)[36] <- "CAU_PUNTA_3"
+
+
+sqldf("drop table  if exists sudoang.spain_obstruction")
+sqldf("create table sudoang.spain_obstruction as select * from spain_obstruction")
+
+
+######################################################################################
+#### AMBER Data (sent by rosa del Amo)
+
+#Note for some reasons reading the file as xls, as csv as txt stopped for no reason line 1441
+# I've tried many things without success, below finally a solution that works
+
+
+path <- "C://workspace//EDAdata//sudoang//AMBER_ATLAS_2018_02_19_app.csv"
+amber<- read.csv2(path,header=TRUE, sep=";",na.strings=c(""," ","NA","n/a"), quote = "",check.names=FALSE,
+    stringsAsFactors=FALSE)
+str(amber)
+amber$Longitude_WGS84 <- as.numeric(amber$Longitude_WGS84)
+amber$Latitude_WGS84 <- as.numeric(amber$Latitude_WGS84)
+
+colnames(amber) <- tolower(colnames(amber))
+colnames(amber)[1] <- "dbname_"		# María had problem with the name of column "DBName"
+
+sqldf("drop table if exists sudoang.amber")
+sqldf("create table sudoang.amber as select * from amber")
+
+strsplit(amber$Longitude_WGS84,split="\\.")
+DD = d + (min/60) + (sec/3600)
+
+
+############################################################################################
+#### PO-Grandes e medias PGRH2_INFRAESTRUTURAS_HIDRAULICAS_ENG table
+
+## Data from APA? (sent by Rosa del Olivo: AMBER project)
+path <- "C://workspace//EDAdata//sudoang//PO-Grandes e medias PGRH2_INFRAESTRUTURAS_HIDRAULICAS_ENG.xlsx"
+file.exists(path)
+gdata::sheetNames(path)
+portugal_obstruction <- gdata::read.xls(path, sheet="InfraestruturasHidráulicas") 
+str(portugal_obstruction)
+portugal_obstruction<-killfactor(portugal_obstruction)
+colnames(portugal_obstruction) <- stringi::stri_trans_general(colnames(portugal_obstruction),"ASCII-Latin")
+portugal_obstruction = portugal_obstruction[-1,]	# the first line includes some comments of columns
+
+## Change the name of columns because they are long and in portuguese
+colnames(portugal_obstruction)[1] <- "name"
+colnames(portugal_obstruction)[2] <- "coordinates_m"
+colnames(portugal_obstruction)[3] <- "coordinates_p"
+colnames(portugal_obstruction)[4] <- "code_water_body"
+colnames(portugal_obstruction)[5] <- "name_water_body"
+colnames(portugal_obstruction)[6] <- "category"
+colnames(portugal_obstruction)[7] <- "rh"
+colnames(portugal_obstruction)[8] <- "type_barrier"
+colnames(portugal_obstruction)[9] <- "type_barrier_height"
+colnames(portugal_obstruction)[10] <- "type_discharge"
+colnames(portugal_obstruction)[11] <- "status"
+colnames(portugal_obstruction)[12] <- "use"
+colnames(portugal_obstruction)[13] <- "year_construction"
+colnames(portugal_obstruction)[14] <- "height_altura_m"
+colnames(portugal_obstruction)[15] <- "height_alturabardata_m"
+colnames(portugal_obstruction)[16] <- "flooded_area_km2"
+colnames(portugal_obstruction)[17] <- "volume_hm3"
+colnames(portugal_obstruction)[18] <- "turb_max_flow"
+colnames(portugal_obstruction)[19] <- "downstream_dam"
+colnames(portugal_obstruction)[20] <- "rce"
+colnames(portugal_obstruction)[21] <- "regularization_index"
+colnames(portugal_obstruction)[22] <- "annual_flow_dam_section_hm3"
+colnames(portugal_obstruction)[23] <- "fish_passage"
+colnames(portugal_obstruction)[24] <- "type_fish_passage"
+colnames(portugal_obstruction)[25] <- "length_water_body_dam_restitution_downs_km"
+colnames(portugal_obstruction)[26] <- "comments_1"
+colnames(portugal_obstruction)[27] <- "comments_2"
+
+portugal_obstruction$coordinates_m <- as.numeric(portugal_obstruction$coordinates_m)
+portugal_obstruction$coordinates_p <- as.numeric(portugal_obstruction$coordinates_p)
+portugal_obstruction$year_construction <- as.numeric(portugal_obstruction$year_construction)
+portugal_obstruction$height_altura_m <- as.numeric(portugal_obstruction$height_altura_m)
+portugal_obstruction$height_alturabardata_m <- as.numeric(portugal_obstruction$height_alturabardata_m)
+portugal_obstruction$flooded_area_km2 <- as.numeric(portugal_obstruction$flooded_area_km2)
+portugal_obstruction$volume_hm3 <- as.numeric(portugal_obstruction$volume_hm3)
+portugal_obstruction$turb_max_flow <- as.numeric(portugal_obstruction$turb_max_flow)
+portugal_obstruction$regularization_index <- as.numeric(portugal_obstruction$regularization_index)
+portugal_obstruction$annual_flow_dam_section_hm3 <- as.numeric(portugal_obstruction$annual_flow_dam_section_hm3)
+portugal_obstruction$length_water_body_dam_restitution_downs_km <- as.numeric(portugal_obstruction$length_water_body_dam_restitution_downs_km)
+
+sqldf("drop table  if exists sudoang.amber_portugal")
+sqldf("create table sudoang.amber_portugal as select * from portugal_obstruction")
+
+
+############################################################################################
+#### obstaculos_portugal_datacollectionFCULMARE_04_2019 table
+
+## Data from APA (sent by Isabel Domingos: FCUL)
+path <- "C://workspace//EDAdata//sudoang//obstaculos_portugal_datacollectionFCULMARE_04_2019.csv"
+file.exists(path)
+fcul_obstruction <- read.csv2(path, header=TRUE, sep=";",na.strings=c(""," ","NA","n/a"), check.names=FALSE,
+		stringsAsFactors=FALSE)
+str(fcul_obstruction) ## 322 row with dams and hpp in the same table (duplicates when there are more than one turbine)
+
+colnames(fcul_obstruction)[1] <- "obs_id" ## Solved some incomprehensible problem with obs_id
+colnames(fcul_obstruction)[13] <- "main_grid_production"
+
+## DAMS data
+fcul_obstruction_dams <- fcul_obstruction%>%
+		mutate(key=paste0(X,"_",Y))%>%
+		group_by(key)%>%
+		summarize(obs_id = first(obs_id), obs_name = first(obs_name), X = first(X), Y = first(Y), 
+				obs_height = first(obs_height), obs_presence_eel_pass = first(obs_presence_eel_pass))%>% 		## all parameters of dams
+		mutate(id = 1:n())%>%
+		mutate(id=paste0("POD_",id))%>%
+		ungroup()%>%
+		as.data.frame()
+str(fcul_obstruction_dams) ## 277 rows
+
+sqldf("drop table if exists sudoang.fcul_obstruction_dams")
+sqldf("create table sudoang.fcul_obstruction_dams as select * from fcul_obstruction_dams")
+
+
+## HPP data
+summary(fcul_obstruction) 	## Following parameres are empties, don't imported: 
+## dam_surface_bar_rack, dam_inclination_bar_rack, dam_presence_bypass_trashrack, dam_nb_trashrack_bypass
+
+fcul_obstruction_hpp <- fcul_obstruction%>%
+		mutate(key=paste0(X,"_",Y))%>%
+		select(obs_id,obs_name,key,obs_height,obs_presence_eel_pass,main_grid_production,dam_presence_bypass,dam_total_flow_bypass, 
+				dam_orient_flow, dam_presence_of_bar_rack, turb_rack_bar_space, bypass_water_depth, bypass_width)%>%
+#		filter(any(!is.na(main_grid_production),!is.na(dam_presence_bypass), !is.na(dam_total_flow_bypass), !is.na(dam_orient_flow),
+#						!is.na(dam_presence_of_bar_rack), !is.na(turb_rack_bar_space), !is.na(bypass_water_depth), !is.na(bypass_width)))%>%
+		filter(!is.na(main_grid_production) | !is.na(dam_presence_bypass) | !is.na(dam_total_flow_bypass) | 
+						!is.na(dam_orient_flow) | !is.na(dam_presence_of_bar_rack) | !is.na(turb_rack_bar_space) | 
+						!is.na(bypass_water_depth) | !is.na(bypass_width))%>%
+		mutate(id = 1:n())%>%
+		mutate(id=paste0("POH_",id))%>%
+		as.data.frame()
+str(fcul_obstruction_hpp) ## 267 rows (repeated rows because of turbines)
+
+# Keeping the key and the id of dams:
+test <- inner_join(fcul_obstruction_hpp, fcul_obstruction_dams[,c("key","id")], by="key")
+colnames(test)[14] <- "id"
+colnames(test)[15] <- "dams_id"
+length(unique(test$dams_id)) ## 225 rows
+str(test)
+
+
+sqldf("drop table if exists sudoang.fcul_obstruction_hpp")
+sqldf("create table sudoang.fcul_obstruction_hpp as select * from test")
+
+#---- Join the dams and hpp tables to have the coordinates and plot the hpp
+# Conexion to database
+dsn <-  paste0("PG:dbname='eda2.3' host='localhost' port ='5432'",
+		" user='", userlocal,
+		"' password='", passwordlocal,"'")
+
+# Joining the tables in sql
+query <- "select jj.obs_id as did, jj.geom, h.*  
+		from sudoang.fcul_obstruction_hpp h 
+		join sudoang.fcul_obstruction_dams jj on jj.obs_id = h.obs_id"
+
+# Reading the table from eda2.3 database and their geometry
+cou <- st_read(dsn= dsn, query=query)
+#x11()
+#plot(st_geometry(cou)) #, xlim=c(-7,11.5),ylim=c(36,53))
+
+# Saving the shapefile -> be careful: getwd() = "C:/eclipse"
+st_write(cou, "fcul_hpp.shp", driver="ESRI Shapefile")
+```
+
+## Data import into the SUDOANG database
+```{sql eval=FALSE}
+--------------------------
+-- first data incorporated = spain_obstruction
+--------------------------
+-- improve spain_obstruction_in_spain table
+-- with index
+CREATE INDEX 
+  ON sudoang.spain_obstruction_in_spain
+  USING gist
+  (geom);
+
+--------------------------------------------------------------------------------------------
+-- with reprojection on the river
+-- these are only those that are in spain, a lot of points were outside from the country
+--------------------------------------------------------------------------------------------
+
+select addgeometrycolumn('sudoang','spain_obstruction_in_spain','geom_reproj',3035,'POINT',2);
+-- select * from sudoang.spain_obstruction_in_spain --3120
+update sudoang.spain_obstruction_in_spain set geom_reproj = sub2.geom_reproj from (
+select distinct on (id) id, geom_reproj,distance from(
+select
+id, 
+ST_ClosestPoint(r.geom,s.geom) as geom_reproj ,
+ST_distance(r.geom,s.geom) as distance
+from sudoang.spain_obstruction_in_spain s join
+spain.rivers r on st_dwithin(r.geom,s.geom,300) 
+order by id, distance
+)sub )sub2
+where sub2.id= spain_obstruction_in_spain.id;
+
+CREATE INDEX 
+  ON sudoang.spain_obstruction_in_spain
+  USING gist
+  (geom_reproj);
+  
+-- to store the link for dbeel
+ALTER TABLE sudoang.spain_obstruction_in_spain ADD COLUMN dbeel_op_id uuid;  
+  
+-- !!! some duplicate inside the spain_obstruction_in_spain table
+-- eg SO_288 and SO_874 which have different ALT_CAU !!!
+-- internal duplicate here
+WITH duplicate AS
+(
+	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.spain_obstruction_in_spain AS sp1, sudoang.spain_obstruction_in_spain AS sp2
+	WHERE substring(sp1.id from 4) < substring(sp2.id from 4) AND ST_Distance(sp1.geom, sp2.geom)<0.01
+) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 4)::integer
+;
+
+INSERT INTO sudoang.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id, 
+	'SUDOANG' AS op_gis_systemname, 
+	'spain_obstruction_in_spain' AS op_gis_layername, NULL AS op_gislocation, 
+	NULL AS op_placename, 11 AS op_no_observationplacetype, 
+	NULL op_op_id, geom_reproj AS the_geom, 
+	NULL AS id_original, 
+	'SP' AS country
+	FROM (SELECT DISTINCT geom_reproj FROM sudoang.spain_obstruction_in_spain WHERE geom_reproj IS NOT NULL) unique_obs; --2414 / only the one projected on rivers
+-- select * from sudoang.dbeel_obstruction_place
+-- record back the link with dbeel
+-- UPDATE sudoang.spain_obstruction_in_spain SET dbeel_op_id = NULL; -- to reset the column
+-- select * from sudoang.spain_obstruction_in_spain limit 10;
+UPDATE sudoang.spain_obstruction_in_spain SET dbeel_op_id = op_id 
+FROM sudoang.dbeel_obstruction_place 
+WHERE ST_DWithin(geom_reproj, the_geom, 0.1) AND op_gis_layername='spain_obstruction_in_spain';	-- 2487
+	
+-- choose an id (last) to record in dbeel
+WITH id_obs AS
+	(SELECT dbeel_op_id, 'SO_' || max(substring(id from 4)::integer) AS id FROM sudoang.spain_obstruction_in_spain WHERE dbeel_op_id IS NOT NULL  GROUP BY dbeel_op_id)
+UPDATE sudoang.dbeel_obstruction_place SET id_original = id, op_gislocation = id FROM id_obs WHERE op_id = dbeel_op_id;--2414
+
+
+--------------------------TODO MARIA / LAURENT --------------------------------
+
+update sudoang.dbeel_obstruction_place set op_placename = sub.placename from
+( select INITCAP("NOMBRE") as  placename, op_id from sudoang.dbeel_obstruction_place 
+join sudoang.spain_obstruction_in_spain on spain_obstruction_in_spain.dbeel_op_id=dbeel_obstruction_place.op_id) sub
+where dbeel_obstruction_place.op_id=sub.op_id ; -- 2414
+
+-- remove dams in project form dbeel
+
+with proyecto as (
+select * from sudoang.dbeel_obstruction_place
+join sudoang.spain_obstruction_in_spain 
+on spain_obstruction_in_spain.dbeel_op_id=dbeel_obstruction_place.op_id
+where "SITUACION" like '%Proyecto%'
+or  "SITUACION" like 'Demolida'
+or  "SITUACION" like 'Abandonada')
+delete from sudoang.dbeel_obstruction_place where op_id in (select dbeel_op_id from proyecto); --485
+
+
+
+------------------------------------------------------------------------
+
+	
+-- load spain data
+-- add establishment
+-- select * from dbeel.establishment
+INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('min esp'); --TODO: TO BE MODIFIED spanish minstry
+-- add data provider
+INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
+	SELECT 'Belen', et_id FROM dbeel.establishment WHERE et_establishment_name = 'min esp'
+;
+
+
+INSERT INTO sudoang.dbeel_physical_obstruction
+	WITH spain_obs AS
+	(
+		SELECT *, case when "ALT_CAU" is not NULL AND "ALT_CAU">0.0  then "ALT_CAU"
+	else REPLACE("ALT_CIM", ',', '.')::numeric end AS height
+		FROM sudoang.spain_obstruction_in_spain
+		WHERE dbeel_op_id IS NOT NULL
+	), spain_obs_max_height AS
+	(
+		SELECT dbeel_op_id, max(height) AS height FROM spain_obs GROUP BY dbeel_op_id --max is choosen, if mean the process should be different
+	)
+	SELECT
+	  uuid_generate_v4() as ob_id,
+	  11 AS ob_no_origin, -- raw data
+	  16 AS ob_no_type, -- obstruction
+	  74 AS ob_no_period, -- Unknown
+	  NULL AS ob_starting_date,
+	  NULL AS ob_ending_date,
+	  dbeel_obstruction_place.op_id as ob_op_id,
+	  dp_id AS ob_dp_id,
+	  219 as ot_no_obstruction_type,-- physical
+	  1 as ot_obstruction_number,
+	  NULL AS ot_no_mortality_type,
+	  NULL AS ot_no_mortality,
+	  NULL as po_no_obstruction_passability,
+	  height AS po_obstruction_height,
+	  NULL AS po_turbine_number
+	FROM spain_obs_max_height JOIN sudoang.dbeel_obstruction_place ON (dbeel_op_id = op_id), 
+	dbeel.data_provider WHERE dp_name = 'Belen' --TODO: TO BE MODIFIED
+; -- 2414
+
+
+select * from sudoang.dbeel_physical_obstruction
+
+
+-- Update the type of obstacles
+select * from sudoang.spain_obstruction_in_spain where dbeel_op_id is not null; -- 2487 rows (total 3120 rows (dams of the Spanish Inventory of Dams))
+select distinct "TIPOPRESA" from sudoang.spain_obstruction_in_spain; -- numbers...What is its meaning?
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.spain_obstruction_in_spain WHERE dbeel_op_id = ob_op_id; -- 1929 rows
+
+-----------------------------------
+-- amber
+-----------------------------------
+-- add establishment
+-- select * from dbeel.establishment
+INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('AMBER Project'); --TODO: TO BE MODIFIED
+-- add data provider
+INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
+	SELECT 'Rosa', et_id FROM dbeel.establishment WHERE et_establishment_name = 'AMBER Project'
+; --TODO: TO BE MODIFIED
+
+-- creation index spatial
+CREATE INDEX 
+  ON sudoang.amber
+  USING gist
+  (geom);
+
+
+
+ --reproject on the rivers
+SELECT addgeometrycolumn('sudoang','amber','geom_reproj',3035,'POINT',2);
+update sudoang.amber set geom_reproj = sub2.geom_reproj from (
+select distinct on (id) id, geom_reproj,distance from(
+select
+id, 
+ST_ClosestPoint(r.geom,a.geom) as geom_reproj ,
+ST_distance(r.geom,a.geom) as distance
+from sudoang.amber a join
+spain.rn r on st_dwithin(r.geom,a.geom,300) 
+order by id, distance
+)sub )sub2
+where sub2.id= amber.id; -- 16809
+
+CREATE INDEX 
+  ON sudoang.amber
+  USING gist
+  (geom_reproj);
+  
+  
+-- link amber TO dbeel
+ALTER TABLE sudoang.amber ADD COLUMN dbeel_op_id uuid;
+-- update sudoang.amber set dbeel_op_id = NULL
+-- check for internal duplicate
+WITH duplicate AS
+(
+	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.amber AS sp1, sudoang.amber AS sp2
+	WHERE substring(sp1.id from 5) < substring(sp2.id from 5) AND ST_DWithin(sp1.geom, sp2.geom, 0.01)
+) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 5)::integer
+;
+
+-- duplicate with data already in dbeel
+-- UPDATE sudoang.amber SET dbeel_op_id = NULL; -- to reset the column
+-- the query is called duplicates but it is in fact to avoid duplicated
+WITH duplicate_amber AS 
+(
+	SELECT DISTINCT geom_reproj, op_id
+	FROM sudoang.amber, sudoang.dbeel_obstruction_place
+	WHERE id LIKE 'ASP%' AND geom_reproj IS NOT NULL AND ST_DWithin(the_geom, geom_reproj, 500) -- to be tuned
+) 
+UPDATE sudoang.amber SET dbeel_op_id = op_id
+FROM duplicate_amber 
+WHERE id LIKE 'ASP%' AND amber.geom_reproj IS NOT NULL AND amber.geom_reproj = duplicate_amber.geom_reproj
+; --1190
+
+-- update height for these dams
+WITH amber_obs AS
+(
+	SELECT *, REPLACE(REPLACE(height, ',', '.'), ' ', '') AS height2
+	FROM sudoang.amber
+	WHERE dbeel_op_id IS NOT NULL
+), amber_obs_max_height AS
+(
+	SELECT dbeel_op_id, max(height2) AS height FROM amber_obs GROUP BY dbeel_op_id --max is choosen, if mean the process should be different
+)	
+UPDATE sudoang.dbeel_physical_obstruction SET po_obstruction_height = height::real FROM amber_obs_max_height
+WHERE dbeel_op_id = ob_op_id AND po_obstruction_height < height::real; --147
+	
+-- new dams
+
+--select * from sudoang.dbeel_obstruction_place
+-- 
+WITH unique_obs AS
+(
+	SELECT DISTINCT geom_reproj FROM sudoang.amber WHERE dbeel_op_id IS NULL AND geom_reproj IS NOT NULL
+) 
+INSERT INTO sudoang.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id,
+	 'SUDOANG' AS op_gis_systemname,
+	  'amber' AS op_gis_layername, 
+	  NULL AS op_gislocation, 
+	  NULL AS op_placename, 11 AS op_no_observationplacetype, 
+	  NULL op_op_id, 
+	  geom_reproj AS the_geom,
+	   NULL AS id_original,
+	   'SP' AS country
+	FROM unique_obs; --15571
+
+
+-- record back the link with dbeel
+-- UPDATE sudoang.amber SET dbeel_op_id = NULL; -- to reset the column
+UPDATE sudoang.amber SET dbeel_op_id = op_id 
+FROM sudoang.dbeel_obstruction_place 
+WHERE geom_reproj = the_geom AND geom_reproj && the_geom AND op_gis_layername='amber';	-- 15619
+	
+-- choose an id (last) to record in dbeel
+WITH id_obs AS
+	(SELECT dbeel_op_id, 'ASP_' || max(substring(id from 5)::integer) AS id FROM sudoang.amber WHERE dbeel_op_id IS NOT NULL GROUP BY dbeel_op_id)
+UPDATE sudoang.dbeel_obstruction_place SET id_original = id, op_gislocation = id FROM id_obs WHERE op_id = dbeel_op_id AND op_gis_layername='amber'; --15571
+
+	
+
+INSERT INTO sudoang.dbeel_physical_obstruction
+	WITH amber_obs AS
+	(
+		SELECT *, REPLACE(REPLACE(height, ',', '.'), ' ', '')::real AS height2
+		FROM sudoang.amber
+		WHERE dbeel_op_id IS NOT NULL
+		AND NOT (height LIKE '%-%' OR height LIKE '%>%' OR height LIKE '%a%')
+	), amber_obs_max_height AS
+	(
+		SELECT dbeel_op_id, max(height2)::real AS height FROM amber_obs GROUP BY dbeel_op_id --max is choosen, if mean the process should be different
+	)
+	SELECT
+	  uuid_generate_v4() as ob_id,
+	  11 AS ob_no_origin, -- raw data
+	  16 AS ob_no_type, -- obstruction
+	  74 AS ob_no_period, -- Unknown
+	  NULL AS ob_starting_date,
+	  NULL AS ob_ending_date,
+	  dbeel_obstruction_place.op_id as ob_op_id,
+	  dp_id AS ob_dp_id,
+	  219 as ot_no_obstruction_type,-- physical
+	  1 as ot_obstruction_number,
+	  NULL AS ot_no_mortality_type,
+	  NULL AS ot_no_mortality,
+	  NULL as po_no_obstruction_passability,
+	  height::real AS po_obstruction_height,
+	  NULL AS po_turbine_number
+	FROM amber_obs_max_height JOIN sudoang.dbeel_obstruction_place ON (dbeel_op_id = op_id), 
+	dbeel.data_provider 
+	WHERE dp_name = 'Rosa' --TODO: TO BE MODIFIED
+	AND op_gis_layername='amber'
+; -- 12766
+
+
+INSERT INTO sudoang.dbeel_physical_obstruction
+	WITH amber_obs AS
+	(
+		SELECT *
+		FROM sudoang.amber
+		WHERE dbeel_op_id IS NOT NULL
+		AND height is null
+	), amber_obs_max_height AS
+	(
+		SELECT dbeel_op_id, max(height)::real AS height FROM amber_obs GROUP BY dbeel_op_id --max is choosen, if mean the process should be different
+	)
+	SELECT
+	  uuid_generate_v4() as ob_id,
+	  11 AS ob_no_origin, -- raw data
+	  16 AS ob_no_type, -- obstruction
+	  74 AS ob_no_period, -- Unknown
+	  NULL AS ob_starting_date,
+	  NULL AS ob_ending_date,
+	  dbeel_obstruction_place.op_id as ob_op_id,
+	  dp_id AS ob_dp_id,
+	  219 as ot_no_obstruction_type,-- physical
+	  1 as ot_obstruction_number,
+	  NULL AS ot_no_mortality_type,
+	  NULL AS ot_no_mortality,
+	  NULL as po_no_obstruction_passability,
+	  height AS po_obstruction_height,
+	  NULL AS po_turbine_number
+	FROM amber_obs_max_height JOIN sudoang.dbeel_obstruction_place ON (dbeel_op_id = op_id), 
+	dbeel.data_provider 
+	WHERE dp_name = 'Rosa' --TODO: TO BE MODIFIED
+	AND op_gis_layername='amber';--2808
+
+
+select count(*) from 	sudoang.dbeel_physical_obstruction ; 14695
+select * from sudoang.dbeel_physical_obstruction where ob_op_id = 'd596a65c-c681-412c-a417-5b65a12ff203'
+select * from sudoand.dbeel_observation_places 
+select * from sudoang.amber limit 1000;
+
+pg_dump -U postgres --table spain.rivers -f "spain_rivers_dbeel.sql" dbeel
+
+pg_dump -U postgres --table sudoang.spain_obstruction --table sudoang.catalonia_obstruction --table sudoang.catalonia_obstruction_dams --table sudoang.catalonia_obstruction_hpp --table sudoang.minho_obstruction --table sudoang.amber  --table sudoang.fcul_obstruction --table sudoang.galicia_obstruction  --table sudoang.catalonia_obstruction_join_dams_hpp  --table sudoang.spain_obstruction_in_spain  --table sudoang.spain_obstruction_not_in_spain -f "all_obstacle_tables_except_dbeel.sql" dbeel
+
+dbeel.physical_obstruction --table dbeel.physical_obstruction --table sudoang.dbeel_obstruction_place --table
+-- Presence of an eel pass:
+SELECT distinct fishpasstypelabel FROM sudoang.amber where id is not null; 
+
+begin;
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (true, '270')
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and "fishpasstypelabel" = 'Vertical cutout'; -- 1 rows
+commit;
+
+begin;
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (true, '271')
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and "fishpasstypelabel" = 'Successive ponds'; -- 64 rows
+commit;
+
+begin;
+with denil_pass as (
+	select * from sudoang.amber where  ("fishpasstypelabel" = 'Decelerators' OR "fishpasstypelabel" = 'Retarders') and dbeel_op_id is not null)
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (FALSE, '273')
+	from denil_pass WHERE dbeel_op_id = ob_op_id; -- 41 rows
+commit;
+
+begin;
+with undefined as (
+	select * from sudoang.amber where ("fishpasstypelabel" = 'YES' or "fishpasstypelabel" = 'UNDEFINED' or "fishpasstypelabel" = 'A small pass'
+	 or "fishpasstypelabel" = 'Ramps' or "fishpasstypelabel" = 'Yes' or "fishpasstypelabel" = 'Others') and dbeel_op_id is not null)
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (FALSE, '279')
+	from undefined WHERE dbeel_op_id = ob_op_id; -- 1480 rows
+commit;
+
+begin;
+with no_pass as (
+	select * from sudoang.amber where  ("fishpasstypelabel" = 'NONE' or "fishpasstypelabel" = 'No' or "fishpasstypelabel" = 'no' or "fishpasstypelabel" = 'Without fishway') 
+	and dbeel_op_id is not null)
+update sudoang.dbeel_physical_obstruction SET po_presence_eel_pass = FALSE
+	from no_pass WHERE dbeel_op_id = ob_op_id; -- 2346 rows
+commit;
+
+-- 32 obstacles must be updated with the information on fishways
+select * from sudoang.amber where labelatlas = 'Weir' and dbeel_op_id is not null; -- 9580 rows
+select * from sudoang.amber where labelatlas = 'Dam' and dbeel_op_id is not null; -- 607 rows
+select * from sudoang.amber where labelatlas = 'Culvert' and dbeel_op_id is not null; -- 2 rows
+select * from sudoang.amber where labelatlas = 'Ford' and dbeel_op_id is not null; -- 41 rows
+select * from sudoang.amber where labelatlas = 'Unknown' and dbeel_op_id is not null; -- 6509 rows
+
+begin;
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Weir'; -- 9422 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Dam'; -- 649 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '294'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Culvert'; -- 2 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '295'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and labelatlas = 'Ford'; -- 41 rows
+commit;
+
+-- Specific labelsource
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and (labelsource = 'Bridge. Out of WB' or labelsource = 'Bridge'); -- 2719 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber WHERE dbeel_op_id = ob_op_id and (labelsource = 'Gauging Station. Out of WB' or labelsource = 'Gauging station'); -- 8 rows
+
+-----------------------------------
+-- amber: Portugal
+-----------------------------------
+SELECT * FROM sudoang.amber_portugal limit 10;
+
+/* A resolved problem regarding the number of rows, everything was duplicated:
+SELECT "name", count("name") FROM sudoang.amber_portugal group by "name"; -- 624 rows duplicated (some names are duplicated X4)
+SELECT geom, count(geom) FROM sudoang.amber_portugal group by geom; -- 658 rows duplicated X2
+SELECT distinct geom FROM sudoang.amber_portugal; -- 658 rows duplicated X2
+
+create table sudoang.amber_potugal2 as SELECT DISTINCT ON (geom) * from sudoang.amber_portugal;
+drop table sudoang.amber_portugal;
+alter table sudoang.amber_potugal2 rename to amber_portugal;
+*/
+
+
+---- Adding a geometry column ("X" and "Y" in UTM system, change in QGis for a good projection EPSG 25830 - Coordinates Reference System PT-TM06/Datum ETRS89)
+select addgeometrycolumn('sudoang','amber_portugal','geom', 25830, 'point',2);
+update sudoang.amber_portugal set geom= ST_TRANSFORM(st_setsrid(ST_MakePoint("coordinates_m", "coordinates_p"), 3763),25830); -- 659 rows, 169 msec
+
+
+---- Creation spatial index
+CREATE INDEX 
+  ON sudoang.amber_portugal
+  USING gist
+  (geom);
+
+
+---- Change the srid of the geometry to 3035 (as portugal.rn): Doesn't work because it changes the SRID but the points aren't well projected
+-- SELECT UpdateGeometrySRID('sudoang','amber_portugal','geom',25830);
+-- Second trial to change the srid of amber.portugal:
+ALTER TABLE sudoang.amber_portugal
+ ALTER COLUMN geom TYPE geometry(POINT, 3035) USING ST_Transform(ST_SetSRID(geom,25830),3035);
+
+SELECT Find_SRID('sudoang', 'amber_portugal', 'geom'); -- 3035
+
+
+---- Reproject on the rivers
+SELECT addgeometrycolumn('sudoang','amber_portugal','geom_reproj',3035,'POINT',2);
+
+-- Go to OBSTRUCTION AGGREGATION script (line 94) to add the id (character to define the table origin and a key)
+-- alter table sudoang.amber_portugal add column id serial;
+
+update sudoang.amber_portugal set geom_reproj = sub2.geom_reproj from (
+select distinct on (id) id, geom_reproj, distance from(
+select
+id, 
+ST_ClosestPoint(r.geom,a.geom) as geom_reproj,
+ST_distance(r.geom,a.geom) as distance
+from sudoang.amber_portugal a join
+portugal.rn r on st_dwithin(r.geom,a.geom,300) 
+order by id, distance
+)sub )sub2
+where sub2.id= amber_portugal.id; -- 589 rows
+
+CREATE INDEX 
+  ON sudoang.amber_portugal
+  USING gist
+  (geom_reproj);
+  
+  
+---- Link amber TO dbeel
+ALTER TABLE sudoang.amber_portugal ADD COLUMN dbeel_op_id uuid;
+ALTER TABLE sudoang.amber_portugal ADD COLUMN initial_duplicate boolean default FALSE;
+-- update sudoang.amber_portugal set id = NULL;
+
+
+---- Check for INTERNAL DUPLICATES in the same table (geographically, in meters)
+WITH duplicate AS
+(
+	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.amber_portugal AS sp1, sudoang.amber_portugal AS sp2
+	WHERE substring(sp1.id from 5) < substring(sp2.id from 5) AND ST_DWithin(sp1.geom, sp2.geom, 0.01)
+) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 5)::integer
+; -- There is only one (APT 2255 - APT 256)
+
+select * from sudoang.dbeel_obstruction_place where country = 'PT';
+---- DUPLICATES with data already in DBEEL
+-- UPDATE sudoang.amber SET dbeel_op_id = NULL; -- to reset the column
+-- The query is called duplicates but it is in fact TO AVOID DUPLICATES
+WITH duplicate_amber AS 
+(
+	SELECT DISTINCT geom_reproj, op_id
+	FROM sudoang.amber_portugal, sudoang.dbeel_obstruction_place
+	WHERE id LIKE 'APT%' AND geom_reproj IS NOT NULL AND ST_DWithin(the_geom, geom_reproj, 500) -- 620 to be tuned
+) 
+UPDATE sudoang.amber_portugal SET (dbeel_op_id, initial_duplicate) = (op_id, TRUE)
+FROM duplicate_amber 
+WHERE id LIKE 'APT%' AND amber_portugal.geom_reproj IS NOT NULL AND amber_portugal.geom_reproj = duplicate_amber.geom_reproj
+; -- 7 rows that correspond with 7 obstacles on the border, also presented in Spain (check in QGis)
+
+---- Create a column of height with all the data combined in two columns ("height_alturabardata_m" and "height_altura_m")
+alter table sudoang.amber_portugal add column height integer;
+update sudoang.amber_portugal
+	set height = coalesce(height_alturabardata_m, height_altura_m); -- 658 rows
+--(select case when height_alturabardata_m is not null then height_alturabardata_m else height_altura_m end from sudoang.amber_portugal)
+
+---- Update height for these dams
+/* 	Problem solved with null data that weren't insert into the dbeel
+	Line 355 in "dbeel_sudoang_obstruction_creation" script: 2808 rows are added
+	Example for an op_id which its height his null in amber, but it's a duplicate for amber_portugal (and it contains the height)
+select * from sudoang.amber where dbeel_op_id = 'd596a65c-c681-412c-a417-5b65a12ff203'
+select * from sudoang.dbeel_physical_obstruction where ob_op_id = 'd596a65c-c681-412c-a417-5b65a12ff203'
+select * from sudoang.dbeel_physical_obstruction where po_obstruction_height is null -- 2814 rows
+*/
+UPDATE sudoang.dbeel_physical_obstruction SET po_obstruction_height = height FROM sudoang.amber_portugal
+WHERE dbeel_op_id = ob_op_id AND po_obstruction_height is null; -- 3 rows
+
+-- A view of dbeel_physical obstruction is created to check in QGis the data
+create or replace view sudoang.view_physical_obstruction as select * from sudoang.dbeel_obstruction_place 
+	left join sudoang.dbeel_physical_obstruction on ob_op_id=op_id; -- DOESN'T WORK
+
+
+---- NEW dams inserted into dbeel_obstruction_place
+-- select * from sudoang.dbeel_obstruction_place
+WITH unique_obs AS
+(
+	SELECT DISTINCT geom_reproj FROM sudoang.amber_portugal WHERE dbeel_op_id IS NULL AND geom_reproj IS NOT NULL
+) 
+INSERT INTO sudoang.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id,
+	 'SUDOANG' AS op_gis_systemname,
+	  'amber' AS op_gis_layername, 
+	  NULL AS op_gislocation, 
+	  NULL AS op_placename, 11 AS op_no_observationplacetype, 
+	  NULL op_op_id, 
+	  geom_reproj AS the_geom,
+	  NULL AS id_original,
+	  'PT' AS country
+	FROM unique_obs; -- 581 rows (total rows: 659 - 7 are duplicated and 71 are lost because of reprojection, more than 500m from a river)
+
+
+---- Record back the link with dbeel: op_id of new dams (inserted into the dbeel) are inserted into the source table (amber_portugal)
+-- UPDATE sudoang.amber SET dbeel_op_id = NULL; -- to reset the column
+begin;
+UPDATE sudoang.amber_portugal SET dbeel_op_id = op_id 
+FROM sudoang.dbeel_obstruction_place 
+WHERE geom_reproj = the_geom AND geom_reproj && the_geom AND op_gis_layername='amber';	-- 582 rows
+COMMIT;
+
+
+---- The id of the source table (amber_portugal) is retrieved in the dbeel_obstruction_place: choose an id (last) to record in dbeel
+WITH id_obs AS
+	(SELECT dbeel_op_id, 'APT_' || max(substring(id from 5)::integer) AS id 
+	FROM sudoang.amber_portugal WHERE dbeel_op_id IS NOT NULL GROUP BY dbeel_op_id)
+UPDATE sudoang.dbeel_obstruction_place SET id_original = id, op_gislocation = id 
+	FROM id_obs WHERE op_id = dbeel_op_id AND op_gis_layername='amber'; -- 588 rows
+
+	
+---- Insert into the dbeel_physical_obstruction table, all the characteristics of the new dams
+INSERT INTO sudoang.dbeel_physical_obstruction
+	SELECT
+	  uuid_generate_v4() as ob_id,
+	  11 AS ob_no_origin, -- raw data
+	  16 AS ob_no_type, -- obstruction
+	  74 AS ob_no_period, -- Unknown
+	  NULL AS ob_starting_date,
+	  NULL AS ob_ending_date,
+	  dbeel_obstruction_place.op_id as ob_op_id,
+	  dp_id AS ob_dp_id,
+	  219 as ot_no_obstruction_type,-- physical
+	  1 as ot_obstruction_number,
+	  NULL AS ot_no_mortality_type,
+	  NULL AS ot_no_mortality,
+	  NULL as po_no_obstruction_passability,
+	  height AS po_obstruction_height,
+	  NULL AS po_turbine_number
+	FROM sudoang.amber_portugal JOIN sudoang.dbeel_obstruction_place ON (dbeel_op_id = op_id), 
+	dbeel.data_provider 
+	WHERE dp_name = 'Rosa' --TODO: TO BE MODIFIED
+	AND op_gis_layername='amber'
+	AND NOT initial_duplicate
+; -- 590 rows
+
+
+---- Presence of an eel pass: Eels can pass if there is an eel pass, type "Bacias sucessivas"
+SELECT distinct type_fish_passage FROM sudoang.amber_portugal where id is not null;	-- 'Eclusas', 'Bacias sucessivas', 'Ascensor'
+
+SELECT distinct fish_passage FROM sudoang.amber_portugal where id is not null; 		-- Yes, No, Null
+-- "fish_passage" from amber_portugal is text, it must be converted into boolean:
+begin;
+alter table sudoang.amber_portugal
+alter column "fish_passage"
+set data type boolean
+using case
+    when "fish_passage" = 'Yes' then true
+    when "fish_passage" = 'No' then false
+    else null
+end;
+commit;
+
+-- 32 obstacles must be updated with the information on fishways
+select * from sudoang.amber_portugal where "fish_passage" = 'Yes' and "type_fish_passage" = 'Bacias sucessivas'; -- 23 rows
+select * from sudoang.amber_portugal where "fish_passage" = 'Yes' and "type_fish_passage" = 'Ascensor'; -- 1 rows
+select * from sudoang.amber_portugal where "fish_passage" = 'Yes' and "type_fish_passage" = 'Eclusas'; -- 8 rows
+-- select * from sudoang.dbeel_physical_obstruction where fishway_type is not null
+
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (true, '271')
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and "fish_passage" = true and "type_fish_passage" = 'Bacias sucessivas'; -- 23 rows
+
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (FALSE, '274')
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and "fish_passage" = true and "type_fish_passage" = 'Ascensor'; -- 1 rows
+
+update sudoang.dbeel_physical_obstruction SET (po_presence_eel_pass, fishway_type) = (TRUE, '280')
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and "fish_passage" = true and "type_fish_passage" = 'Eclusas'; -- 8 rows
+
+
+/* dbeel_nomenclature.obstruction_type = 209 --"Unobtrusive and/or no barrier" when "fish_passage" = 'Yes' and "type_fish_passage" = 'Bacias sucessivas' ???
+dbeel_nomenclature.obstruction_type:
+	208: "Unknown"
+	209: "Unobtrusive and/or no barrier"
+	210: "Passable without apparent difficulty"
+	211: "Passable with some risk of delay"
+	212: "Difficult to pass"
+	213: "Very difficult to pass"
+	214: "Impassable"
+*/
+
+select * from sudoang.dbeel_physical_obstruction where po_presence_eel_pass = FALSE and fishway_type is not null;
+
+---- Type of obstacles
+select distinct type_barrier from sudoang.amber_portugal;
+/*
+|type_barrier  	|
+|---------------|
+|Weir		|
+|		|
+|Other		|
+|Big dam	|
+|		|
+|Mini-hídraulic	|
+*/
+
+-- 32 obstacles must be updated with the information on fishways
+select * from sudoang.amber_portugal where type_barrier = 'Weir'; -- 33 rows
+select * from sudoang.amber_portugal where type_barrier = 'Other' or type_barrier = '' or type_barrier = ' '; -- 404 rows
+select * from sudoang.amber_portugal where type_barrier = 'Big dam'; -- 153 rows
+select * from sudoang.amber_portugal where type_barrier = 'Mini-hídraulic'; -- 68 rows
+-- select * from sudoang.amber_portugal where type_barrier is not null and dbeel_op_id is not null -- 582 rows (total: 658 rows)
+
+-- select distinct ot_no_obstruction_type from sudoang.dbeel_physical_obstruction
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Weir'; -- 33 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and (type_barrier = 'Other' or type_barrier = '' or type_barrier = ' '); -- 338 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Big dam'; -- 142 rows
+
+-- HPP as dam
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.amber_portugal WHERE dbeel_op_id = ob_op_id and type_barrier = 'Mini-hídraulic'; -- 68 rows
+
+```
+
+The Cantabrico basin:
+
+```{sql eval=FALSE}
+--------------------------------------------------------------------------------------------------
+-- CANTABRICO BASIN (CHCantabr_ObsTrans, CHCantabr_ObstransGenerales, CHCantabr_ObstransTecnicos)
+--------------------------------------------------------------------------------------------------
+/* 3 tables as geodatabase:
+	-- CHCantabr_ObsTrans
+	-- CHCantabr_ObstransGenerales
+	-- CHCantabr_ObstransTecnicos
+*/
+
+---- First change the name of tables to avoid capital letters
+alter table sudoang."CHCantabr_ObsTrans" rename to chcoc_obstruction;
+alter table sudoang."CHCantabr_transGenerales" rename to chcoc_obstruction_gen;
+alter table sudoang."CHCantabr_transTecnicos" rename to chcoc_obstruction_tec;
+
+alter table sudoang.chcoc_obstruction rename column id to id0; -- Change the name of id because we also use id (=COC_) (line 125 in OBSTRUCTION_AGGREGATION script)
+select * from sudoang.chcoc_obstruction limit 10;
+
+---- Add establishment
+-- select * from dbeel.establishment
+-- 'MITECO' is the Cthe University of Porto, but we don't know the origin of data (ask to Carlos Antunes)
+INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('miteco'); --TODO: TO BE MODIFIED
+-- add data provider
+INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
+	SELECT 'Belén Muñoz', et_id FROM dbeel.establishment WHERE et_establishment_name = 'miteco' -- The other data set sent by Belen: 'min esp' and 'Belen'
+; --TODO: TO BE MODIFIED
+select * from sudoang.chcoc_obstruction;
+
+---- The reprojection was done (line 257 in OBSTRUCTION_AGGREGATION script). Checking the srid of the geometry:
+SELECT Find_SRID('sudoang', 'chcoc_obstruction', 'geom'); -- 25830 to 3035
+
+---- Creation spatial index
+CREATE INDEX 
+  ON sudoang.chcoc_obstruction
+  USING gist
+  (geom);
+
+---- Reproject on the rivers
+SELECT addgeometrycolumn('sudoang','chcoc_obstruction','geom_reproj',3035,'POINT',2);
+-- It correspond to the same "geom" because the srid is the same, done for don't change the script below
+
+-- line 125 in OBSTRUCTION_AGGREGATION script: the id (character to define the table origin and a key)
+--select * from sudoang.chcoc_obstruction limit 10
+begin;
+update sudoang.chcoc_obstruction set geom_reproj = sub2.geom_reproj from (
+select distinct on (id) id, geom_reproj, distance from(
+select
+id, 
+ST_ClosestPoint(r.geom,a.geom) as geom_reproj,
+ST_distance(r.geom,a.geom) as distance
+from sudoang.chcoc_obstruction a join
+spain.rn r on st_dwithin(r.geom,a.geom,300) 
+order by id, distance
+)sub )sub2
+where sub2.id= chcoc_obstruction.id; -- 1980 rows
+commit;
+
+CREATE INDEX 
+  ON sudoang.chcoc_obstruction
+  USING gist
+  (geom_reproj);
+
+
+ ---- Link Cantabrico dams TO dbeel
+ALTER TABLE sudoang.chcoc_obstruction ADD COLUMN dbeel_op_id uuid;
+-- update sudoang.chcoc_obstruction set dbeel_op_id = NULL
+
+
+---- Check for INTERNAL DUPLICATES in the same table (geographically, in meters)
+WITH duplicate AS
+(
+	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.chcoc_obstruction AS sp1, sudoang.chcoc_obstruction AS sp2
+	WHERE substring(sp1.id from 5) < substring(sp2.id from 5) AND ST_DWithin(sp1.geom, sp2.geom, 0.01)
+) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 5)::integer
+; -- 0 rows
+
+
+---- DUPLICATES with data already in DBEEL
+-- UPDATE sudoang.chcoc_obstruction SET dbeel_op_id = NULL; -- to reset the column
+-- The query is called duplicates but it is in fact TO AVOID DUPLICATES
+
+ALTER TABLE sudoang.chcoc_obstruction ADD COLUMN dist_to_dbeel numeric;
+update sudoang.chcoc_obstruction set (dbeel_op_id, dist_to_dbeel) = (null, null); --1980
+
+begin;
+WITH duplicate_chcoc AS 
+(
+	SELECT DISTINCT geom_reproj, op_id, st_distance(the_geom, geom_reproj) as dist_to_dbeel 
+	FROM sudoang.chcoc_obstruction, sudoang.dbeel_obstruction_place
+	WHERE id LIKE 'COC%' 
+	AND geom_reproj IS NOT NULL 
+	AND ST_DWithin(the_geom, geom_reproj, 500)
+	AND "TIPO_INFR" in ('SV', 'PP', 'OM') -- 1565 rows. All except pipes and road crossing
+	) 
+UPDATE sudoang.chcoc_obstruction SET (dbeel_op_id, dist_to_dbeel) = (op_id, duplicate_chcoc.dist_to_dbeel)
+FROM duplicate_chcoc 
+WHERE id LIKE 'COC%' AND chcoc_obstruction.geom_reproj IS NOT NULL AND chcoc_obstruction.geom_reproj = duplicate_chcoc.geom_reproj
+; -- 808 rows (total 1980)
+commit;
+
+--select * from sudoang.chcoc_obstruction_tec where "IF" != 0; -- passability
+--select count(*), "ACC_DP_DS" from sudoang.chcoc_obstruction_tec group by "ACC_DP_DS";
+
+---- Update height for these dams
+
+-- select * from sudoang.chcoc_obstruction_gen where "autoUID" = '46ec2641-26b4-4b11-9db9-bcaf2d7c71b3';
+-- select * from sudoang.chcoc_obstruction
+-- select * from sudoang.chcoc_obstruction_tec
+
+
+--------------------- dbeel_physical_obstruction update --------------------------------------------------------------------------------------------------------
+-- Rationale: we have used the metadata in word to insert as best as possible in our tables
+-- When the data are considered as poor and the state of the dam is correct ESTADO not in ('PR' (project),'CO',(construction), 'AR' abandonned and ruined, 'DM'
+-- When the height are not 0 (in the database all NULL values are currently set to zero)
+-- When the projet miteco says the data are sure => "CIERTO" = 'SI'
+-- Then we update our database with new data on height and other stuff
+-- We have tested on maps, two dams from miteco may be at less than 500 m from an obstacle from the dbeel
+-- In that case both dams will refer to the same dam in the dbeel. 
+-- If there is a duplicate we will only update the closest dam hence the use of the joined dam and closest dam queries
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+alter table sudoang.dbeel_physical_obstruction add column date_last_update date;
+alter table sudoang.dbeel_physical_obstruction add column author_last_update text;
+alter table sudoang.dbeel_physical_obstruction add column comment_update text;
+
+
+begin;
+with joined_dam as (
+select * from sudoang.dbeel_obstruction_place d join sudoang.chcoc_obstruction o on o.dbeel_op_id = d.op_id 
+	join 
+	sudoang.chcoc_obstruction_tec ot on o."autoUID" = ot."autoUID"
+	where o."CIERTO" = 'SI'
+	AND ot."CIERTO" = 'SI' -- Maria in fact, I have added the two maybe it's not the best...
+	and "H_TOTAL" + "H_SALTO" > 0
+	AND "ESTADO" not IN ('PR','CO','AR','DM') 
+	order by op_id, dist_to_dbeel),
+
+closest_dam as (
+select distinct on (op_id) * from joined_dam)
+select * from closest_dam; -- 25 rows
+
+UPDATE sudoang.dbeel_physical_obstruction 
+	SET 
+	(po_obstruction_height, po_downs_pb, po_downs_water_depth, po_presence_eel_pass, fishway_type, date_last_update, author_last_update, comment_update) = 
+	(r.po_obstruction_height, r.po_downs_pb, r.po_downs_water_depth, r.po_presence_eel_pass, r.fishway_type,
+	'2019-04-09',
+	'María and Cédric',
+	'Values of height, downs_pb, po_downs_water_depth, presence_eel_pass modified from data provided by the ministry (miteco) and labelled as CIERTO') 
+	FROM (SELECT
+	dbeel_op_id,
+	CASE WHEN "H_SALTO" != 0 THEN "H_SALTO" ELSE "H_TOTAL" END AS po_obstruction_height, 
+	CASE WHEN "TURB_MOL" IN ('SI','CAUDAL') THEN TRUE ELSE NULL END AS po_downs_pb, 
+	CASE WHEN "PROF_POZA" >0 THEN "PROF_POZA" ELSE NULL END AS po_downs_water_depth, 
+	CASE WHEN "TIPO_PASO" IN ('ES','RP','CL') THEN TRUE ELSE NULL END AS po_presence_eel_pass,  -- 'ES' = Pool type fishway, 'RP' = rock ramp, 'CL' = lateral canal 
+	"TIPO_PASO" AS fishway_type
+	FROM closest_dam) r
+	WHERE dbeel_op_id = ob_op_id
+	--AND po_obstruction_height is null)  -- Here we choose to use the data from miteco as reference and we will overwrite any exisiting value in the database
+	; -- 25 rows
+commit;
+
+
+-----------------HPP table -----------------------------------------------------------------------------------------------------------------------------
+-- Same but we update the dbeel_hpp table
+-- The rationale is that if a downstream passage is accessible (SI) then we consider that it is OK even if other criteria (velocity...) are not met...
+-- Those passages are so few (5) see following query
+-- select count(*), "ACC_DP_DS" from sudoang.chcoc_obstruction_tec group by "ACC_DP_DS";
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+-- "ACC_DP_DS" from chcoc_obstruction_tec is text, it must be converted into boolean:
+alter table sudoang.chcoc_obstruction_tec
+alter column "ACC_DP_DS"
+set data type boolean
+using case
+    when "ACC_DP_DS" = 'SI' then true
+    when "ACC_DP_DS" = 'NO' then false
+    else null
+end; -- 7 rows
+
+-- A problem is found with the foreign key and the constraint for this ob_id:
+select * from sudoang.dbeel_physical_obstruction where ob_id = '2b26ca82-b459-409a-85a1-54ccfa10e84c';
+alter table sudoang.dbeel_hpp drop constraint c_fk_hpp_ob_id;
+alter table sudoang.dbeel_hpp  ADD CONSTRAINT c_fk_hpp_ob_id FOREIGN KEY (hpp_ob_id)
+      REFERENCES sudoang.dbeel_physical_obstruction (ob_id) MATCH SIMPLE ON UPDATE CASCADE ON DELETE CASCADE
+
+
+begin;
+with joined_dam as (
+select * from sudoang.dbeel_obstruction_place d join sudoang.chcoc_obstruction o on o.dbeel_op_id = d.op_id 
+	join 
+	sudoang.dbeel_physical_obstruction po on po.ob_op_id=d.op_id
+	JOIN
+	sudoang.chcoc_obstruction_tec ot on o."autoUID" = ot."autoUID"
+	where o."CIERTO" = 'SI'
+	and "H_TOTAL" + "H_SALTO" > 0
+	AND "ESTADO" not IN ('PR','CO','AR','DM') 
+	order by op_id, dist_to_dbeel),
+
+closest_dam as (
+select distinct on (op_id) * from joined_dam)
+--select * from closest_dam; -- 25 rows
+INSERT INTO sudoang.dbeel_hpp(
+	hpp_id, hpp_ob_id, hpp_presence_of_bar_rack, hpp_presence_bypass)
+	SELECT
+		uuid_generate_v4() as hpp_id,
+		ob_id AS hpp_ob_id,
+		CASE WHEN "EXIS_REJA" = 'SI' THEN TRUE ELSE NULL END AS hpp_presence_of_bar_rack, 
+		"ACC_DP_DS" AS hpp_presence_bypass
+	FROM closest_dam
+; -- 25 rows
+COMMIT;
+
+
+/*--------------------------------------------------------------
+---- NEW dams inserted into dbeel_obstruction_place
+
+above we have insterted op_id for duplicates and for some dams 
+where 	"CIERTO" = 'SI'
+	and "H_TOTAL" + "H_SALTO" > 0
+	AND ESTADO not IN ('PR','CO','AR','DM') 
+we have updated the information in the database
+Now we will insert new data, but again with the following
+"CIERTO" = 'SI'
+	and "H_TOTAL" + "H_SALTO" > 0
+	AND ESTADO not IN ('PR','CO','AR','DM') 
+----------------------------------------------------------------*/
+begin;
+WITH unique_obs AS
+(
+	SELECT DISTINCT geom_reproj FROM sudoang.chcoc_obstruction o join sudoang.chcoc_obstruction_tec t on o."autoUID" = t."autoUID"
+	WHERE o.dbeel_op_id IS NULL 
+	AND o.geom_reproj IS NOT NULL
+	AND o."CIERTO" = 'SI'
+	and t."H_TOTAL" + t."H_SALTO" > 0
+	AND t."ESTADO" not IN ('PR','CO','AR','DM') -- 78 rows
+) 
+INSERT INTO sudoang.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id, -- "autoUID" AS op_id,
+		'SUDOANG' AS op_gis_systemname,
+		'miteco' AS op_gis_layername,  -- spain_obstruction_in_spain is the op_gis_layername from the ministry
+		NULL AS op_gislocation, 
+		NULL AS op_placename,
+		11 AS op_no_observationplacetype, 
+		NULL op_op_id, 
+		geom_reproj AS the_geom,
+		NULL AS id_original,
+		'SP' AS country
+		FROM unique_obs
+; -- 78 rows
+commit;
+
+
+---- Record back the link with dbeel: op_id of new dams (inserted into the dbeel) are inserted into the source table (chcoc_obstruction)
+-- UPDATE sudoang.chcoc_obstruction SET dbeel_op_id = NULL; -- to reset the column
+UPDATE sudoang.chcoc_obstruction SET dbeel_op_id = op_id 
+FROM sudoang.dbeel_obstruction_place 
+WHERE geom_reproj = the_geom AND geom_reproj && the_geom AND op_gis_layername='miteco'; -- 78 rows
+	
+---- The id of the source table (chcoc_obstruction) is retrieved in the dbeel_obstruction_place: choose an id (last) to record in dbeel
+begin;
+WITH id_obs AS
+	(SELECT dbeel_op_id, 'COC_' || max(substring(id from 5)::integer) AS id 
+	FROM sudoang.chcoc_obstruction WHERE dbeel_op_id IS NOT NULL GROUP BY dbeel_op_id) -- 644 rows
+UPDATE sudoang.dbeel_obstruction_place SET id_original = id, op_gislocation = id 
+	FROM id_obs WHERE op_id = dbeel_op_id AND op_gis_layername='miteco'; -- 78 rows
+commit;
+
+
+---- Insert into the dbeel_physical_obstruction table, all the characteristics of the new dams
+begin;
+WITH join_chcoc AS
+(
+	SELECT * FROM sudoang.chcoc_obstruction o join sudoang.chcoc_obstruction_tec t on o."autoUID" = t."autoUID" where dbeel_op_id is not null -- 886 rows
+) 
+INSERT INTO sudoang.dbeel_physical_obstruction
+	SELECT
+	  uuid_generate_v4() as ob_id,
+	  11 AS ob_no_origin, -- raw data
+	  16 AS ob_no_type, -- obstruction
+	  74 AS ob_no_period, -- Unknown
+	  NULL AS ob_starting_date,
+	  NULL AS ob_ending_date,
+	  dbeel_obstruction_place.op_id as ob_op_id,
+	  dp_id AS ob_dp_id,
+	  219 as ot_no_obstruction_type, -- physical
+	  1 as ot_obstruction_number,
+	  NULL AS ot_no_mortality_type,
+	  NULL AS ot_no_mortality,
+	  NULL as po_no_obstruction_passability,
+	  CASE WHEN "H_SALTO" != 0 THEN "H_SALTO" ELSE "H_TOTAL" END AS po_obstruction_height,
+	  CASE WHEN "TURB_MOL" IN ('SI','CAUDAL') THEN TRUE ELSE NULL END AS po_downs_pb,
+	  CASE WHEN "PROF_POZA" >0 THEN "PROF_POZA" ELSE NULL END AS po_downs_water_depth, 
+	  CASE WHEN "TIPO_PASO" IN ('ES','RP','CL') THEN TRUE ELSE NULL END AS po_presence_eel_pass,  -- 'ES' = Pool type fishway, 'RP' = rock ramp, 'CL' = lateral canal
+	  NULL AS po_method_perm_ev,
+	  NULL AS po_date_presence_eel_pass,
+	  "TIPO_PASO" AS fishway_type,
+	  NULL AS date_last_update,
+	  NULL AS author_last_update,
+	  NULL AS comment_update
+	FROM join_chcoc JOIN sudoang.dbeel_obstruction_place ON (dbeel_op_id = op_id), 
+	dbeel.data_provider 
+	WHERE dp_name = 'Belén Muñoz' --TODO: TO BE MODIFIED
+	AND op_gis_layername='miteco'
+; -- 78 rows
+commit;
+
+---- Add the ob_id from dbeel_physical obstruction in chcoc_obstruction
+alter table sudoang.chcoc_obstruction add column dbeel_ob_id uuid;
+UPDATE sudoang.chcoc_obstruction SET dbeel_ob_id = ob_id 
+FROM (
+	select * from sudoang.dbeel_obstruction_place join sudoang.dbeel_physical_obstruction ON ob_op_id = op_id) sub
+WHERE geom_reproj = the_geom AND geom_reproj && the_geom AND op_gis_layername='miteco'; -- 78 rows
+
+---- Insert into the dbeel_hpp table, all the characteristics of the new hpp
+begin;
+WITH join_chcoc AS
+(
+	SELECT * FROM sudoang.chcoc_obstruction o join sudoang.chcoc_obstruction_tec t on o."autoUID" = t."autoUID" where dbeel_ob_id is not null -- 78 rows
+) 
+INSERT INTO sudoang.dbeel_hpp(
+	hpp_id, hpp_ob_id, hpp_presence_of_bar_rack, hpp_presence_bypass)
+	SELECT
+		uuid_generate_v4() as hpp_id,
+		dbeel_ob_id AS hpp_ob_id,
+		CASE WHEN "EXIS_REJA" = 'SI' THEN TRUE ELSE NULL END AS hpp_presence_of_bar_rack, 
+		"ACC_DP_DS" AS hpp_presence_bypass
+	FROM join_chcoc
+; -- 78 rows
+COMMIT;
+
+-- Update the type of obstacles
+select distinct "TIPO_INFR" from sudoang.chcoc_obstruction;
+/* The same for the tables: chcoc, chebro, chguad, chmin, chseg
+|			|TIPO_INFR	|
+|-----------------------|---------------|
+|Salto vertical		|SV		| (dam)
+|Paso entubado		|PE		| (culvert)
+|Paso sobre paramento	|PP		| (weir)
+|Obstáculo mixto	|OM		| (weir)
+|Cruce con vial		|CV		| (bridge)
+*/
+select * from sudoang.chcoc_obstruction where "TIPO_INFR" = 'SV' and dbeel_op_id is not null and "CIERTO" = 'SI'; -- 94 rows (total 861 rows)
+select * from sudoang.chcoc_obstruction where "TIPO_INFR" = 'PE' and dbeel_op_id is not null and "CIERTO" = 'SI'; -- 0 rows
+select * from sudoang.chcoc_obstruction where "TIPO_INFR" = 'PP' and dbeel_op_id is not null and "CIERTO" = 'SI'; -- 14 rows (total 23 rows)
+select * from sudoang.chcoc_obstruction where "TIPO_INFR" = 'OM' and dbeel_op_id is not null and "CIERTO" = 'SI'; -- 0 rows (total 1 row)
+select * from sudoang.chcoc_obstruction where "TIPO_INFR" = 'CV' and dbeel_op_id is not null and "CIERTO" = 'SI'; -- 1 row
+
+--select * from sudoang.chcoc_obstruction where dbeel_op_id is not null; -- 886 rows
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '219'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id; -- 644 rows
+
+begin;
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '291'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'SV' and "CIERTO" = 'SI'; -- 92 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'PP' and "CIERTO" = 'SI'; -- 14 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '292'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'OM' and "CIERTO" = 'SI'; -- 0 rows
+
+update sudoang.dbeel_physical_obstruction SET ot_no_obstruction_type = '296'
+	from sudoang.chcoc_obstruction WHERE dbeel_op_id = ob_op_id and "TIPO_INFR" = 'CV' and "CIERTO" = 'SI'; -- 1 rows
+commit;
+
+```
+
+
+```{r launch, echo=FALSE, include=FALSE}
+require(knitr)
+opts_knit$set(eval.after = 'fig.cap')
+# this will set figure caption to cap inside R chunk
+obj <- ls(all=TRUE)
+obj <- obj[!obj%in%c("passworddistant","passwordlocal")]
+getUsername <- function(){
+	name <- Sys.info()[["user"]]
+	return(name)
+}
+#memory.limit(size =4000)
+if(getUsername() == 'cedric.briand'|getUsername() == 'mmateo') setwd("C:/workspace/EDA/")
+rivernetwork <- "RIOS"
+source("EDACCM/init.r")
+#citation("sqldf")
+#citation("RPostgreSQL")
+#citation("RColorBrewer")
+#citation("plyr")
+#citation("ggplot2")
+#citation("stargazer")
+#citation("visreg")
+#citation("mgcv")
+#citation("PresenceAbsence")
+graphics.off() 
+
+#options(warn =  -1)
+options(sqldf.RPostgreSQL.user = "postgres", 
+		sqldf.RPostgreSQL.password = passwordlocal,
+		sqldf.RPostgreSQL.dbname = "eda2.3",
+		sqldf.RPostgreSQL.host = "localhost",#  1.100.1.6
+		sqldf.RPostgreSQL.port = 5432)
+#t <- tryCatch(sqldf("select gid from rht.rhtvs2 limit 1"),error =  function(e) e)
+#is_simple_error <- function(x) inherits(x, "simpleError")
+#if (is_simple_error(t)) stop("distant call using w3.eptb-vilaine.fr failed, check connection to the database")
+
+
+#baseODBCccm[1] <- "eda2"
+#baseODBC[1] <- "ouvragelb"
+#baseODBCdbeel[1] <- "dbeel"
+#baseODBCrht[1] <- "eda2rht"
+
+# Attention il faut crÃ¯Â¿Â½er les rÃ¯Â¿Â½pertoires
+options(warn =  0)
+#setwd("C:/workspace/EDA/report2.3")
+#datawd <- "C:/workspace/EDAdata/"
+ddatawd <- paste0(datawd,"/report2.3/data/")
+#imgwd <- "C:/workspace/EDAdata/reportt2.3/images/"
+#edawd =  "C:/workspace/EDA/"
+
+sanitizeLatexS <- function(str) {
+	gsub('([#$%&~_\\^\\\\{}])', '\\\\\\\\\\1', str, perl = TRUE);
+}
+# la fonction sn utilise maintenant le package siunitx
+# ajouter \usepackage{siunitx}
+#\sisetup{
+#round-mode = places, % nombre de decimales apres la virgule
+#round-precision = 3
+#}%
+# Dans le preambule
+num <- function(x,round_precision =  NULL)
+{
+	if (is.null(round_precision)) {
+		return(sprintf("\\num{%s}", x))
+	} else {
+		return(sprintf("\\num[round-precision=%s]{%s}",round_precision+1, x))
+	}
+}
+wd <- getwd()
+# choix de la version Ã¯Â¿Â½ charger
+rapport <- "2020" #"2012" "2015" "2009" donnÃ¯Â¿Â½es cÃ¯Â¿Â½line 
+sector <- "spain"
+open_in_excel <- function(some_df){
+	tFile <- paste("C:/temp/",gsub("\\\\","",tempfile(fileext =  paste0(substitute(some_df), ".csv"),tmpdir =  "")),sep =  "")
+	write.table(some_df, tFile, row.names = F, sep = ";", quote = F)
+	system(paste('open -a \"/ProgramData/Microsoft/Windows/Start Menu/Programs/Microsoft Office/Microsoft Excel 2010\"', tFile))
+}
+library(readxl)
+library(sf)
+library(scam)
+# vvv <- list()
+# save(vvv, file=paste0(ddatawd,"vvv.Rdata"))
+```
+
+
+# Projecting in river segments
+
+The [dbeel_view_obstruction](http://w3.eptb-vilaine.fr:8080/traceda/browser/eda/EDAcommun/sql/sudoang/dbeel_view_obstruction.sql) script creates a view of all dams in the sudoang area
+**sudoang.view_obstruction** and creates the projection table for all countries
+**france.join_obstruction_rn**, **spain.join_obstruction_rn** and **portugal.join_obstruction_rn**
+
+```{sql projection, eval=FALSE}
+DROP TABLE IF EXISTS spain.join_obstruction_rn;
+CREATE TABLE spain.join_obstruction_rn as(
+  
+   with projection as (	
+               SELECT r.idsegment, 
+               op_id,               						
+		geom,
+		st_distance(r.geom,d.the_geom) as distance ,
+        1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
+
+		FROM spain.rn r
+		JOIn sudoang.dbeel_obstruction_place  d
+		ON st_dwithin(r.geom, d.the_geom,0.01)
+		order by idsegment, distance desc)
+SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment  from projection
+);
+--20606 18s
+```
+
+
+```{r out.width="400px", echo=FALSE, fig.cap = cap}
+knitr::include_graphics("C:/workspace/EDAdata/report2.3/images/distance_dam_spain.jpg")
+cap <- "Projection of dams on segments with distance from the dowstream part of the segment (view_join_obstruction_rn) "
+```
+
+```{r out.width="6500px", echo=FALSE, fig.cap = cap}
+knitr::include_graphics("C:/workspace/EDAdata/report2.3/images/downstream_dam_from_segment_PT9621.png")
+cap <- "Map showing the dams located downstream from idsegment PT9621 "
+```
+
+
