@@ -1,0 +1,1 @@
+SELECT * FROM sudoang.dbeel_turbine

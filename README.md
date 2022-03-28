@@ -1,6 +1,7 @@
 # dbeel
 
 dbeel integration
+This part contains script related to dbeel, which integrates dams and electrofishing data
 
 ## Getting started
 

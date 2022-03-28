@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diagram version="1" name="dbeel.erd" time="201904021648">
+	<entities>
+		<data-source id="postgres-jdbc-161945da597-4c06b64296e77a6f">
+			<entity id="1" name="biological_characteristic_type" fq-name="dbeel_nomenclature.biological_characteristic_type" order="0" x="683" y="625">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="2" name="electrofishing_mean" fq-name="dbeel_nomenclature.electrofishing_mean" order="1" x="465" y="621">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="3" name="nomenclature" fq-name="dbeel_nomenclature.nomenclature" order="2" x="59" y="528">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="4" name="observation_origin" fq-name="dbeel_nomenclature.observation_origin" order="3" x="34" y="66">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="5" name="observation_place_type" fq-name="dbeel_nomenclature.observation_place_type" order="4" x="-20" y="158">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="6" name="observation_type" fq-name="dbeel_nomenclature.observation_type" order="5" x="250" y="65">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="7" name="obstruction_impact" fq-name="dbeel_nomenclature.obstruction_impact" order="6" x="451" y="70">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="8" name="obstruction_type" fq-name="dbeel_nomenclature.obstruction_type" order="7" x="630" y="63">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="9" name="period_type" fq-name="dbeel_nomenclature.period_type" order="8" x="790" y="63">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="10" name="predation_type" fq-name="dbeel_nomenclature.predation_type" order="9" x="976" y="76">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="11" name="scientific_observation_method" fq-name="dbeel_nomenclature.scientific_observation_method" order="10" x="1439" y="88">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="12" name="sex" fq-name="dbeel_nomenclature.sex" order="11" x="1697" y="93">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="13" name="stage" fq-name="dbeel_nomenclature.stage" order="12" x="1133" y="86">
+				<path name="dbeel_nomenclature"/>
+				<path name="eda2.3"/>
+			</entity>
+			<entity id="14" name="dbeel_batch_ope" fq-name="sudoang.dbeel_batch_ope" order="13" x="224" y="631">
+				<path name="sudoang"/>
+				<path name="eda2.3"/>
+			</entity>
+		</data-source>
+	</entities>
+	<relations>
+		<relation name="dbeel_nomenclature.biological_characteristic_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.biological_characteristic_type.&quot;dbeel_nomenclature.biological_characteristic_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="1" fk-ref="1">
+			<bend type="rel" x="885" y="732"/>
+			<bend type="rel" x="794" y="759"/>
+		</relation>
+		<relation name="dbeel_nomenclature.biological_characteristic_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.biological_characteristic_type.&quot;dbeel_nomenclature.biological_characteristic_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="1" fk-ref="1">
+			<bend type="rel" x="885" y="732"/>
+			<bend type="rel" x="794" y="759"/>
+		</relation>
+		<relation name="fk_batch_ope_ba_no_biological_characteristic_type" fq-name="sudoang.dbeel_batch_ope.fk_batch_ope_ba_no_biological_characteristic_type" type="fk" pk-ref="1" fk-ref="14"/>
+		<relation name="dbeel_nomenclature.electrofishing_mean-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.electrofishing_mean.&quot;dbeel_nomenclature.electrofishing_mean-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="2" fk-ref="2">
+			<bend type="rel" x="632" y="682"/>
+			<bend type="rel" x="545" y="698"/>
+		</relation>
+		<relation name="dbeel_nomenclature.observation_origin-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.observation_origin.&quot;dbeel_nomenclature.observation_origin-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="4"/>
+		<relation name="dbeel_nomenclature.observation_place_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.observation_place_type.&quot;dbeel_nomenclature.observation_place_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="5"/>
+		<relation name="dbeel_nomenclature.observation_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.observation_type.&quot;dbeel_nomenclature.observation_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="6"/>
+		<relation name="dbeel_nomenclature.obstruction_impact-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.obstruction_impact.&quot;dbeel_nomenclature.obstruction_impact-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="7"/>
+		<relation name="dbeel_nomenclature.obstruction_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.obstruction_type.&quot;dbeel_nomenclature.obstruction_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="8"/>
+		<relation name="dbeel_nomenclature.period_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.period_type.&quot;dbeel_nomenclature.period_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="9"/>
+		<relation name="dbeel_nomenclature.predation_type-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.predation_type.&quot;dbeel_nomenclature.predation_type-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="10"/>
+		<relation name="dbeel_nomenclature.scientific_observation_method-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.scientific_observation_method.&quot;dbeel_nomenclature.scientific_observation_method-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="11"/>
+		<relation name="dbeel_nomenclature.sex-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.sex.&quot;dbeel_nomenclature.sex-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="12"/>
+		<relation name="dbeel_nomenclature.stage-&gt;dbeel_nomenclature.nomenclature" fq-name="dbeel_nomenclature.stage.&quot;dbeel_nomenclature.stage-&gt;dbeel_nomenclature.nomenclature&quot;" type="inheritance" pk-ref="3" fk-ref="13"/>
+		<relation name="fk_batch_ope_ba_no_stage_id" fq-name="sudoang.dbeel_batch_ope.fk_batch_ope_ba_no_stage_id" type="fk" pk-ref="13" fk-ref="14"/>
+		<relation name="sudoang.dbeel_batch_ope-&gt;dbeel.batch" fq-name="sudoang.dbeel_batch_ope.&quot;sudoang.dbeel_batch_ope-&gt;dbeel.batch&quot;" type="inheritance" pk-ref="14" fk-ref="14">
+			<bend type="rel" x="370" y="692"/>
+			<bend type="rel" x="294" y="708"/>
+		</relation>
+	</relations>
+	<notes/>
+</diagram>
