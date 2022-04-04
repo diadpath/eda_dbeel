@@ -1,1 +1,0 @@
-﻿select * from bd_map
