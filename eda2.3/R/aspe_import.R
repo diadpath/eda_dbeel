@@ -1,9 +1,9 @@
 # Library
 library(aspe)
 library(tidyverse)
-
+rivernetwork <- "RIOS"
 # Load data
-
+source("common/init.R")
 load("./tables_sauf_mei_2022_01_13_14_22_07.RData")
 
 # Table correspondance globale
