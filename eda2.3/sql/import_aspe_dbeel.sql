@@ -28,7 +28,7 @@ select * from dbeel.observation_places limit 10;
 
 
 
--- select * from france.station_aspe;
+-- select * from france.station_aspe limit 10;
 
 SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 32727 true
 
@@ -108,11 +108,16 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 /*
 For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
 */
-select * from sudoang.dbeel_station limit 10;
-select * from sudoang.stationdbeel limit 10;
+select * from france.dbeel_station_aspe limit 10;
+select * from france.operation_aspe limit 10;
+SELECT * FROM  france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id
 
-DELETE FROM sudoang.electrofishing;
-INSERT INTO sudoang.electrofishing (
+-- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_aspe
+
+DELETE FROM france.dbeel_electrofishing_aspe;
+
+INSERT INTO france.dbeel_electrofishing_aspe (
 	ob_id,
 	ob_no_origin,
 	ob_no_type,
@@ -132,37 +137,34 @@ INSERT INTO sudoang.electrofishing (
 	capture_date
 	)
 	SELECT 
-	distinct on (locationid,capture_date_corrected)
 	uuid_generate_v4() AS ob_id ,
 	observation_origin.no_id AS ob_no_origin,
 	observation_type.no_id AS ob_no_type, 
 	period_type.no_id AS ob_no_period,
-	capture_date_corrected AS ob_starting_date,
+	ope_date AS ob_starting_date,
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
 	scientific_observation_method.no_id AS ef_no_fishingmethod,
 	electrofishing_mean.no_id AS ef_no_electrofishing_mean,	
-	area AS ef_wetted_area, 
-	length AS ef_fished_length,
-	width AS ef_fished_width,
-	time1+coalesce(time2,0) AS ef_duration,
-	case when run3 is not null then 3
-	     when run2 is not null then 2 
-	     when run1 is not null then 1 
-	     else null 
-	     end AS ef_nbpas,	     
+	ope_surface_calculee AS ef_wetted_area, 
+	op_length AS ef_fished_length,
+	op_width AS ef_fished_width,
+	odp_duree_peche AS ef_duration,
+	 ef_nbpas,	     
 	op.op_id as ob_op_id,
 	op.locationid as locationid, -- locationid coming from sudoang.stationdbeel
 	capture_date as capture_date -- date as text (original format)
-	FROM 	dbeel_nomenclature.observation_origin,
-		dbeel_nomenclature.scientific_observation_method,
-		dbeel_nomenclature.observation_type,
-		dbeel_nomenclature.period_type, 
-		dbeel.data_provider,
-		dbeel_nomenclature.electrofishing_mean,
-		sudoang.stationdbeel as op
-	join
-		sudoang.temp_pesca_electrica on temp_pesca_electrica.locationid=op.locationid
+	FROM 	
+        france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,
+   -- nomenclatures 	 
+	 dbeel_nomenclature.nomenclature nn
+	 JOIN dbeel_nomenclature.observation_origin ON nn.no_id = observation_origin.no_id
+	 JOIN	dbeel_nomenclature.scientific_observation_method  ON nn.no_id = scientific_observation_method.no_id
+	 JOIN	dbeel_nomenclature.observation_type  ON nn.no_id = observation_type.no_id
+	 JOIN	dbeel_nomenclature.period_type ON nn.no_id = period_type.no_id 
+	 JOIN dbeel.data_provider  ON nn.no_id = data_provider.no_id
+	 JOIN dbeel_nomenclature.electrofishing_mean  ON nn.no_id = electrofishing_mean.no_id
 		
 			
 	WHERE observation_origin.no_name='Raw data' 
@@ -171,24 +173,23 @@ INSERT INTO sudoang.electrofishing (
 	AND observation_type.no_name='Electro-fishing' 
 	AND electrofishing_mean.no_name='By foot' 
 	AND period_type.no_name='Daily' 
-	AND data_provider.dp_name='Rafael Miranda Ferreiro'
-	AND capture_date_corrected is not null
-	; -- 5734 rows, 8.6 secs
+	AND data_provider.dp_name='Pascal Irz'
+	; -- 
 
-select count(*) from sudoang.electrofishing where ob_starting_date is null; --7
+select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --7
 
 /*
 Tableau pour voir les sites avec et sans anguilles
 */
 create table sudoang.locationid_sibic_eels as
-(select distinct e.locationid, x, y, the_geom from sudoang.dbeel_station d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
+(select distinct e.locationid, x, y, the_geom from france.dbeel_station_aspe d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
 where e.locationid in (
 select locationid 
 from  sudoang.temp_pesca_electrica 
 where codspecies='aang')); -- 1075 locationid with eels
 
 create table sudoang.locationid_sibic_no_eels as
-(select distinct e.locationid, x, y, the_geom from sudoang.dbeel_station d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
+(select distinct e.locationid, x, y, the_geom from france.dbeel_station_aspe d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
 where e.locationid not in (
 select locationid 
 from  sudoang.temp_pesca_electrica 
@@ -200,7 +201,7 @@ where codspecies='aang')); -- 3350 locationid without eels
 -- BATCH INTEGRATION
 
 /*
-select * from sudoang.electrofishing limit 10;
+select * from france.dbeel_electrofishing_aspe limit 10;
 select * from sudoang.temp_pesca_electrica limit 100;
 */
 
@@ -213,13 +214,13 @@ alter table sudoang.temp_pesca_electrica add column ob_id uuid;
 
 update sudoang.temp_pesca_electrica set(op_id, ob_id)=(sub.ob_op_id, sub.ob_id) from (
 	select id,ee.ob_op_id, ee.ob_id from sudoang.temp_pesca_electrica pe 
-	join sudoang.electrofishing ee 
+	join france.dbeel_electrofishing_aspe ee 
 	on (pe.locationid,pe.capture_date_corrected) = (ee.locationid,ee.ob_starting_date)) sub
 where temp_pesca_electrica.id=sub.id;
 
 /* runonce
 ALTER TABLE sudoang.temp_pesca_electrica add constraint fk_ob_id FOREIGN KEY (ob_id) 
-		REFERENCES sudoang.electrofishing (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE sudoang.temp_pesca_electrica add constraint fk_op_id FOREIGN KEY (op_id) 
 		REFERENCES sudoang.stationdbeel (op_id) 
@@ -235,7 +236,7 @@ We are happy with that.
 -- select * from dbeel.batch limit 10 
 /* runonce
 ALTER TABLE sudoang.batch_ope add constraint fk_batch_ope_ba_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES sudoang.electrofishing (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 */
 
@@ -260,7 +261,7 @@ CREATE TABLE sudoang.batch_ope (
 		REFERENCES dbeel_nomenclature.individual_status(no_id) 
 		ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES sudoang.electrofishing (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE;
 		-- here I'm not putting any restriction concerning parent table within sudoang
 		-- Perhaps we will need them later but currently the information is not well structured anyways
@@ -271,7 +272,7 @@ CREATE TABLE sudoang.batch_ope (
 
 /*
 alter table sudoang.batch_ope add constraint c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES sudoang.electrofishing (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE;
 */
 /*-----------------------------------------------
@@ -310,7 +311,7 @@ union
 select * from other 
 order by locationid; -- 5579 rows
 
--- select * from sudoang.electrofishing e join sudoang.survey s on e.surveyid=s.surveyid
+-- select * from france.dbeel_electrofishing_aspe e join sudoang.survey s on e.surveyid=s.surveyid
 
 
 -- number per pass and total number are  
@@ -628,7 +629,7 @@ INTEGRATING MISSING DATA OF SIBIC (mostly about size)
 	But "Area (m2)" = Surface is included in the SIBIC db!
 
 SELECT * FROM sudoang.stationdbeel where place_classification like '(JU08210015-RB161)' -- locationid = 2114742390
-SELECT * FROM sudoang.electrofishing where locationid = '2114742390'; -- no length no width
+SELECT * FROM france.dbeel_electrofishing_aspe where locationid = '2114742390'; -- no length no width
 
 	-- ebro_ope: nothing to import, only infomrative
 			"num_inv_totales" as "run1" in SIBIC (there is no nb of pass)
@@ -655,7 +656,7 @@ SET locationid = a.locationid
 FROM sudoang.stationdbeel a
 WHERE a.place_classification = b.place_classification; -- 350 rows, 24 msec (There are 16 codes missing)
 
-update sudoang.electrofishing
+update france.dbeel_electrofishing_aspe
 set (ef_fished_length,ef_fished_width) = ("Longitud (m)","Anchura media (m)") from 
 	sudoang.ebro_location WHERE ebro_location.locationid = electrofishing.locationid; -- 302 rows
 
@@ -683,7 +684,7 @@ UPDATE sudoang.ebro_fish set codspecies = 'oth' where "Especie" != 'Anguilla ang
 alter table sudoang.ebro_fish add column ob_id uuid;
 UPDATE sudoang.ebro_fish b
 SET ob_id = a.ob_id
-FROM sudoang.electrofishing a
+FROM france.dbeel_electrofishing_aspe a
 WHERE a.locationid = b.locationid; -- 21298 rows (total rows: 21504)
 
 
@@ -711,7 +712,7 @@ CREATE TABLE sudoang.batch_fish (
 		REFERENCES dbeel_nomenclature.individual_status(no_id) 
 		ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT c_fk_fi_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES sudoang.electrofishing (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 		) INHERITS (dbeel.batch);
 
@@ -876,7 +877,7 @@ INTEGRATING MISSING DATA OF SIBIC (mostly about size)
 	-- nsp_efiplus_location:	"locality_length" = length of station (as "ef_fished_length") 
 					"locality_width" = width of station (as "ef_fished_width")
 		SELECT * FROM sudoang.nsp_efiplus_location where place_classification='(ES_35_0008)'; 	-- 53m length and 13.8m width but NOT "locationid"
-		SELECT * FROM sudoang.dbeel_station where place_classification='(ES_35_0008)';  	-- locationid = -1823349679
+		SELECT * FROM france.dbeel_station_aspe where place_classification='(ES_35_0008)';  	-- locationid = -1823349679
 		SELECT * FROM sudoang.dbeel_electrofishing where locationid = '1952416621'; 		-- no length no width
 	But "fished_area" = Surface is included in the SIBIC db!
 
@@ -908,7 +909,7 @@ alter table sudoang.nsp_efiplus_location add column locationid integer;
 
 UPDATE sudoang.nsp_efiplus_location b
 SET locationid = a.locationid
-FROM sudoang.dbeel_station a
+FROM france.dbeel_station_aspe a
 WHERE a.place_classification = b.place_classification; -- 1848 rows, 67 msec
 
 update sudoang.dbeel_electrofishing
@@ -924,7 +925,7 @@ set (ef_fished_length,ef_fished_width) = (locality_length,locality_width) from
 alter table sudoang.nsp_efiplus_ope add column locationid integer;
 UPDATE sudoang.nsp_efiplus_ope b
 SET locationid = a.locationid
-FROM sudoang.dbeel_station a
+FROM france.dbeel_station_aspe a
 WHERE a.place_classification = b.place_classification; -- 4210 rows
 
 alter table sudoang.nsp_efiplus_ope add column codspecies text;
@@ -1232,7 +1233,7 @@ alter table sudoang.nsp_efiplus_fish rename column lenth_id to fish_id;
 alter table sudoang.nsp_efiplus_fish add column locationid integer;
 UPDATE sudoang.nsp_efiplus_fish b
 SET locationid = a.locationid
-FROM sudoang.dbeel_station a
+FROM france.dbeel_station_aspe a
 WHERE a.place_classification = b.place_classification; -- 163010 rows
 
 alter table sudoang.nsp_efiplus_fish add column codspecies text;
@@ -1443,13 +1444,13 @@ alter table sudoang.levante_location add column locationid integer;
 
 UPDATE sudoang.levante_location b
 SET locationid = a.locationid
-FROM sudoang.dbeel_station a
+FROM france.dbeel_station_aspe a
 WHERE a.place_classification = b.place_classification; -- 567 rows
 
 -- In dbeel_station there are the stations of Levante, but NOT in dbeel_electrofishing and temp_pesca_electrica
 with dbeel_electrofishing1 as
 (select dbeel_station.locationid, place_classification, dbeel_electrofishing.* 
-	from sudoang.dbeel_station join sudoang.dbeel_electrofishing on op_id = ob_op_id)
+	from france.dbeel_station_aspe join sudoang.dbeel_electrofishing on op_id = ob_op_id)
 
 select * from dbeel_electrofishing1 de full outer join sudoang.levante_location ll on de.place_classification = ll.place_classification -- 6334 rows
 
@@ -1490,7 +1491,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 	"ANCH_TRAMO" AS ef_fished_width,
 	1 AS ef_nbpas,	     
 	op.op_id as ob_op_id,
-	op.locationid as locationid, -- locationid coming from sudoang.dbeel_station
+	op.locationid as locationid, -- locationid coming from france.dbeel_station_aspe
 	"ANSPFMUES" as capture_date -- the date is ok
 	FROM 	dbeel_nomenclature.observation_origin,
 		dbeel_nomenclature.scientific_observation_method,
@@ -1498,7 +1499,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join
 		sudoang.levante_location on levante_location.locationid=op.locationid
 		
@@ -1724,7 +1725,7 @@ alter table sudoang.levante_fish add column fish_id serial;
 alter table sudoang.levante_fish add column locationid integer;
 UPDATE sudoang.levante_fish b
 SET locationid = a.locationid
-FROM sudoang.dbeel_station a
+FROM france.dbeel_station_aspe a
 WHERE a.place_classification = b.place_classification; -- 13170 rows
 
 alter table sudoang.levante_fish add column codspecies text;
@@ -1902,18 +1903,18 @@ INTEGRATING MISSING DATA OF SIBIC
 3. Doadrio.mdb (individuals fished during the second pass are missing in the Sibic database)
 -- Data on size is missing
 --Example of one station that doesn't exists in the dbeel database but you can find in the source table (doadrio.mdb):
-select * from sudoang.dbeel_station where place_classification='AT3978';
+select * from france.dbeel_station_aspe where place_classification='AT3978';
 
 -- Other examples with species fished in the first pass, but not in the second:
-select * from sudoang.dbeel_station where place_classification = 'AT3995'; -- locationid = '476583617'
+select * from france.dbeel_station_aspe where place_classification = 'AT3995'; -- locationid = '476583617'
 select * from sudoang.temp_pesca_electrica where locationid = '476583617' -- run1 OK, but run2 26 individuals fished not counted (oth species)
 select * from sudoang.dbeel_electrofishing where locationid = '476583617'
 
-select * from sudoang.dbeel_station where place_classification = 'AT4233';  -- It doesn't appear but in doadrio db there are 20 eels!
-select * from sudoang.dbeel_station where place_classification = 'AT4318'; -- lcoationid = '854720744'
+select * from france.dbeel_station_aspe where place_classification = 'AT4233';  -- It doesn't appear but in doadrio db there are 20 eels!
+select * from france.dbeel_station_aspe where place_classification = 'AT4318'; -- lcoationid = '854720744'
 select * from sudoang.temp_pesca_electrica where locationid = '854720744' 
 
-select * from sudoang.dbeel_station where place_classification = 'AT4258';  -- locationid = '-282329194'
+select * from france.dbeel_station_aspe where place_classification = 'AT4258';  -- locationid = '-282329194'
 select * from sudoang.temp_pesca_electrica where locationid = '-2055656564' 
 
 */-----------------------------------------------------
@@ -1933,22 +1934,22 @@ INTEGRATION NEW DATA
 --------------------------------------------------------------------------------------------
 
 select addgeometrycolumn('sudoang','dbeel_station','geom_reproj',3035,'POINT',2);
--- select * from sudoang.dbeel_station limit 10 --3120
+-- select * from france.dbeel_station_aspe limit 10 --3120
 -- select st_srid(geom) from spain.rn
-update sudoang.dbeel_station set geom_reproj = sub2.geom_reproj from (
+update france.dbeel_station_aspe set geom_reproj = sub2.geom_reproj from (
 select distinct on (op_id) op_id, geom_reproj,distance from(
 select
 op_id, 
 ST_ClosestPoint(r.geom,s.the_geom) as geom_reproj,
 ST_distance(r.geom,s.the_geom) as distance
-from sudoang.dbeel_station s join
+from france.dbeel_station_aspe s join
 spain.rn r on st_dwithin(r.geom,s.the_geom,300) 
 order by op_id, distance
 )sub )sub2
 where sub2.op_id= dbeel_station.op_id;
 
 CREATE INDEX 
-  ON sudoang.dbeel_station
+  ON france.dbeel_station_aspe
   USING gist
   (geom_reproj);
 
@@ -1998,7 +1999,7 @@ WITH duplicate AS
 ) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 4)::integer
 ; -- 0 no internal duplicates
 
-select * from sudoang.dbeel_station limit 10;
+select * from france.dbeel_station_aspe limit 10;
 -- add establishment
 -- select * from dbeel.establishment
 INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('Diputación de Gipuzkoa'); --TODO: TO BE MODIFIED
@@ -2019,7 +2020,7 @@ projection_gipuzkoa AS (
 	 g.id,
 	 d.place_classification
 	FROM sudoang.guipuz_station g
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
 ),
@@ -2034,14 +2035,14 @@ UPDATE sudoang.guipuz_station SET dbeel_op_id = op_id
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
 
 --SELECT Find_SRID('sudoang', 'dbeel_station', 'the_geom'); --3035
-update sudoang.dbeel_station set op_gis_systemname ='3035'; --10839
--- SELECT * from sudoang.dbeel_station limit 10;
+update france.dbeel_station_aspe set op_gis_systemname ='3035'; --10839
+-- SELECT * from france.dbeel_station_aspe limit 10;
 -- select * from sudoang.guipuz_station limit 10
 delete from sudoang.guipuz_station  where id in ('GIP_1','GIP_2','GIP_3'); -- 3 lines of rubbish
 --393
 
-DELETE FROM sudoang.dbeel_station where op_gis_layername='Diputación de Gipuzkoa';
-INSERT INTO sudoang.dbeel_station(
+DELETE FROM france.dbeel_station_aspe where op_gis_layername='Diputación de Gipuzkoa';
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -2086,7 +2087,7 @@ INSERT INTO sudoang.dbeel_station(
 
 -- We put back the op_id into the source table
 With jointure as (
-SELECT * from sudoang.dbeel_station JOIN
+SELECT * from france.dbeel_station_aspe JOIN
 sudoang.guipuz_station ON op_gislocation=id)
 update sudoang.guipuz_station set dbeel_op_id=op_id from jointure where jointure.id = guipuz_station.id; --390
 
@@ -2126,7 +2127,7 @@ ALTER TABLE sudoang.guipuz_ope ADD COLUMN is_sibic_duplicate boolean;
 begin;
 with sibic_duplicates as(
 select guipuz_station.dbeel_op_id, guipuz_station."Station", dbeel_station.* from sudoang.guipuz_station 
-	join sudoang.dbeel_station on guipuz_station.dbeel_op_id = dbeel_station.op_id where op_gis_layername = 'SIBIC'-- 34 rows
+	join france.dbeel_station_aspe on guipuz_station.dbeel_op_id = dbeel_station.op_id where op_gis_layername = 'SIBIC'-- 34 rows
 )
 update sudoang.guipuz_ope
 set is_sibic_duplicate = TRUE from sibic_duplicates where guipuz_ope.station = sibic_duplicates."Station"; -- 261 rows
@@ -2144,7 +2145,7 @@ commit;
 
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select count(distinct (station,date)) from sudoang.guipuz_ope; -- 1570 operations (1316)
-select * from sudoang.dbeel_station where op_gis_layername = 'Diputación de Gipuzkoa'; -- 390 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'Diputación de Gipuzkoa'; -- 390 stations
 
 -- 		The id of sudoang.guipuz_ope is 'sampling', but it is text, so it cannot be inserted into the column "locationid" from dbeel_electrofishing
 --		since "locationid" is numeric. Remember that we use "locationid" to insert data from SIBIC ddbb.
@@ -2190,7 +2191,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.guipuz_station on dbeel_op_id=op_id
 	join
@@ -2205,7 +2206,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 	AND data_provider.dp_name='Iker Azpiroz'
 	; -- 1317 rows
 commit;
-SELECT * FROM sudoang.dbeel_station LIMIT 10;
+SELECT * FROM france.dbeel_station_aspe LIMIT 10;
 SELECT * FROM sudoang.guipuz_station LIMIT 10;
 SELECT * FROM sudoang.guipuz_ope LIMIT 10
 SELECT * from sudoang.dbeel_batch_fish;
@@ -2575,10 +2576,10 @@ commit;
 ---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact: length and weight
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in guipuz_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
-select distinct op_gislocation from sudoang.dbeel_station;
+select distinct op_gislocation from france.dbeel_station_aspe;
 
 with fish_from_iker as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 14) -- 31 972 rows	
@@ -2923,7 +2924,7 @@ projection_portugal AS (
 	 d.place_classification
 	FROM sudoang.portugal_location g
 	-- join sudoang.portugal_ope on op_sta_id = "Code"
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -2938,14 +2939,14 @@ UPDATE sudoang.portugal_location SET dbeel_op_id = op_id
 
 /* The only duplicate in the dbeel is not in the electrofishing table:
 select * from sudoang.portugal_location where id = 'POR_736'
-select * from sudoang.dbeel_station where locationid = '1947';
+select * from france.dbeel_station_aspe where locationid = '1947';
 select* from sudoang.dbeel_electrofishing where locationid = '1947';
 */
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='FCUL/MARE'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='FCUL/MARE'; -- 0 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -2991,7 +2992,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.portugal_location set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 745 rows
+update sudoang.portugal_location set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 745 rows
 commit;
 
 
@@ -3031,7 +3032,7 @@ ALTER TABLE sudoang.portugal_ope ADD COLUMN is_sibic_duplicate boolean default f
 begin;
 with sibic_duplicates as(
 select portugal_location.dbeel_op_id, guipuz_station."Station", dbeel_station.* from sudoang.guipuz_station 
-	join sudoang.dbeel_station on guipuz_station.dbeel_op_id = dbeel_station.op_id where op_gis_layername = 'SIBIC'-- 34 rows
+	join france.dbeel_station_aspe on guipuz_station.dbeel_op_id = dbeel_station.op_id where op_gis_layername = 'SIBIC'-- 34 rows
 )
 update sudoang.guipuz_ope
 set is_sibic_duplicate = TRUE from sibic_duplicates where guipuz_ope.station = sibic_duplicates."Station"; -- 261 rows
@@ -3050,7 +3051,7 @@ commit;
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.portugal_ope; -- 868 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.portugal_ope; -- 868 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'FCUL/MARE'; -- 745 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'FCUL/MARE'; -- 745 stations
 
 alter table sudoang.portugal_ope add column portugal_ob_id uuid default uuid_generate_v4 ();
 alter table sudoang.portugal_ope add column problem_duplicates boolean default false;
@@ -3104,7 +3105,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.portugal_location on dbeel_op_id=op_id
 	join
@@ -3301,7 +3302,7 @@ commit;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in portugal_fish table! 
 
 with fish_from_portugal as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 19) -- Verify that ob_dp_id = 19: 4089 rows
@@ -3407,7 +3408,7 @@ projection_portugal AS (
 	 d.place_classification
 	FROM sudoang.portugal_location_bis g
 	-- join sudoang.portugal_ope_bis on op_sta_id = "Code"
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
@@ -3422,9 +3423,9 @@ UPDATE sudoang.portugal_location_bis SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='FCUL/MARE'; -- 745 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='FCUL/MARE'; -- 745 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -3469,7 +3470,7 @@ INSERT INTO sudoang.dbeel_station(
 commit;
 
 -- We put back the op_id into the source table
-update sudoang.portugal_location_bis set dbeel_op_id = op_id from sudoang.dbeel_station where id = op_gislocation; -- 2 rows
+update sudoang.portugal_location_bis set dbeel_op_id = op_id from france.dbeel_station_aspe where id = op_gislocation; -- 2 rows
 
 
 ----------------------------------------
@@ -3518,7 +3519,7 @@ update sudoang.portugal_ope_bis set is_duplicate = TRUE where op_id in (select o
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.portugal_ope_bis; -- 100 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.portugal_ope_bis; -- 868 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'FCUL/MARE'; -- 747 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'FCUL/MARE'; -- 747 stations
 
 alter table sudoang.portugal_ope_bis add column portugal_ob_id uuid default uuid_generate_v4 ();
 
@@ -3563,7 +3564,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.portugal_location_bis on dbeel_op_id = op_id
 	join
@@ -3755,7 +3756,7 @@ COMMIT;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in portugal_fish table! 
 select * from sudoang.dbeel_electrofishing where ob_dp_id = 19
 with fish_from_portugal as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 19
@@ -4570,7 +4571,7 @@ projection_asturias AS (
 	 d.place_classification
 	FROM sudoang.asturias_location g
 	-- join sudoang.asturias_location on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -4585,14 +4586,14 @@ UPDATE sudoang.asturias_location SET dbeel_op_id = op_id
 
 /* The only duplicate is ignored:
 select * from sudoang.asturias_location where id = 'AST_10'
-select * from sudoang.dbeel_station where place_classification = '(ES_35_1771)';
+select * from france.dbeel_station_aspe where place_classification = '(ES_35_1771)';
 select* from sudoang.dbeel_electrofishing where locationid = '1249093214'; -- ob_starting_date = '2007-09-01'; ob_op_id = 'e78e83e5-07aa-46ae-b690-2f1317226552'
 */
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='FCUL/MARE'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='FCUL/MARE'; -- 0 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -4638,7 +4639,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.asturias_location set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 36 rows
+update sudoang.asturias_location set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 36 rows
 commit;
 
 
@@ -4682,7 +4683,7 @@ ALTER TABLE sudoang.asturias_ope ADD COLUMN is_duplicate boolean;
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.asturias_ope; -- 210 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.asturias_ope; -- 210 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'DGPM Asturias'; -- 36 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'DGPM Asturias'; -- 36 stations
 
 alter table sudoang.asturias_ope add column asturias_ob_id uuid default uuid_generate_v4 ();
 alter table sudoang.asturias_ope add column problem_duplicates boolean default false;
@@ -4735,7 +4736,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.asturias_location on dbeel_op_id=op_id
 	join
@@ -5005,10 +5006,10 @@ commit;
 ---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact: length and weight
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in asturias_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
-select distinct op_gislocation from sudoang.dbeel_station;
+select distinct op_gislocation from france.dbeel_station_aspe;
 
 with fish_from_asturias as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 21) -- 12819 rows
@@ -5203,7 +5204,7 @@ projection_catalonia AS (
 	 d.place_classification
 	FROM sudoang.catalonia_station g
 	-- join sudoang.catalonia_station on op_sta_id = id_stat
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -5218,10 +5219,10 @@ UPDATE sudoang.catalonia_station SET dbeel_op_id = op_id
 commit;
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='ACA'; -- 0 rows
--- select * from sudoang.dbeel_station limit 10;
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='ACA'; -- 0 rows
+-- select * from france.dbeel_station_aspe limit 10;
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -5267,7 +5268,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.catalonia_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- rows
+update sudoang.catalonia_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- rows
 commit; -- 274 rows
 
 
@@ -5373,7 +5374,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.catalonia_station on dbeel_op_id=op_id
 	join
@@ -5390,7 +5391,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 	; -- 140 rows
 commit;
 
-select * from sudoang.dbeel_station where op_gis_layername = 'ACA'; -- 274 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'ACA'; -- 274 stations
 -- 274 stations are inserted and only 155 operations!?!?
 
 
@@ -5649,7 +5650,7 @@ commit;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 
 with fish_from_catalonia as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 11) -- Verify that ob_dp_id = 11: 193 rows
@@ -5871,7 +5872,7 @@ projection_galicia AS (
 	 g.id,
 	 d.place_classification
 	FROM sudoang.galicia_station g
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
 ),
@@ -5885,10 +5886,10 @@ UPDATE sudoang.galicia_station SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='The Xunta of Galicia'; -- 0 rows
--- select * from sudoang.dbeel_station limit 10;
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='The Xunta of Galicia'; -- 0 rows
+-- select * from france.dbeel_station_aspe limit 10;
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -5933,7 +5934,7 @@ INSERT INTO sudoang.dbeel_station(
 commit;
 
 -- We put back the op_id into the source table
-update sudoang.galicia_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 3384 rows
+update sudoang.galicia_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 3384 rows
 
 
 --------------------------------
@@ -5983,7 +5984,7 @@ select * from sudoang.galicia_ope; -- 5302 rows
 select count(distinct (ope_id,op_dat)) from sudoang.galicia_ope; -- 5300 operations
 select count(distinct (id_station,op_dat)) from sudoang.galicia_ope; -- 5300 operations
 
-select * from sudoang.dbeel_station where op_gis_layername = 'The Xunta of Galicia'; -- 3384 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'The Xunta of Galicia'; -- 3384 stations
 
 alter table sudoang.galicia_ope add column galicia_ob_id uuid default uuid_generate_v4 ();
 
@@ -6028,7 +6029,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.galicia_station on dbeel_op_id=op_id
 	join
@@ -6505,7 +6506,7 @@ commit;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 
 with fish_from_galicia as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 12) -- Verify that ob_dp_id = 12: 43 897 rows
@@ -6638,7 +6639,7 @@ projection_bc AS (
 	 d.place_classification
 	FROM sudoang.bc_station g
 	-- join sudoang.bc_station on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -6653,10 +6654,10 @@ UPDATE sudoang.bc_station SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='FCUL/MARE'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='FCUL/MARE'; -- 0 rows
 select * from sudoang.bc_station;
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -6702,7 +6703,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.bc_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 160 rows
+update sudoang.bc_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 160 rows
 commit;
 
 
@@ -6747,7 +6748,7 @@ update sudoang.bc_ope set is_duplicate = FALSE;  -- 885 rows
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.bc_ope; -- 885 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.bc_ope; -- 885 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'ANBIOTEK'; -- 160 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'ANBIOTEK'; -- 160 stations
 
 alter table sudoang.bc_ope add column bc_ob_id uuid default uuid_generate_v4 ();
 
@@ -6790,7 +6791,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.bc_station on dbeel_op_id=op_id
 	join
@@ -7064,10 +7065,10 @@ select db.ba_id,  length, weight, cb.* from fish_count_dbeel db join fish_count_
 ---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact: length and weight
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in asturias_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
-select distinct op_gislocation from sudoang.dbeel_station;
+select distinct op_gislocation from france.dbeel_station_aspe;
 
 with fish_from_bc as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 23) -- 5972 rows
@@ -7306,7 +7307,7 @@ projection_bc AS (
 	 d.place_classification
 	FROM sudoang.bc_station_bis g
 	-- join sudoang.bc_station_bis on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -7321,9 +7322,9 @@ UPDATE sudoang.bc_station_bis SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='ANBIOTEK'; -- 160 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='ANBIOTEK'; -- 160 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -7368,7 +7369,7 @@ INSERT INTO sudoang.dbeel_station(
 commit;
 
 -- We put back the op_id into the source table
-update sudoang.bc_station_bis set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 58 rows
+update sudoang.bc_station_bis set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 58 rows
 
 
 -------------------------------------------
@@ -7424,7 +7425,7 @@ update sudoang.bc_ope_bis set is_duplicate = TRUE where op_id in (select op_id f
 
 select * from sudoang.bc_ope_bis; -- 324 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.bc_ope_bis; -- 324 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'ANBIOTEK'; -- 218 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'ANBIOTEK'; -- 218 stations
 
 alter table sudoang.bc_ope_bis add column bc_ob_id uuid default uuid_generate_v4 ();
 
@@ -7479,7 +7480,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.bc_station_bis on dbeel_op_id = op_id
 	join
@@ -7753,7 +7754,7 @@ commit;
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in asturias_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 with fish_from_bc as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 23
@@ -7894,7 +7895,7 @@ projection_navarra AS (
 	 d.place_classification
 	FROM sudoang.navarra_station g
 	-- join sudoang.navarra_station on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -7909,10 +7910,10 @@ UPDATE sudoang.navarra_station SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='The Navarra Environmental Management'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='The Navarra Environmental Management'; -- 0 rows
 -- select * from sudoang.navarra_station;
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -7958,7 +7959,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.navarra_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 3 rows
+update sudoang.navarra_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 3 rows
 commit;
 
 ------------------------------
@@ -8009,7 +8010,7 @@ update sudoang.navarra_ope set is_duplicate = TRUE where op_cod in (select op_co
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.navarra_ope; -- 66 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.navarra_ope; -- 66 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'The Navarra E. M.'; -- 3 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'The Navarra E. M.'; -- 3 stations
 
 alter table sudoang.navarra_ope add column navarra_ob_id uuid default uuid_generate_v4 ();
 
@@ -8052,7 +8053,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.navarra_station on dbeel_op_id=op_id
 	join
@@ -8282,7 +8283,7 @@ commit;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in navarra_fish table! 
 
 with fish_from_navarra as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 24) -- 3627 rows
@@ -8493,7 +8494,7 @@ projection_andalucia AS (
 	 d.place_classification
 	FROM sudoang.andalucia_station g
 	-- join sudoang.andalucia_station on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -8507,9 +8508,9 @@ UPDATE sudoang.andalucia_station SET dbeel_op_id = op_id
 	WHERE c.id = andalucia_station.id; -- 31 duplicates
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='UCO'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='UCO'; -- 0 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -8555,7 +8556,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.andalucia_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 16 rows
+update sudoang.andalucia_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 16 rows
 commit;
 
 
@@ -8606,7 +8607,7 @@ DELETE FROM sudoang.andalucia_ope WHERE sta_id = '1.37.1' and op_dat = '2012-03-
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.andalucia_ope; -- 93 rows
 select count(distinct (sta_id,op_dat)) from sudoang.andalucia_ope; -- 93 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'UCO'; -- 16 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'UCO'; -- 16 stations
 
 alter table sudoang.andalucia_ope add column andalucia_ob_id uuid default uuid_generate_v4 ();
 
@@ -8649,7 +8650,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.andalucia_station on dbeel_op_id=op_id
 	join
@@ -8828,7 +8829,7 @@ commit;
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in andalucia_fish table! 
 
 with fish_from_andalucia as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 16) 
@@ -8954,7 +8955,7 @@ projection_minho AS (
 	 d.place_classification
 	FROM sudoang.minho_station g
 	-- join sudoang.minho_station on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -8969,9 +8970,9 @@ UPDATE sudoang.minho_station SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='FCUL/MARE'; -- 0 rows
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='FCUL/MARE'; -- 0 rows
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -9017,7 +9018,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.minho_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 29 rows
+update sudoang.minho_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 29 rows
 commit;
 
 
@@ -9059,7 +9060,7 @@ ALTER TABLE sudoang.minho_ope ADD COLUMN is_duplicate boolean;
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select * from sudoang.minho_ope; -- 89 rows
 select count(distinct (op_sta_id,op_dat)) from sudoang.minho_ope; -- 89 operations
-select * from sudoang.dbeel_station where op_gis_layername = 'UP'; -- 29 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'UP'; -- 29 stations
 
 alter table sudoang.minho_ope add column minho_ob_id uuid default uuid_generate_v4 ();
 
@@ -9101,7 +9102,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.minho_station on dbeel_op_id=op_id
 	join
@@ -9338,7 +9339,7 @@ commit;
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in asturias_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 with fish_from_minho as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 13) -- 1896 rows
@@ -9463,7 +9464,7 @@ projection_spain AS (
 	 d.place_classification
 	FROM sudoang.spain_station g
 	-- join sudoang.spain_station on op_sta_id = sta_id
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
         join sudoang.dbeel_electrofishing on ob_op_id = op_id -- Join with dbeel_eelctrofishing to avoid more stations than necessary (in dbeel_station, all data from SIBIC were included)
 	WHERE g.geom_reproj IS NOT NULL -- and op_dat IS NOT NULL (it was a mistake)
 	order by id, dist
@@ -9478,9 +9479,9 @@ UPDATE sudoang.spain_station SET dbeel_op_id = op_id
 
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='miteco'; -- 0 rows (and 'min esp')
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='miteco'; -- 0 rows (and 'min esp')
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -9526,7 +9527,7 @@ commit;
 
 -- We put back the op_id into the source table
 begin;
-update sudoang.spain_station set dbeel_op_id = op_id from sudoang.dbeel_station where id = op_gislocation; -- 493 rows
+update sudoang.spain_station set dbeel_op_id = op_id from france.dbeel_station_aspe where id = op_gislocation; -- 493 rows
 commit;
 
 ---------------------------------------
@@ -9602,7 +9603,7 @@ select * from sudoang.spain_ope; -- 1075 rows
 select count(distinct (sta_cod,op_dat)) from sudoang.spain_ope; -- 1075 operations
 select count(distinct (op_sta_id,op_dat)) from sudoang.spain_ope; -- 1075 operations
 
-select * from sudoang.dbeel_station where op_gis_layername = 'miteco'; -- 493 stations
+select * from france.dbeel_station_aspe where op_gis_layername = 'miteco'; -- 493 stations
 
 alter table sudoang.spain_ope add column spain_ob_id uuid default uuid_generate_v4 ();
 
@@ -9644,7 +9645,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.spain_station on dbeel_op_id=op_id
 	join
@@ -9897,7 +9898,7 @@ commit;
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in gt6_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 with fish_from_spain as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 15) -- 2363 rows
@@ -10041,7 +10042,7 @@ projection_valencia AS (
 	 g.id,
 	 d.place_classification
 	FROM sudoang.valencia_station g
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
 ),
@@ -10054,10 +10055,10 @@ UPDATE sudoang.valencia_station SET dbeel_op_id = op_id
 	WHERE c.id=valencia_station.id; -- 5 duplicates
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
--- select * FROM sudoang.dbeel_station where op_gis_layername='VAERSA'; -- 0 rows
--- select * from sudoang.dbeel_station limit 10;
+-- select * FROM france.dbeel_station_aspe where op_gis_layername='VAERSA'; -- 0 rows
+-- select * from france.dbeel_station_aspe limit 10;
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -10102,7 +10103,7 @@ INSERT INTO sudoang.dbeel_station(
 commit;
 
 -- We put back the op_id into the source table
-update sudoang.valencia_station set dbeel_op_id=op_id from sudoang.dbeel_station where id = op_gislocation; -- 145 rows
+update sudoang.valencia_station set dbeel_op_id=op_id from france.dbeel_station_aspe where id = op_gislocation; -- 145 rows
 
 
 ---------------------------------
@@ -10362,7 +10363,7 @@ commit;
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in valencia_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
 with fish_from_valencia as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 25) -- 2208 rows
@@ -10555,7 +10556,7 @@ projection_gt6 AS (
 	 g.id,
 	 d.place_classification
 	FROM sudoang.gt6_station g
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
 ),
@@ -10570,11 +10571,11 @@ UPDATE sudoang.gt6_station SET dbeel_op_id = op_id
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
 
 --SELECT Find_SRID('sudoang', 'dbeel_station', 'the_geom'); --3035
--- SELECT * from sudoang.dbeel_station limit 10;
+-- SELECT * from france.dbeel_station_aspe limit 10;
 -- select * from sudoang.gt6_station limit 10
 
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -10623,7 +10624,7 @@ COMMIT;
 -- We put back the op_id into the source table
 begin;
 With jointure as (
-SELECT * from sudoang.dbeel_station JOIN
+SELECT * from france.dbeel_station_aspe JOIN
 sudoang.gt6_station ON op_gislocation=id)
 update sudoang.gt6_station set dbeel_op_id=op_id from jointure where jointure.id = gt6_station.id; -- 83 rows
 commit;
@@ -10736,7 +10737,7 @@ commit;
 
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select count(distinct (op_cod, op_dat)) from sudoang.gt6_ope; -- 94 operations
--- select * from sudoang.dbeel_station where op_gis_layername = ''; --  stations
+-- select * from france.dbeel_station_aspe where op_gis_layername = ''; --  stations
 
 -- 		The id of sudoang.gt6_ope is 'op_cod', but it is text, so it cannot be inserted into the column "locationid" from dbeel_electrofishing
 --		since "locationid" is numeric. Remember that we use "locationid" to insert data from SIBIC ddbb.
@@ -10994,10 +10995,10 @@ commit;
 ---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact: length and weight
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in gt6_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
-select distinct op_gislocation from sudoang.dbeel_station;
+select distinct op_gislocation from france.dbeel_station_aspe;
 
 with fish_from_gt6 as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 20) -- 4463 rows
@@ -11265,7 +11266,7 @@ projection_gt6 AS (
 	 g.id,
 	 d.place_classification
 	FROM sudoang.gt6_station2 g
-        JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
+        JOIN  france.dbeel_station_aspe d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
 ),
@@ -11279,11 +11280,11 @@ UPDATE sudoang.gt6_station2 SET dbeel_op_id = op_id
 
 -- Insertion of stations that are not duplicated (not already in the dbeel (farther than 50 m)
 
--- SELECT * from sudoang.dbeel_station limit 10;
+-- SELECT * from france.dbeel_station_aspe limit 10;
 -- select * from sudoang.gt6_station2; -- 13 rows
 
 begin;
-INSERT INTO sudoang.dbeel_station(
+INSERT INTO france.dbeel_station_aspe(
 		op_id,
 		op_gis_systemname,
 		op_gis_layername,
@@ -11330,7 +11331,7 @@ COMMIT;
 
 -- We put back the op_id into the source table
 With jointure as (
-SELECT * from sudoang.dbeel_station JOIN
+SELECT * from france.dbeel_station_aspe JOIN
 sudoang.gt6_station2 ON op_gislocation=id)
 update sudoang.gt6_station2 set dbeel_op_id=op_id from jointure where jointure.id = gt6_station2.id; -- 12 rows
 
@@ -11384,7 +11385,7 @@ delete from sudoang.gt6_ope2 where op_cod in (select op_cod from op_duplicates);
 select * from sudoang.gt6_ope2; -- 97 rows
 -- 	STEP 2.1. INSERT into dbeel_electrofishing all the stations (with length, width and surface)
 select count(distinct (op_cod, op_dat)) from sudoang.gt6_ope2; -- 97 operations
--- select * from sudoang.dbeel_station where op_gis_layername = ''; --  stations
+-- select * from france.dbeel_station_aspe where op_gis_layername = ''; --  stations
 
 -- 		The id of sudoang.gt6_ope2 is 'op_cod', but it is text, so it cannot be inserted into the column "locationid" from dbeel_electrofishing
 --		since "locationid" is numeric. Remember that we use "locationid" to insert data from SIBIC ddbb.
@@ -11651,10 +11652,10 @@ commit;
 ---- STEP 4: INSERT into dbeel_mensurationindiv_biol_charact: length and weight
 ---- 		To integrate length and weight of fish, "ba_id" must be included before in gt6_fish table
 ---- 		We have the same problem as in operation because we can't join with "locationid" but in this case, we can't generate the uuid in guipuz_fish table! 
-select distinct op_gislocation from sudoang.dbeel_station;
+select distinct op_gislocation from france.dbeel_station_aspe;
 
 with fish_from_gt6 as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	where ob_dp_id = 20), -- 8311 rows
@@ -12360,7 +12361,7 @@ INSERT INTO sudoang.dbeel_electrofishing (
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.bc_station on dbeel_op_id = op_id
 	join
@@ -12820,7 +12821,7 @@ select * from sudoang.guipuz_fish fi
 	
 	SELECT dbeel_op_id FROM sudoang.guipuz_station
 	EXCEPT
-	SELECT op_id FROM sudoang.dbeel_station; --0
+	SELECT op_id FROM france.dbeel_station_aspe; --0
 	
 	
 	
@@ -12876,7 +12877,7 @@ SELECT
 		dbeel_nomenclature.period_type, 
 		dbeel.data_provider,
 		dbeel_nomenclature.electrofishing_mean,
-		sudoang.dbeel_station as op
+		france.dbeel_station_aspe as op
 	join 
 		sudoang.guipuz_station on dbeel_op_id=op_id
 	join
@@ -13190,7 +13191,7 @@ ALTER TABLE sudoang.guipuz_fish ADD COLUMN detected_missing BOOLEAN DEFAULT FALS
 
 
 with fish_from_iker as
-	(select * from sudoang.dbeel_station 
+	(select * from france.dbeel_station_aspe 
 	join sudoang.dbeel_electrofishing on op_id = ob_op_id
 	join sudoang.dbeel_batch_fish on ba_ob_id = ob_id
 	JOIN sudoang.guipuz_ope ON guipuz_ope.guipuz_ob_id = ba_ob_id
