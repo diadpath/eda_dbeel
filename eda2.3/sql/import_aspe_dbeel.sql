@@ -1,20 +1,34 @@
+-- updated TABLES 04/04 => Maria
+
+/*
+dbeel.establishment
+dbeel.data_provider
+*/
+
+
 ---------------------------------------------
 -- SCRIPT INTEGRATION SIBIC => DBEEL
 ---------------------------------------------
--- INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('Marine Institute');
--- INSERT INTO dbeel.data_provider(dp_name, dp_et_id) VALUES ('Russell Poole & Elvira de Eito',2);
-
-select * from dbeel.establishment
-INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('AFB');
-INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('SIBIC');
-INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('SIBIC+');
-INSERT INTO  dbeel.data_provider (dp_name, dp_et_id) VALUES ('Rafael Miranda Ferreiro',9);
--- TODO INSERT INTO  dbeel.data_provider (dp_name, dp_et_id) VALUES ('blablabla',10);
-select * from dbeel.observation_places limit 10
-select * from dbeel.data_provider
 
 
---select * from wrbd.stationdbeel;
+-- select * from dbeel.establishment;
+INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('OFB');
+--select * from dbeel.data_provider
+--select max(dp_id) from dbeel.data_provider; -- 25
+INSERT INTO  dbeel.data_provider (dp_id, dp_name, dp_et_id) VALUES (30, 'Pascal Irz',27);
+ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
+
+
+-- TABLES FOR IMPORT will be created IN France AND IN loire schema (for electrofishing from fédérations de pêche)
+-- script for creating station is in eda_dbeel/eda2.3/R/aspe_import.R
+
+
+select * from dbeel.observation_places limit 10;
+
+
+
+
+--select * from sudoang.dbeel_station;
 
 -- Create the stationdbeel table from dbeel
 DROP TABLE if exists sudoang.stationdbeel CASCADE;
