@@ -4,7 +4,7 @@ library(tidyverse)
 rivernetwork <- "RIOS"
 # Load data
 source("common/init.r")
-load(str_c(datawd,"tables_sauf_mei_2022_01_13_14_22_07.RData")
+load(str_c(datawd,"loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
 
 # Table correspondance globale
 passerelle <- mef_creer_passerelle()

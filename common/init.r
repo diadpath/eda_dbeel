@@ -1,16 +1,7 @@
 # Nom fichier :        init.R
-# Projet :             EDA/EDAcommun
-#
-# EDA2.0 
-# ONEMA, IAV, IRSTEA
-
+# version eda2.3 eda_dbeel
 ###############################################################################
 
-# initiation des parametres en fonctions des utilisateurs
-#rm(list=ls(all=TRUE))
-# le fichier XML doit se trouver dans le répertoire d'EDA qui est chargé au départ
-
-# fonction de chargement des packages seulement pour XML le reste sera dans libraries
 
 # this function should be used instead of 'require'. It allows to install the package if necessary
 load_library=function(necessary) {
