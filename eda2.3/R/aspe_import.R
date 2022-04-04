@@ -1,12 +1,13 @@
 # Library
 library(aspe)
 library(tidyverse)
+library(sf)
 
 rivernetwork <- "RIOS"
 
 # Load data
 source("common/init.r")
-
+# tables envoyées par Pascal, on devrait pouvoir l'interroger par API hub eau d'ici la fin de l'année
 load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
 
 # Table correspondance globale
@@ -15,15 +16,64 @@ passerelle <- mef_creer_passerelle()
 # Distinct
 
 dist_passerelle <- passerelle %>% 
-  select(ope_id, sta_id) %>% 
+  dplyr::select(ope_id, sta_id) %>% 
   distinct()
 
 
 # Table station
 
+station_aspe <- station %>%
+		left_join(y = ref_type_projection,
+				by = c("sta_typ_id" = "typ_id"))
+
+# filter data from metropolitan France
+
+station_aspe <- station_aspe %>%
+ 					filter(typ_code_epsg==2154)
+			
+coords <- geo_convertir_coords_df(df = station_aspe,
+				var_x = sta_coordonnees_x,
+				var_y = sta_coordonnees_y,
+				var_id = "sta_id",
+				var_crs_initial = "typ_code_epsg",
+				crs_sortie = 3035) 
+
+station_aspe <- station_aspe %>%
+		left_join(y = coords) %>%
+		dplyr::select(-(sta_geometrie))%>%
+		mutate(typ_code_epsg=3035)
+
+
+		match("typ",colnames(station_aspe))
+
+
+
+## Ajout sta_id
+
+data_loc <- data_ang %>% 
+		left_join(y = dist_passerelle,
+				by = "ope_id") %>% 
+		left_join(y = coords_wgs84,
+				by = "sta_id") %>% 
+		filter(!is.na(x_wgs84))
+
+station_geo <- data_loc %>%
+		sf::st_as_sf(coords = c("x_wgs84", "y_wgs84"),
+				crs = 4326)
+
+station_ASPE <- station %>%
+		sf::st_as_sf(coords = c("x_wgs84", "y_wgs84"),
+				crs = 4326)
+
+mapview::mapview(station_geo, color = "green")+ mapview::mapview(station_ASPE)
+
+
+
+
 station_aspe <- station %>% 
   mutate(sta_source= "OFB", 
          SRID = 2154) %>% 
+ mutate(sta_geometrie=st_transform(sta_geometrie,3035)) %>%
   dplyr::select(sta_id, sta_source, sta_code_sandre, sta_libelle_sandre, sta_coordonnees_x,
                 sta_coordonnees_y, SRID) %>% 
   dplyr::rename(sta_cod = sta_code_sandre,
