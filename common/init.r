@@ -13,8 +13,8 @@ load_library=function(necessary) {
 
 load_library("XML")
 load_library("stringr")
-load_library("gplots") # necessaire pour faire les echelles de couleurs d'un des graphe
-# Ce fichier doit ?tre ? la racine de EDA
+
+
 if (rivernetwork== "RIOS")
 {
 filexml <- "EDAload23.xml"

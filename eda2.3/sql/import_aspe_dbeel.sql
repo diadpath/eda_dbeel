@@ -28,380 +28,58 @@ select * from dbeel.observation_places limit 10;
 
 
 
---select * from sudoang.dbeel_station;
+-- select * from france.station_aspe;
+
+SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 32727 true
 
 -- Create the stationdbeel table from dbeel
-DROP TABLE if exists sudoang.stationdbeel CASCADE;
-CREATE TABLE sudoang.stationdbeel (
-	locationid integer,
-        country character varying(2),
-	place_classification text,
-	codhb text,
-	observations text,
-	hydrographic_basin_pt text,
-	hydrographic_basin_es text,
-	s_guid text,
-	x double precision,
-	y double precision,		
+DROP TABLE if exists france.dbeel_station_aspe CASCADE;
+CREATE TABLE france.dbeel_station_aspe (
+	sta_id integer,
+	sta_code_sandre TEXT,
+  country character varying(2),		
 	CONSTRAINT pk_so_op_id PRIMARY KEY (op_id),
 	CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
 		REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
 		MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS (dbeel.observation_places);
 
---select * from sudoang.stationdbeel limit 10;
+--select * from france.dbeel_station_aspe limit 10;
 
 
--- Insert data from location table (SIBIC) into the stationdbeel table
-INSERT INTO sudoang.stationdbeel
-	SELECT  uuid_generate_v4() AS op_id,  -- We are sad, the uuid in the SIBIC does not correspond to observation place but to data provider....
-	'25830' AS op_gis_systemname ,
-	'SIBIC' AS op_gis_layername, 
-	NULL AS op_gislocation, -- some of those lines are empty, this field allows to join back to original data provided to the SIBIC
-	stretch_place as op_placename,
+-- Insert data into the dbeel table
+INSERT INTO france.dbeel_station_aspe 
+	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
+	'3035' AS op_gis_systemname ,
+	'ASPE' AS op_gis_layername, 
+	NULL AS op_gislocation, 
+	sta_libelle_sandre AS op_placename,
 	10 AS op_no_observationplacetype, -- Sampling station
 	NULL AS  op_op_id,
-	st_transform(geom ,3035) as the_geom, 
-	locationid as locationid,
-	NULL as country,
-	place_classification as place_classification, -- That correspond to the station's code of the original data provided to the SIBIC
-	codhb as codhb,	
-	"Observaciones" as observations,
-	"HydrographicBasin_PT" as hydrographic_basin_pt,
-	"HydrographicBasin_ES" as hydrographic_basin_es,
-	"s_GUID" as s_guid,
-	"X" as x,
-	"Y" as y
-	FROM sudoang.location; -- 10839 rows, 8.6 secs
-
-/*
-RUNONCE INSTALL DBLINK
-*/
---CREATE EXTENSION dblink;
-
-/*
-The column PT or ES is based on the apparatenance to basins, it is wrong, here we recode properly with a spatial query.
-For that, we use dnlink, a module which supports connections to other PostgreSQL databases from within a database session.
-We created a view taking the basins layers (from Spain and Portugal) and making a spatial query between these layers and the stations.
-   (st_intersect: takes 2geometries and returns TRUE if any part of those geometries is shared between the 2).
-*/
-
-CREATE VIEW sudoang.portugal_union_basin AS
-  SELECT *
-    FROM dblink('dbname=eda2.0 host=localhost user=postgres password=postgres',
-                'SELECT st_transform(st_union(geom),3035) from portugal.atagua_bacias_bacias_snirh_pc')
-    AS t1(geom geometry);
-  
---DROP VIEW sudoang.spain_union_basin;
-CREATE VIEW sudoang.spain_union_basin AS
-  SELECT *
-    FROM dblink('dbname=eda2.0 host=localhost user=postgres password=postgres',
-                'SELECT st_transform(st_union(the_geom),3035) from spain.wise_rbd_f1v3')
-    AS t1(geom geometry);   
-
-UPDATE sudoang.stationdbeel set country=NULL; -- 10839 rows, 245 msec
-UPDATE sudoang.stationdbeel set country='PT' FROM sudoang.portugal_union_basin WHERE st_intersects(the_geom,geom); -- 1907 rows, 14.4 secs
-UPDATE sudoang.stationdbeel set country='ES' FROM sudoang.spain_union_basin WHERE st_intersects(the_geom,geom); -- 8415, 4.1 secs
-
--- It does not work for Maria ()
-update sudoang.stationdbeel set
-
-with howmany as (
-select count(*), locationid from sudoang.location group by locationid)-- Check if the locationid is duplicated
-select * from howmany where count>1
+	geometry  as the_geom, -- already 3035
+   sta_id,
+   sta_code_sandre,
+  'FR' AS country 
+	FROM france.station_aspe;  --32727
 
 
----------------------------------------------------
--- sudoang.electrofishing
----------------------------------------------------
---select * from sudoang.species_location limit 100
-select distinct methods from sudoang.species_location -- There are 140 methods of fishing (and empty option)
-
--- Standardize the format of some parameters 
-update sudoang.species_location set "Area"=regexp_replace("Area", ',', '.'); -- 65132 rows, 868 msec
-update sudoang.species_location set "ind/ha"=regexp_replace("ind/ha", ',', '.'); -- 65132 rows, 471 msec
-update sudoang.species_location set "ind/hour"=regexp_replace("ind/hour", ',', '.'); -- 65132 rows, 553 msec
-
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", '  ', ' '); -- 65132 rows, 656 msec
+/*--------------------------------------------------
+-- ASPE.electrofishing
+	https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/R/aspe_import.R#L69
+-------------------------------------------------*/
+	
+-- SELECT * FROM france.operation_aspe oa ;
 
 
-------------------------------------------------------------------
--- extract month from textual information
-------------------------------------------------------------------
-alter table sudoang.species_location add column capture_month character varying(2);
 
-select * from sudoang.species_location where lower(capture_date) like '%octubre%'; -- 3907 rows
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%octubre%'; -- 3907 rows, 127 msec
-update sudoang.species_location set capture_month='05' where lower(capture_date) like '%mayo%'; -- 2157 rows, 94 msec
-update sudoang.species_location set capture_month='06' where lower(capture_date) like '%junio%'; -- 2596 rows, 85 msec
-update sudoang.species_location set capture_month='07' where lower(capture_date) like '%julio%'; -- 3985 rows, 103 msec
-update sudoang.species_location set capture_month='08' where lower(capture_date) like '%agosto%'; -- 4721 rows, 109 msec
-update sudoang.species_location set capture_month='09' where lower(capture_date) like '%septiembre%'; -- 6820 rows, 104 msec
-update sudoang.species_location set capture_month='11' where lower(capture_date) like '%noviembre%'; -- 1255 rows, 108 msec
-update sudoang.species_location set capture_month='12' where lower(capture_date) like '%diciembre%'; -- 422 rows, 72 msec
-update sudoang.species_location set capture_month='01' where lower(capture_date) like '%enero%'; -- 506 rows, 103 msec
-update sudoang.species_location set capture_month='02' where lower(capture_date) like '%febrero%'; -- 347 rows, 88 msec
-update sudoang.species_location set capture_month='03' where lower(capture_date) like '%marzo%'; -- 908 rows, 83 msec
-update sudoang.species_location set capture_month='04' where lower(capture_date) like '%abril%'; -- 4561 rows, 124 msec
-update sudoang.species_location set capture_month='05' where lower(capture_date) like '%primavera%'; -- 2046 rows, 123 msec
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%otoño%'; -- 1236 rows, 92 msec
-update sudoang.species_location set capture_month='06' where lower(capture_date) like '%junho%'; -- 2279 rows, 95 msec
-update sudoang.species_location set capture_month='05' where lower(capture_date) like '%maio%'; -- 1950 rows, 96 msec
-update sudoang.species_location set capture_month='09' where lower(capture_date) like '%setembro%'; -- 1802 rows, 92 msec
-update sudoang.species_location set capture_month='03' where lower(capture_date) like '%março%'; -- 1840 rows, 85 msec
-update sudoang.species_location set capture_month='08' where lower(capture_date) like '%verão%'; -- summer: 837 rows, 93 msec
-update sudoang.species_location set capture_month='11' where lower(capture_date) like '%novembro%'; -- 2356 rows, 111 msec
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%outubro%'; -- 2560 rows, 114 msec
-update sudoang.species_location set capture_month='07' where lower(capture_date) like '%julho%'; -- 2752 rows, 102 msec
-update sudoang.species_location set capture_month='12' where lower(capture_date) like '%dezembro%'; -- 1686 rows, 98 msec
-update sudoang.species_location set capture_month='02' where lower(capture_date) like '%fevereiro%'; -- 1893 rows, 95 msec
-update sudoang.species_location set capture_month='01' where lower(capture_date) like '%janeiro%'; -- 1368 rows, 92 msec
-update sudoang.species_location set capture_month='08' where lower(capture_date) like '%verano%'; -- 300 rows, 82 msec
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%outono%'; -- 161 rows, 92 msec
-update sudoang.species_location set capture_month='09' where lower(capture_date) like '%septiem%'; -- 6822 rows, 107 msec
-update sudoang.species_location set capture_month='09' where lower(capture_date) like '%spetiem%'; -- 1 row, 72 msec
-update sudoang.species_location set capture_month='04' where lower(capture_date) like '%abr%'; -- 4595 rows, 112 msec
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%ocutbre%'; -- 1 row, 82 msec
-update sudoang.species_location set capture_month='09' where lower(capture_date) like '%setiem%'; -- 5 rows, 81 msec
-update sudoang.species_location set capture_month='08' where lower(capture_date) like '%ago%'; -- 4734 rows, 106 msec
-update sudoang.species_location set capture_month='01' where lower(capture_date) like '%inverno%'; -- 104 rows, 102 msec
-update sudoang.species_location set capture_month='01' where lower(capture_date) like '%invierno%'; -- 94 rows, 81 msec
-update sudoang.species_location set capture_month='07' where lower(capture_date) like '%jullho%'; -- 4 rows, 82 msec
-update sudoang.species_location set capture_month='10' where lower(capture_date) like '%oct%'; -- 3916 rows, 132 msec
-update sudoang.species_location set capture_month='05' where lower(capture_date) like '%prinavera%'; -- 3 rows, 104 msec
-update sudoang.species_location set capture_month='02' where lower(capture_date) like '%feveiro%'; -- 2 rows, 99 msec
-
-update sudoang.species_location set capture_month=month from 
-(select 
-       locationid,		
-       case when char_length(dd::text)=1 then '0'||dd::text 
-       else                        dd::text
-       end as month from (
-select locationid,extract(MONTH from capture_date::date)dd 
-from sudoang.species_location 
-where capture_date like '%/%' 
-and char_length(capture_date)=10)sub)sub1
-where sub1.locationid=species_location.locationid; -- 6055 rows, 579 msec
-
-
--- extract month from format 01/08/2003
-update sudoang.species_location set capture_month=month from 
-(select 
-       locationid,		
-       case when char_length(dd::text)=1 then '0'||dd::text 
-       else                        dd::text
-       end as month from (
-select locationid,extract(MONTH from capture_date::date)dd 
-from sudoang.species_location 
-where capture_date like '%/%' 
-and char_length(capture_date)=10)sub)sub1
-where sub1.locationid=species_location.locationid; -- 6055 rows, 545 msec
-
--- extract month from format 08/2003
-update sudoang.species_location set capture_month=month from 
-(select 
-       locationid,		
-       case when char_length(dd::text)=1 then '0'||dd::text 
-       else                        dd::text
-       end as month from (
-select locationid, capture_date, extract(MONTH from ('01/'||capture_date)::date)dd 
-from sudoang.species_location 
-where capture_date like '%/%' 
-and char_length(capture_date)=7
-)sub)sub1
-where sub1.locationid=species_location.locationid; -- 89 rows, 63 msec
-
-select locationid,capture_date from sudoang.species_location where capture_month IS NOT NULL order by capture_date;
-
--- select * from sudoang.species_location where capture_date='01/08/2010'
-
-alter table sudoang.species_location add column capture_date_corrected date;
-
-update sudoang.species_location set  capture_date_corrected=('01/'||capture_date)::date
-where capture_date like '%/%' and char_length(capture_date)=7 -- 89 rows, 38 msec
-
-update sudoang.species_location set  capture_date_corrected=capture_date::date
-where capture_date like '%/%' and char_length(capture_date)=10; -- 5888 rows (Cedric) and 5883 rows (Maria)
-
-update sudoang.species_location set  capture_date_corrected=('01/'||capture_month||'/'||capture_year)::date
- where capture_month is not null and capture_year is not null and capture_date_corrected is null; -- 50425 rows (Cedric) and 50424 rows (Maria)
-
-select * from  sudoang.species_location where "ind/ha" is not null and capture_date_corrected is null; -- only pmar
-/*
-Maria found three locationid of eels where capture_date_corrected is null:
-193974326
-144945177
-147293138
-*/
-
-/*
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' enero ', '/01/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Febrero ', '/02/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' febrero ', '/02/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Marzo ', '/03/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' marzo ', '/03/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Abril ', '/04/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' abril ', '/04/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Mayo ', '/05/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' mayo ', '/05/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Junio ', '/06/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' junio ', '/06/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Julio ', '/07/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' julio ', '/07/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Agosto ', '/08/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' agosto ', '/08/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' septiembre ', '/09/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Septiembre ', '/09/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' octubre ', '/10/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Octubre ', '/10/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' noviembre ', '/11/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Noviembre ', '/11/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' diciembre ', '/12/');
-update sudoang.species_location set "capture_date"=regexp_replace("capture_date", ' Diciembre ', '/12/');
-*/
-
--- View of Portuguese abundance level of eels
-drop view if exists sudoang.portugal_abundance_level;
-create view sudoang.portugal_abundance_level as (
-select row_number() OVER (PARTITION BY true), stationdbeel.locationid,abundance_order, the_geom from sudoang.species_location 
-JOIN sudoang.stationdbeel on stationdbeel.locationid=species_location.locationid
-where country='PT' and codspecies='aang');
-
-
-update sudoang.species_location set "capture_date"='01/08/'||capture_year 
-where not (codspecies='pmar' and capture_date is null) and "capture_date" is NULL and capture_year is not null and capture_year !=0; -- 5 rows, 42 msec
-
-
-/*
-Pb converting ind/ha to numeric (it has already been stardardized in line 107)
-*/
-
-select * from sudoang.species_location where "ind/ha" like '% %'; -- 3 rows
-update sudoang.species_location set "ind/ha" =regexp_replace("ind/ha", 'a', ''); -- 65132 rows affected, 834 msec
-update sudoang.species_location set "ind/ha" =regexp_replace("ind/ha", ' ', ''); -- 65132 rows affected, 748 msec
-select "ind/ha"::numeric from sudoang.species_location; --OK
-
-
-/*
-We need all operations including where no eels.
-We created temp_pesca_electrica taking into account 19 methods from location (methods do not exist for Portugal data).
-*/
-
-create index idx_location_id on sudoang.species_location(locationid);
-create index idx_locationid on sudoang.location(locationid);
-
--- select * from sudoang.location limit 10
-
-drop table if exists sudoang.temp_pesca_electrica;
-create table sudoang.temp_pesca_electrica as
-select 
-species_location.locationid,
-capture_date,
-capture_date_corrected,
-capture_year,
-capture_month,
-codspecies,
-"Time1" as time1,
-"Time2" as time2,
-"Time3" as time3,
-"Run1" as run1,
-"Run2" as run2,
-"Run3" as run3,
-length,
-width,
-"Area"::numeric as area,
-"ind/ha"::numeric as indha,
-hydrographic_basin_es,
-methods
- from sudoang.species_location 
-join sudoang.stationdbeel on stationdbeel.locationid=species_location.locationid
- where methods in 
-(
-	'electrofishing', 
-	'Pesca eléctrico'
-	'Pesc eléctrica',
-	'Trasmallo y pesca eléctrica',
-	'pesca eléctrica',
-	'Pesca eléctrica, visual',
-	'Pesca eléctrica y trasmallos.',
-	'Pesca elétrica',
-	'Pesca eléctrica, trasmallos.'
-	'Pesca eléctrica.',
-	'Pesca eléctrica y trasmallos',
-	'Pesca con trasmallos y pesca eléctrica',
-	'Pesca con trasmallos y pesca eléctrica.',
-	'Trasmallos y pesca eléctrica.',
-	'Pesca eléctrica, acotado',
-	'Trasmallos y pesca eléctrica',
-	'Trasmallos y pesca eléctrica',
-	'Pesca eléctrica, trasmallos',
-	'Pesca eléctrica'
-
-	) and (
-"Area" is not NULL OR "ind/ha" is not null) 
-and not (codspecies='pmar' and capture_date is null); -- 14569 rows, 102 msec
-
-select * from sudoang.species_location limit 10
--- Looking for the efficiency to calculate eel density by bassin
-select round(run1::numeric/area/indha,2) as capturabilidad, capture_year, hydrographic_basin_es from sudoang.temp_pesca_electrica 
-where indha is not null 
-and area is not null 
-and run1 is not null
-and codspecies='aang'
-order by hydrographic_basin_es;
-
-select * from sudoang.temp_pesca_electrica limit 10;
-select count(*), locationid from sudoang.temp_pesca_electrica group by locationid -- 4425 Ids
-select count(*), codspecies from sudoang.temp_pesca_electrica group by codspecies -- 81 species
-
-
-select * from sudoang.temp_pesca_electrica where run2 is not null;  -- 13 rows (no eel)
-select * from sudoang.temp_pesca_electrica limit 200;
-
-
-DROP TABLE if exists sudoang.electrofishing CASCADE;
+DROP TABLE if exists france.dbeel_electrofishing_aspe CASCADE;
 SELECT * from dbeel.electrofishing limit 10;
 
 
-/*-----------------------------------------------
-FIRST CREATE AN EMPTY TABLE
------------------------------------------------------*/
-/*
-ob_id UUID
-ob_no_origin --11 electrofishing observation_origin => row data
-ob_no_type  (period_type.no_id)   --22 
------------------------------------------------------
-no_id;no_code;no_type;no_name;obs_type_class_name
-22;;Observation Type;Electro-fishing;Scientific Observation
-----------------------------------------------------------
-ob_no_period  --75 (daily) dans period_type
-ob_starting_date date
-ob_ending_date date
-ob_op_id UUID observation place
-ob_dp_id; -- dataprovider
-ef_no_fishingmethod;            scientific_observation_method.no_id AS ef_no_fishingmethod,
-ef_no_electrofishing_mean; 	electrofishing_mean.no_id AS ef_no_electrofishing_mean,	
-ef_wetted_area;
-ef_fished_length;
-ef_fished_width;
-ef_duration;
-ef_nbpas
-*/
-/*
-runonce
-ALTER TABLE sudoang.electrofishing add constraint fk_oo_op_id FOREIGN KEY (ob_op_id)	
-		REFERENCES sudoang.stationdbeel (op_id) MATCH SIMPLE
-		ON UPDATE CASCADE ON DELETE CASCADE
-*/
-
-
-CREATE TABLE sudoang.electrofishing (
-	locationid integer,
-	capture_date text,	
-	--LIKE ireland.survey INCLUDING DEFAULTS INCLUDING CONSTRAINTS,
+CREATE TABLE france.dbeel_electrofishing_aspe(
 	CONSTRAINT pk_oo_ob_id PRIMARY KEY (ob_id),
 	CONSTRAINT fk_oo_op_id FOREIGN KEY (ob_op_id)	
-		REFERENCES sudoang.stationdbeel (op_id) MATCH SIMPLE
+		REFERENCES france.dbeel_station_aspe (op_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE CASCADE,
 	CONSTRAINT fk_oo_dp_id FOREIGN KEY (ob_dp_id)	
 		REFERENCES dbeel.data_provider (dp_id) MATCH SIMPLE

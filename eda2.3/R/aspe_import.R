@@ -1,12 +1,20 @@
-# Library
+# setwd("C:\\workspace\\eda_dbeel")
+
 library(aspe)
 library(tidyverse)
 library(sf)
+library(RPostgres)
 
 rivernetwork <- "RIOS"
-
 # Load data
 source("common/init.r")
+
+con = dbConnect(Postgres(),
+		dbname=baseODBCrios[1],
+		host="localhost",
+		port=5432,
+		user=baseODBCrios[2], 
+		password=baseODBCrios[3])
 # tables envoyées par Pascal, on devrait pouvoir l'interroger par API hub eau d'ici la fin de l'année
 load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
 
@@ -52,21 +60,11 @@ mapview::mapview(station_aspe_sf, color = "green")
 
 
 # import des stations en base ---------------------
+DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
+DBI::dbWriteTable(con, "station_aspe", station_aspe_sf)
+DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
-station_aspe <- station %>% 
-  mutate(sta_source= "OFB", 
-         SRID = 2154) %>% 
- mutate(sta_geometrie=st_transform(sta_geometrie,3035)) %>%
-  dplyr::select(sta_id, sta_source, sta_code_sandre, sta_libelle_sandre, sta_coordonnees_x,
-                sta_coordonnees_y, SRID) %>% 
-  dplyr::rename(sta_cod = sta_code_sandre,
-                sta_lib = sta_libelle_sandre,
-                sta_X = sta_coordonnees_x,
-                sta_Y = sta_coordonnees_y)
-
-write_csv(station_aspe, "D://temp/stations_aspe.csv")
-
-# Table operation
+# Table operation --------------------------------------
 
 operation_description_peche <- operation_description_peche %>% 
   rename(largeur = odp_largeur_lame_eau) # for reason this name is not recognised by select
@@ -74,21 +72,17 @@ operation_description_peche <- operation_description_peche %>%
 operation_aspe <- dist_passerelle %>% 
   left_join(operation) %>% 
   left_join(select(ref_protocole, pro_id, pro_libelle), by = c("ope_pro_id" = "pro_id")) %>% 
-  filter(ope_pro_id %in% c(1,2,3,4,7)) %>% 
+  filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # on vire IA SAT et vigietruite
   left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>% 
-  mutate(op_cod = "") %>% 
-  dplyr::select(ope_id, op_cod, sta_id, ope_date, pro_libelle, odp_longueur,
-                largeur) %>% 
-    rename(op_id = ope_id, op_sta_id = sta_id, op_dat = ope_date,
-           op_typ = pro_libelle, op_length = odp_longueur, op_width = largeur)
+    rename(op_typ = pro_libelle, op_length = odp_longueur, op_width = largeur)
 
-test <- dist_passerelle %>% 
-  left_join(operation) %>% 
-  left_join(dispositif_station, by = c("sta_id" = "dis_sta_id")) %>% 
-  left_join(dispositif_collecte, by = c("dis_dic_id" = "dic_id")) %>% 
-  left_join(select(ref_protocole, pro_id, pro_libelle), by = c("ope_pro_id" = "pro_id")) %>% 
-  filter(pro_libelle =="Indice Abondance Anguille")
-  
+DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
+DBI::dbWriteTable(con, "operation_aspe", operation_aspe)
+DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
+
+
+
+
 
 # Selection anguilles BV Loire
 
