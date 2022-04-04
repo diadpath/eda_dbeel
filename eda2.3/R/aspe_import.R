@@ -27,6 +27,7 @@ station_aspe <- station %>%
 				by = c("sta_typ_id" = "typ_id"))
 
 # filter data from metropolitan France
+# TODO LATER récupérer les stations historiques pour voir les manques d'import depuis bd_map
 
 station_aspe <- station_aspe %>%
  					filter(typ_code_epsg==2154)
@@ -41,34 +42,16 @@ coords <- geo_convertir_coords_df(df = station_aspe,
 station_aspe <- station_aspe %>%
 		left_join(y = coords) %>%
 		dplyr::select(-(sta_geometrie))%>%
-		mutate(typ_code_epsg=3035)
+		mutate(typ_code_epsg=3035) 
+station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))]
+nrow(station_aspe)  #32727
+
+station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035)
+
+mapview::mapview(station_aspe_sf, color = "green")
 
 
-		match("typ",colnames(station_aspe))
-
-
-
-## Ajout sta_id
-
-data_loc <- data_ang %>% 
-		left_join(y = dist_passerelle,
-				by = "ope_id") %>% 
-		left_join(y = coords_wgs84,
-				by = "sta_id") %>% 
-		filter(!is.na(x_wgs84))
-
-station_geo <- data_loc %>%
-		sf::st_as_sf(coords = c("x_wgs84", "y_wgs84"),
-				crs = 4326)
-
-station_ASPE <- station %>%
-		sf::st_as_sf(coords = c("x_wgs84", "y_wgs84"),
-				crs = 4326)
-
-mapview::mapview(station_geo, color = "green")+ mapview::mapview(station_ASPE)
-
-
-
+# import des stations en base ---------------------
 
 station_aspe <- station %>% 
   mutate(sta_source= "OFB", 
