@@ -1,9 +1,12 @@
 # Library
 library(aspe)
 library(tidyverse)
+
 rivernetwork <- "RIOS"
+
 # Load data
 source("common/init.r")
+
 load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
 
 # Table correspondance globale
