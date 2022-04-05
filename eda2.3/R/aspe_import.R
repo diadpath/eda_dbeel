@@ -1,13 +1,19 @@
 # setwd("C:\\workspace\\eda_dbeel")
 memory.limit(size =4000)
+
+# Libraries
 library(aspe)
 library(tidyverse)
 library(sf)
 library(RPostgres)
 
 rivernetwork <- "RIOS"
+
 # Load data
+
 source("common/init.r")
+
+## Set up database connection
 
 con = dbConnect(Postgres(),
 		dbname=baseODBCrios[1],
@@ -15,40 +21,34 @@ con = dbConnect(Postgres(),
 		port=5432,
 		user=baseODBCrios[2], 
 		password=baseODBCrios[3])
-# tables envoyées par Pascal, on devrait pouvoir l'interroger par API hub eau d'ici la fin de l'année
-load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
-load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData"))
 
-# temp 2022 correction d'un renommage dans la table
-# normalement ne devrait pas être là
+## Load Rdata tables sent by OFB (Pascal Irz),
+## Remember to ask if/when data set will be integrated in hub'eau API 
 
-operation_description_peche <- operation_description_peche %>% rename("odp_largeur_lame_eau"="largeur")
+load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData")) # all data except biometry
+load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
 
 
-
-# Table correspondance globale
-passerelle <- mef_creer_passerelle()
-
-# Distinct
-
-dist_passerelle <- passerelle %>% 
-		dplyr::select(ope_id, sta_id, pop_id) %>% 
-		distinct()
+operation_description_peche <- operation_description_peche %>%
+  rename("odp_largeur_lame_eau"="largeur") # temp 2022: correct strange name for width
 
 
-# Table station
+
+# Create tables to be written in the database
+
+## Station table
 
 station_aspe <- station %>%
-		left_join(y = ref_type_projection,
-				by = c("sta_typ_id" = "typ_id"))
+	left_join(y = ref_type_projection,
+	          by = c("sta_typ_id" = "typ_id")) %>%
+  filter(typ_code_epsg==2154) # filter data from metropolitan France
 
-# filter data from metropolitan France
-# TODO LATER récupérer les stations historiques pour voir les manques d'import depuis bd_map
 
-station_aspe <- station_aspe %>%
-		filter(typ_code_epsg==2154)
+# TODO LATER r?cup?rer les stations historiques pour voir les manques d'import depuis bd_map
 
-coords <- geo_convertir_coords_df(df = station_aspe,
+# reproject coordinates in European system
+
+coords <- aspe::geo_convertir_coords_df(df = station_aspe,
 		var_x = sta_coordonnees_x,
 		var_y = sta_coordonnees_y,
 		var_id = "sta_id",
@@ -56,15 +56,23 @@ coords <- geo_convertir_coords_df(df = station_aspe,
 		crs_sortie = 3035) 
 
 station_aspe <- station_aspe %>%
-		left_join(y = coords) %>%
-		dplyr::select(-(sta_geometrie))%>%
+		left_join(y = coords) %>% # add reprojected coordinates
+		dplyr::select(-(sta_geometrie)) %>%
 		mutate(typ_code_epsg=3035) 
-station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))]
-nrow(station_aspe)  #32727
 
-station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035)
+station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove all column starting with "typ"
+# we probably should use select(!start_with) by it daesn't work
 
-mapview::mapview(station_aspe_sf, color = "green")
+# nrow(station_aspe)  #32727
+
+# Converting table as a sf object to get functionning geometry (the one in the 
+# table is stored as text and not recognized by postgis)
+station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035) 
+
+# Just checking that everyting works fine
+mapview::mapview(station_aspe_sf, color = "green") # some points in Africa, to remove
+
+station_aspe_sf <- station_aspe_sf[!station_aspe_sf$sta_id %in% c(473, 86346),]
 
 
 # import des stations en base ---------------------
@@ -72,9 +80,9 @@ DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
 DBI::dbWriteTable(con, "station_aspe", station_aspe_sf)
 DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
-# Points de prélèvements-----------------------------
+# Points de pr?l?vements-----------------------------
 
-# certaines stations n'ont pas de sta_id et il faut importer leurs coord des points de prélèvement
+# certaines stations n'ont pas de sta_id et il faut importer leurs coord des points de pr?l?vement
 
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
@@ -121,7 +129,7 @@ point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),
 
 
 
-# import des points de prélèvement en base ---------------------
+# import des points de pr?l?vement en base ---------------------
 DBI::dbExecute(con, "DROP TABLE if exists france.point_prelevement_aspe;")
 DBI::dbWriteTable(con, "point_prelevement_aspe", point_prelevement_aspe_sf)
 DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
@@ -161,22 +169,22 @@ operation_aspe <-
 		select(-c(odp_mom_id,mom_fam_id,mom_ordre_affichage)) %>%
 		left_join(station, by=c("pop_sta_id"="sta_id")) %>%			
 		rename(sta_id=pop_sta_id) %>%
-		# dans les objectifs de l'opération, on peut savoir si c'est un suivi de pop anguille
-		# comme il peut y avoir plusieurs objectifs pour une opération on s'intéresse qu'aux anguilles
+		# dans les objectifs de l'op?ration, on peut savoir si c'est un suivi de pop anguille
+		# comme il peut y avoir plusieurs objectifs pour une op?ration on s'int?resse qu'aux anguilles
 		left_join(operation_objectif %>%
 						left_join(ref_objectif, by=c("opo_obj_id"="obj_id")) %>%
 						filter(opo_obj_id==9) %>%
 						select(opo_ope_id) %>%
 						distinct() %>%
 						mutate(objectif="Suivi des populations d'anguilles"), by=c("ope_id"="opo_ope_id")) %>%	
-		# nombre de points pour les opérations grand milieu
+		# nombre de points pour les op?rations grand milieu
 		left_join(
 				prelevement_elementaire %>%
 						left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
 						group_by(pre_ope_id) %>%
 						summarize(nb_point=sum(grp_nombre)), 
 				by=c("ope_id"="pre_ope_id")) %>%
-		# ce dessous requete pour grouper les passages et prélèvements élémentaires et comptage des nb de passage		
+		# ce dessous requete pour grouper les passages et pr?l?vements ?l?mentaires et comptage des nb de passage		
 		left_join(
 				prelevement_elementaire %>%
 						left_join(y = passage %>% rename(pre_id = pas_id)) %>%
@@ -221,7 +229,7 @@ operation %>%
 						summarize(nb_eel_per_pass=sum(lop_effectif)),
 				by=c("ope_id"="pre_ope_id")
 		) %>%
-		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (pêche grand milieu) on considère que le passage c'est 1
+		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (p?che grand milieu) on consid?re que le passage c'est 1
 		pivot_wider(id_cols=c(ope_id,pas_numero,nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
 		mutate("pas_1"=replace_na(pas_1,0))  
 
