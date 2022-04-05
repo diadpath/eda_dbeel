@@ -137,13 +137,13 @@ DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 #		mef_ajouter_passage() %>%
 #		mef_ajouter_lots
 
-   dist_passerelle %>%  
-			 left_join(operation) %>% 
+dist_passerelle %>%  
+		left_join(operation) %>% 
 		mef_ajouter_type_protocole() %>% 
 		mef_ajouter_passage()
+ref_objectif
+operation_objectif
 
-
-		
 
 operation_description_peche <- operation_description_peche %>% 
 		rename(largeur = odp_largeur_lame_eau) # for reason this name is not recognised by select
@@ -154,12 +154,35 @@ operation_aspe <-
 		point_prelevement %>%
 		left_join(operation, by=c("pop_id"="ope_pop_id")) %>%
 		left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>%
+		left_join(ref_moyen_prospection, by = c("odp_mop_id"="mop_id"))%>%
+		select(-odp_mop_id, mop_ordre_affichage)%>%
 		left_join(ref_protocole %>% select(pro_id,pro_libelle), by=c("ope_pro_id"="pro_id")) %>%
-		left_join(prelevement_elementaire, by=c("ope_id"="pre_ope_id")) %>%
-		left_join(station, by=c("pop_sta_id"="sta_id")) %>%
+		left_join(ref_modele_materiel, by=c("odp_mom_id"="mom_id")) %>%
+		select(-c(odp_mom_id,mom_fam_id,mom_ordre_affichage)) %>%
+		left_join(station, by=c("pop_sta_id"="sta_id")) %>%			
 		rename(sta_id=pop_sta_id) %>%
-		left_join(y = passage %>%
-						rename(pre_id = pas_id)) %>%
+		# dans les objectifs de l'opération, on peut savoir si c'est un suivi de pop anguille
+		# comme il peut y avoir plusieurs objectifs pour une opération on s'intéresse qu'aux anguilles
+		left_join(operation_objectif %>%
+						left_join(ref_objectif, by=c("opo_obj_id"="obj_id")) %>%
+						filter(opo_obj_id==9) %>%
+						select(opo_ope_id) %>%
+						distinct() %>%
+						mutate(objectif="Suivi des populations d'anguilles"), by=c("ope_id"="opo_ope_id")) %>%	
+		# nombre de points pour les opérations grand milieu
+		left_join(
+				prelevement_elementaire %>%
+						left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+						group_by(pre_ope_id) %>%
+						summarize(nb_point=sum(grp_nombre)), 
+				by=c("ope_id"="pre_ope_id")) %>%
+		# ce dessous requete pour grouper les passages et prélèvements élémentaires et comptage des nb de passage		
+		left_join(
+				prelevement_elementaire %>%
+						left_join(y = passage %>% rename(pre_id = pas_id)) %>%
+						group_by(pre_ope_id) %>%
+						summarize(nb_pas=max(pas_numero)), 
+				by=c("ope_id"="pre_ope_id")) %>%
 		filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # on vire IA SAT et vigietruite
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)

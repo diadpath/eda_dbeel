@@ -71,12 +71,31 @@ INSERT INTO france.dbeel_station_aspe
 -- SELECT * FROM france.operation_aspe oa ;
 
 
+--SELECT * from dbeel.electrofishing limit 10;
+
 
 DROP TABLE if exists france.dbeel_electrofishing_aspe CASCADE;
-SELECT * from dbeel.electrofishing limit 10;
-
 
 CREATE TABLE france.dbeel_electrofishing_aspe(
+  odp_nombre_anodes NUMERIC,
+  odp_nombre_epuisettes NUMERIC,
+  odp_maille_epuisette NUMERIC,
+  odp_tension NUMERIC,
+  odp_intensite NUMERIC,
+  odp_puissance NUMERIC,
+  odp_nombre_points_anguilles INTEGER,
+  nb_point INTEGER,
+  odp_duree_peche NUMERIC,
+  op_typ TEXT,
+  mom_libelle TEXT,
+  ope_id INTEGER,
+  pop_id INTEGER,
+  sta_id INTEGER,
+  sta_code_sandre TEXT,  
+  pop_code_sandre TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  pop_code_wama TEXT, 
+  ope_code_wama TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  ope_id_wama INTEGER,
 	CONSTRAINT pk_oo_ob_id PRIMARY KEY (ob_id),
 	CONSTRAINT fk_oo_op_id FOREIGN KEY (ob_op_id)	
 		REFERENCES france.dbeel_station_aspe (op_id) MATCH SIMPLE
@@ -116,6 +135,28 @@ SELECT * FROM  france.dbeel_station_aspe sta
 -- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_aspe
 
 DELETE FROM france.dbeel_electrofishing_aspe;
+/*
+electrofishing mean
+70    Electrofishing mean Unknown 
+71    Electrofishing mean By foot 
+72    Electrofishing mean By boat 
+73    Electrofishing mean Mix 
+scientific observation method
+no_id no_code no_type no_name sc_observation_category sc_definition
+68    Scientific observation type Unknown Gear fishing  
+69    Scientific observation type Unknown Migration monitoring  
+60  NA  Scientific observation type Unknown Unknown Unknown scientific observation of unknown category
+61  UN  Scientific observation type Unknown Electro-fishing Electrofishing, method unknown
+62  WH  Scientific observation type Whole Electro-fishing Electrofishing, full two pass by foot
+63  P1  Scientific observation type Partial1bank  Electro-fishing Electrofishing, partial on one bank
+64  P2  Scientific observation type Partial2banks Electro-fishing Electrofishing, partial on two banks
+65  PR  Scientific observation type Partialrandom Electro-fishing Electrofishing, partial random
+66  PR  Scientific observation type Partialprop Electro-fishing Electrofishing, partial proportional
+67  OT  Scientific observation type Other Electro-fishing Electrofishing, other method
+301 DH  Scientific_observation_type Deep habitat  Electro-fishing Normalized method for deep habitat (Belliard et al.,2018)
+302 WE  Scientific_observation_type Whole eel Electro-fishing Electrofishing, whole eel specific
+303 PE  Scientific_observation_type Point sampling eel  Electro-fishing Electrofishing, eel specific point sampling (Germis, 2009)
+*/
 
 INSERT INTO france.dbeel_electrofishing_aspe (
 	ob_id,
@@ -133,113 +174,154 @@ INSERT INTO france.dbeel_electrofishing_aspe (
 	ef_duration,
 	ef_nbpas,
 	ob_op_id,
-	locationid,
-	capture_date
+	odp_tension,
+	odp_intensite,
+	odp_puissance,
+	odp_nombre_anodes ,
+  odp_nombre_epuisettes,
+  odp_maille_epuisette,
+  odp_nombre_points_anguilles,
+  nb_point,
+  odp_duree_peche,
+  op_typ,
+  mom_libelle,
+  ope_id,
+  pop_id,
+  sta_id,
+  sta_code_sandre,
+  pop_code_wama,
+  ope_code_wama,
+  ope_id_wama
 	)
-	SELECT 
+SELECT 
 	uuid_generate_v4() AS ob_id ,
 	observation_origin.no_id AS ob_no_origin,
 	observation_type.no_id AS ob_no_type, 
 	period_type.no_id AS ob_no_period,
-	ope_date AS ob_starting_date,
+	ope.ope_date::date AS ob_starting_date,
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
-	scientific_observation_method.no_id AS ef_no_fishingmethod,
-	electrofishing_mean.no_id AS ef_no_electrofishing_mean,	
-	ope_surface_calculee AS ef_wetted_area, 
-	op_length AS ef_fished_length,
-	op_width AS ef_fished_width,
+	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
+	     WHEN op_typ ILIKE '%compl%' THEN 62
+	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
+	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
+       WHEN op_typ ILIKE '%anguille%' THEN 303	
+       ELSE 61 -- si y a des des 61 se méfier
+	END AS ef_no_fishingmethod,
+	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
+	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
+	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
+	     ELSE 70 -- unknown
+	END AS ef_no_electrofishing_mean,	
+	ope.ope_surface_calculee AS ef_wetted_area, 
+	odp_longueur AS ef_fished_length,
+	odp_largeur_lame_eau AS ef_fished_width,
 	odp_duree_peche AS ef_duration,
-	 ef_nbpas,	     
-	op.op_id as ob_op_id,
-	op.locationid as locationid, -- locationid coming from sudoang.stationdbeel
-	capture_date as capture_date -- date as text (original format)
+	CASE WHEN nb_pas IS NULL THEN 1 ELSE nb_pas END AS ef_nbpas,	     
+	sta.op_id as ob_op_id,
+	ope.odp_tension,
+  ope.odp_intensite,
+  ope.odp_puissance,
+  ope.odp_nombre_anodes ,
+  ope.odp_nombre_epuisettes,
+  ope.odp_maille_epuisette,
+  ope.odp_nombre_points_anguilles,
+  ope.nb_point,
+  ope.odp_duree_peche,
+  ope.op_typ,
+  ope.mom_libelle,
+  ope.ope_id,
+  ope.pop_id,
+  ope.sta_id,
+  ope.sta_code_sandre,
+  ope.pop_code_wama,
+  ope.ope_code_wama,
+  ope.ope_id_wama
 	FROM 	
         france.dbeel_station_aspe sta
    JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,
    -- nomenclatures 	 
-	 dbeel_nomenclature.nomenclature nn
-	 JOIN dbeel_nomenclature.observation_origin ON nn.no_id = observation_origin.no_id
-	 JOIN	dbeel_nomenclature.scientific_observation_method  ON nn.no_id = scientific_observation_method.no_id
-	 JOIN	dbeel_nomenclature.observation_type  ON nn.no_id = observation_type.no_id
-	 JOIN	dbeel_nomenclature.period_type ON nn.no_id = period_type.no_id 
-	 JOIN dbeel.data_provider  ON nn.no_id = data_provider.no_id
-	 JOIN dbeel_nomenclature.electrofishing_mean  ON nn.no_id = electrofishing_mean.no_id
-		
-			
-	WHERE observation_origin.no_name='Raw data' 
-	AND scientific_observation_method.no_name='Unknown'
-	AND scientific_observation_method.sc_observation_category='Electro-fishing'
-	AND observation_type.no_name='Electro-fishing' 
-	AND electrofishing_mean.no_name='By foot' 
-	AND period_type.no_name='Daily' 
-	AND data_provider.dp_name='Pascal Irz'
-	; -- 
-
-select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --7
-
-/*
-Tableau pour voir les sites avec et sans anguilles
-*/
-create table sudoang.locationid_sibic_eels as
-(select distinct e.locationid, x, y, the_geom from france.dbeel_station_aspe d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
-where e.locationid in (
-select locationid 
-from  sudoang.temp_pesca_electrica 
-where codspecies='aang')); -- 1075 locationid with eels
-
-create table sudoang.locationid_sibic_no_eels as
-(select distinct e.locationid, x, y, the_geom from france.dbeel_station_aspe d join sudoang.dbeel_electrofishing e on ob_op_id=op_id 
-where e.locationid not in (
-select locationid 
-from  sudoang.temp_pesca_electrica 
-where codspecies='aang')); -- 3350 locationid without eels
-
 
 	
+	 dbeel_nomenclature.observation_origin,
+	dbeel_nomenclature.observation_type,
+	 dbeel_nomenclature.period_type,
+	 dbeel.data_provider  			
+	WHERE observation_origin.no_name='Raw data' 
+	AND observation_type.no_name='Electro-fishing' 
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Pascal Irz'
+	; --33301
+	
+	
+-- Some verifs
+	
+/*	
+SELECT * FROM france.dbeel_electrofishing_aspe LIMIT 10;
+
+-- no duplicate for operations
+WITH count_ope AS (
+SELECT ROW_NUMBER()  OVER (PARTITION BY ope_id) nb FROM france.dbeel_electrofishing_aspe
+)
+SELECT * FROM count_ope WHERE nb > 1
+;--0 lines
+
+SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ;
+/*
+op_typ  count
+Pêche partielle par points (grand milieu) 8759
+Pêche par ambiances 2232
+Pêche partielle sur berge 3033
+Pêche complète à un ou plusieurs passages 18189
+Indice Abondance Anguille 1088
+*/
+SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY mom_libelle;
+SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ
+/*
+ FEG 1700 381
+FEG 8000  2613
+EL64 II 11
+  163
+5.0 GPP 2
+FEG 13000 78
+EL64 IIGI 7
+FEG 3000  30
+Inconnu 22895
+FEG 1500  83
+FEG 5000  138
+HERON 5638
+FEG 7000  547
+IG600T  16
+Pulsium 5
+MARTIN PECHEUR  302
+FEG 3000S 263
+AIGRETTE  129
+ */
+
+select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --0
+
+
+SELECT ef_no_fishingmethod, no_name, count(*) FROM france.dbeel_electrofishing_aspe
+JOIN dbeel_nomenclature.scientific_observation_method sc ON sc.no_id=ef_no_fishingmethod
+GROUP BY ef_no_fishingmethod, no_name;
+/*
+|ef_no_fishingmethod|no_name           |count|
+|-------------------|------------------|-----|
+|302                |Whole eel         |23   |
+|63                 |Partial1bank      |3033 |
+|303                |Point sampling eel|1088 |
+|301                |Deep habitat      |10991|
+|62                 |Whole             |18166|
+*/
+*/
+	
+
+
+--------------------------------------------	
 -- NUMBER PER PASS... AND TOTAL NUMBER
 -- BATCH INTEGRATION
-
-/*
-select * from france.dbeel_electrofishing_aspe limit 10;
-select * from sudoang.temp_pesca_electrica limit 100;
-*/
-
-/*
-Adding identifiers from the dbeel into source table
-*/
-alter table sudoang.temp_pesca_electrica add column id serial primary key;
-alter table sudoang.temp_pesca_electrica add column op_id uuid;
-alter table sudoang.temp_pesca_electrica add column ob_id uuid;
-
-update sudoang.temp_pesca_electrica set(op_id, ob_id)=(sub.ob_op_id, sub.ob_id) from (
-	select id,ee.ob_op_id, ee.ob_id from sudoang.temp_pesca_electrica pe 
-	join france.dbeel_electrofishing_aspe ee 
-	on (pe.locationid,pe.capture_date_corrected) = (ee.locationid,ee.ob_starting_date)) sub
-where temp_pesca_electrica.id=sub.id;
-
-/* runonce
-ALTER TABLE sudoang.temp_pesca_electrica add constraint fk_ob_id FOREIGN KEY (ob_id) 
-		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
-		ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE sudoang.temp_pesca_electrica add constraint fk_op_id FOREIGN KEY (op_id) 
-		REFERENCES sudoang.stationdbeel (op_id) 
-		ON DELETE CASCADE ON UPDATE CASCADE;	
-*/
-
-/* 
-Some of the lines have no op_id or ob_id, it is because they were not integrated in electrofishing table,
-We are happy with that.
-*/
-
-
--- select * from dbeel.batch limit 10 
-/* runonce
-ALTER TABLE sudoang.batch_ope add constraint fk_batch_ope_ba_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
-		ON DELETE CASCADE ON UPDATE CASCADE
-*/
-
+--------------------------------------------
 
 DROP TABLE if exists sudoang.batch_ope CASCADE;
 CREATE TABLE sudoang.batch_ope (
