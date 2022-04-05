@@ -80,9 +80,10 @@ DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
 DBI::dbWriteTable(con, "station_aspe", station_aspe_sf)
 DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
-# Points de pr?l?vements-----------------------------
+# Sampling locations
 
-# certaines stations n'ont pas de sta_id et il faut importer leurs coord des points de pr?l?vement
+# Some sampling locations do not have sta_id : we need to import their coordinates
+# from point_prelevement
 
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
