@@ -41,7 +41,9 @@ operation_description_peche <- operation_description_peche %>%
 station_aspe <- station %>%
 	left_join(y = ref_type_projection,
 	          by = c("sta_typ_id" = "typ_id")) %>%
-  filter(typ_code_epsg==2154) # filter data from metropolitan France
+  filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France 
+  filter(sta_coordonnees_y > 6000000) # some station have wrong coordinates
+# we limit the south extent to south Corsica for now...
 
 
 # TODO LATER r?cup?rer les stations historiques pour voir les manques d'import depuis bd_map
@@ -71,8 +73,6 @@ station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035)
 
 # Just checking that everyting works fine
 mapview::mapview(station_aspe_sf, color = "green") # some points in Africa, to remove
-
-station_aspe_sf <- station_aspe_sf[!station_aspe_sf$sta_id %in% c(473, 86346),]
 
 
 # import des stations en base ---------------------
