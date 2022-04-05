@@ -195,9 +195,51 @@ DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
 
 
-# TODO lots
+# lots -----------------------------------------------------------------------------
 
 
+# the left join ensures that operations with no eels have zero after replace_na
+operation %>% 
+		select(ope_id)%>%
+		left_join(
+				prelevement_elementaire %>%
+						left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")) %>%
+						filter(lop_esp_id==14) %>%
+						group_by(pre_ope_id) %>%
+						summarize(nb_eel=sum(lop_effectif)),
+				by=c("ope_id"="pre_ope_id"))%>%
+		mutate(nb_eel=replace_na(nb_eel,0)) %>%
+		
+		# Nombre de poissons par passage
+
+		left_join(
+				prelevement_elementaire %>%
+						left_join(y = passage %>% rename(pre_id = pas_id), by="pre_id") %>%
+						left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")) %>%
+						filter(lop_esp_id==14) %>%
+						group_by(pre_ope_id, pas_numero) %>%
+						summarize(nb_eel_per_pass=sum(lop_effectif)),
+				by=c("ope_id"="pre_ope_id")
+		) %>%
+		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (pêche grand milieu) on considère que le passage c'est 1
+		pivot_wider(id_cols=c(ope_id,pas_numero,nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
+		mutate("pas_1"=replace_na(pas_1,0))  
+
+
+
+
+
+left_join(y = lot_poissons %>%
+						select(pre_id = lop_pre_id,
+								lop_id,
+								tyl_id = lop_tyl_id,
+								tlo_id = lop_tlo_id,
+								esp_id = lop_esp_id,
+								lop_effectif)) %>%
+		left_join(y = ref_espece %>%
+						select(esp_id,
+								esp_code_alternatif)) %>%
+		select(-esp_id)
 
 
 

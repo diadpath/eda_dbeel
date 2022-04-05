@@ -314,6 +314,7 @@ GROUP BY ef_no_fishingmethod, no_name;
 |301                |Deep habitat      |10991|
 |62                 |Whole             |18166|
 */
+select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 */
 	
 
