@@ -317,7 +317,7 @@ GROUP BY ef_no_fishingmethod, no_name;
 select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 */
 	
-
+--TODO HERE (CEDRIC + DENIS) => see aspe_import.R line 227
 
 --------------------------------------------	
 -- NUMBER PER PASS... AND TOTAL NUMBER
