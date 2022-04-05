@@ -1,5 +1,5 @@
 # setwd("C:\\workspace\\eda_dbeel")
-
+memory.limit(size =4000)
 library(aspe)
 library(tidyverse)
 library(sf)
@@ -18,6 +18,14 @@ con = dbConnect(Postgres(),
 # tables envoyées par Pascal, on devrait pouvoir l'interroger par API hub eau d'ici la fin de l'année
 load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData"))
 load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData"))
+
+# temp 2022 correction d'un renommage dans la table
+# normalement ne devrait pas être là
+
+operation_description_peche <- operation_description_peche %>% rename("odp_largeur_lame_eau"="largeur")
+
+
+
 # Table correspondance globale
 passerelle <- mef_creer_passerelle()
 
@@ -121,15 +129,41 @@ DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 
 # Table operation -------------------------------------- (en cours)
 
+
+# expl_trouver_table() et expl_trouver_variable() pour trouver table et variable
+
+#mef_creer_passerelle() %>%
+#		mef_ajouter_type_protocole() %>% 
+#		mef_ajouter_passage() %>%
+#		mef_ajouter_lots
+
+   dist_passerelle %>%  
+			 left_join(operation) %>% 
+		mef_ajouter_type_protocole() %>% 
+		mef_ajouter_passage()
+
+
+		
+
 operation_description_peche <- operation_description_peche %>% 
 		rename(largeur = odp_largeur_lame_eau) # for reason this name is not recognised by select
 
-operation_aspe <- dist_passerelle %>% 
-		left_join(operation) %>% 
-		left_join(select(ref_protocole, pro_id, pro_libelle), by = c("ope_pro_id" = "pro_id")) %>% 
+
+# On repart de mef_creer_passerelle() en enlevant les lots
+operation_aspe <- 
+		point_prelevement %>%
+		left_join(operation, by=c("pop_id"="ope_pop_id")) %>%
+		left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>%
+		left_join(ref_protocole %>% select(pro_id,pro_libelle), by=c("ope_pro_id"="pro_id")) %>%
+		left_join(prelevement_elementaire, by=c("ope_id"="pre_ope_id")) %>%
+		left_join(station, by=c("pop_sta_id"="sta_id")) %>%
+		rename(sta_id=pop_sta_id) %>%
+		left_join(y = passage %>%
+						rename(pre_id = pas_id)) %>%
 		filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # on vire IA SAT et vigietruite
-		left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>% 
-		rename(op_typ = pro_libelle, op_length = odp_longueur, op_width = largeur)
+		select(-ope_pro_id) %>%
+		rename(op_typ = pro_libelle)
+
 
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
 DBI::dbWriteTable(con, "operation_aspe", operation_aspe)
