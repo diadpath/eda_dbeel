@@ -45,6 +45,7 @@ station_aspe <- station %>%
   filter(sta_coordonnees_y > 6000000) # some station have wrong coordinates
 # we limit the south extent to south Corsica for now...
 
+# TODO filter locations based on a polygon of France ...
 
 # TODO LATER r?cup?rer les stations historiques pour voir les manques d'import depuis bd_map
 
@@ -71,7 +72,7 @@ station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove al
 # table is stored as text and not recognized by postgis)
 station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035) 
 
-# Just checking that everyting works fine
+# Just checking that everything works fine
 mapview::mapview(station_aspe_sf, color = "green") # some points in Africa, to remove
 
 
@@ -88,7 +89,11 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
-		filter(typ_code_epsg==2154)
+		filter(typ_code_epsg==2154) %>%  #limit points to metropolitan France
+    filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  # some station have wrong coordinates
+# we limit the south extent to south Corsica for now...
+    filter(pop_coordonnees_x < 1500000) %>% 
+    filter(pop_coordonnees_x > 0) # filter some wrong coordinates
 
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		var_x = pop_coordonnees_x,
@@ -128,7 +133,8 @@ nrow(point_prelevement_aspe)  #115355
 
 point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),crs=3035)
 
-
+# Just checking that everything works fine
+mapview::mapview(point_prelevement_aspe_sf, color = "green")  # some points in Africa, to remove
 
 # import des points de pr?l?vement en base ---------------------
 DBI::dbExecute(con, "DROP TABLE if exists france.point_prelevement_aspe;")
