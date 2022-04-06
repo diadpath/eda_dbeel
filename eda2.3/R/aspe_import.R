@@ -247,6 +247,9 @@ data <- mef_creer_passerelle() %>%
     pop_id,
     mei_taille,
     mei_mesure_reelle,
+    mei_poids,
+    mei_poids_estime,
+    mei_mep_id,
     esp_code_alternatif
   ) %>%
   distinct() # remove doublons / opérations on several aims (networks)
@@ -266,7 +269,7 @@ n_measures <- data_ang %>%
     values_from = n
   )
 # Select lots with at least 30 mesures
-mes_lots <- comptage %>%
+mes_lots <- n_measures %>%
   filter(t > 29) %>%
   pull(lop_id)
 
