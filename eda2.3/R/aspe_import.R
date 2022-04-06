@@ -233,7 +233,7 @@ batch_aspe <- operation %>%   # 48387
 				by=c("ope_id"="pre_ope_id")
 		) %>%
 		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (p?che grand milieu) on consid?re que le passage c'est 1
-		pivot_wider(id_cols=c(ope_id,pas_numero,nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
+		pivot_wider(id_cols=c(ope_id, nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
 		mutate("pas_1"=replace_na(pas_1,0))  
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
