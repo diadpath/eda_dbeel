@@ -225,4 +225,53 @@ DBI::dbWriteTable(con, "batch_aspe", batch_aspe) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 
 
+# ------------------------------ Biometry--------------------------------------#
+# When there are too many fish people usually group them and will only mesure a 
+# subsample (usually 30 individuals).
+# Here we use the function qta_ajouter_mei_taille_alt() to randomly sample sizes
+# from the mesured individuals
+
+# First create a (large) table with all fish mesured
+data <- mef_creer_passerelle() %>%
+  mef_ajouter_lots() %>%
+  mef_ajouter_type_lot() %>%
+  mef_ajouter_mei() %>%
+  filter(mei_taille > 0) %>% # positive length
+  mef_ajouter_libelle() %>%
+  mef_ajouter_esp() %>% 
+  select(
+    mei_id,
+    lop_id,
+    ope_id,
+    tyl_libelle,
+    pop_id,
+    mei_taille,
+    mei_mesure_reelle,
+    esp_code_alternatif
+  ) %>%
+  distinct() # remove doublons / opérations on several aims (networks)
+
+# keep only eels
+data_ang <- data %>% 
+  filter(esp_code_alternatif == "ANG")
+
+# count sample mesures to use the function only when the sample is large enough
+n_measures <- data_ang %>%
+  filter(tyl_libelle == "S/L") %>% # only lots with measures on on a subsample
+  group_by(lop_id, mei_mesure_reelle) %>%
+  tally() %>%
+  ungroup() %>%
+  pivot_wider(
+    names_from = mei_mesure_reelle,
+    values_from = n
+  )
+# Select lots with at least 30 mesures
+mes_lots <- comptage %>%
+  filter(t > 29) %>%
+  pull(lop_id)
+
+# Finaly add estimated measures
+data_lots <- data_ang %>%
+  filter(lop_id %in% mes_lots) %>%
+  qta_ajouter_mei_taille_alt()
 
