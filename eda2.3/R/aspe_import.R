@@ -6,6 +6,8 @@ library(aspe)
 library(tidyverse)
 library(sf)
 library(RPostgres)
+library(aspeQual)
+
 # remotes::install_github("PascalIrz/aspeQual")
 rivernetwork <- "RIOS"
 
@@ -242,6 +244,31 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 
 
 
+# Biometry-----------------------------------------------------------------------------
 
-
-
+data <- mef_creer_passerelle() %>%
+  mef_ajouter_lots() %>%
+  mef_ajouter_type_lot() %>%
+  mef_ajouter_mei() %>%
+  filter(mei_taille > 0) %>% # longueur positive
+  mef_ajouter_libelle() %>%
+  mef_ajouter_ope_date() %>%
+  mef_ajouter_esp() %>% 
+  select(
+    mei_id,
+    lop_id,
+    ope_id,
+    tyl_libelle,
+    pop_id,
+    pop_libelle,
+    annee,
+    mei_taille,
+    mei_mesure_reelle,
+    esp_code_alternatif,
+    esp_nom_commun
+  ) %>%
+  distinct() %>% # nécessaire pour éviter doublons / opérations sur plusieurs objectifs (réseaux)
+ left_join(ref_espece %>% # ajout du nom commun
+   select(
+     esp_code_alternatif
+   ))
