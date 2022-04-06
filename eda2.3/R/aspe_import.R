@@ -242,6 +242,10 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 
 
 
+# TODO importation des tailles au 06/04/2022
+
+# voir traitements de Pascal
+# Vérifier poids de 350 g en Bretagne
 
 
 
