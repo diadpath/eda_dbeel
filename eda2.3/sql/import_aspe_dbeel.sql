@@ -19,7 +19,7 @@ INSERT INTO  dbeel.data_provider (dp_id, dp_name, dp_et_id) VALUES (30, 'Pascal 
 ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
 
 
--- TABLES FOR IMPORT will be created IN France AND IN loire schema (for electrofishing from fédérations de pêche)
+-- TABLES FOR IMPORT will be created IN France AND IN loire schema (for electrofishing from fï¿½dï¿½rations de pï¿½che)
 -- script for creating station is in eda_dbeel/eda2.3/R/aspe_import.R
 
 
@@ -46,7 +46,7 @@ CREATE TABLE france.dbeel_station_aspe (
 
 --select * from france.dbeel_station_aspe limit 10;
 
-
+DELETE FROM france.dbeel_station_aspe; -- 2 min
 -- Insert data into the dbeel table
 INSERT INTO france.dbeel_station_aspe 
 	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
@@ -60,8 +60,18 @@ INSERT INTO france.dbeel_station_aspe
    sta_id,
    sta_code_sandre,
   'FR' AS country 
-	FROM france.station_aspe;  --32727
+	FROM france.station_aspe;  --32720 17s
 
+------------------------------
+--retour des identifiants dans la TABLE mÃ¨re
+--------------------------------
+	
+	
+	ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
+	UPDATE france.station_aspe SET sta_dbeel_op_id = op_id FROM
+ france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; --32720
+
+	
 
 /*--------------------------------------------------
 -- ASPE.electrofishing
@@ -128,7 +138,7 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
 */
 select * from france.dbeel_station_aspe limit 10;
-select * from france.operation_aspe limit 10;
+select * from france.operation_aspe limit 10; --43695
 SELECT * FROM  france.dbeel_station_aspe sta
    JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id
 
@@ -207,7 +217,7 @@ SELECT
 	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
-       ELSE 61 -- si y a des des 61 se méfier
+       ELSE 61 -- si y a des des 61 se mï¿½fier
 	END AS ef_no_fishingmethod,
 	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
 	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
@@ -240,7 +250,7 @@ SELECT
   ope.ope_id_wama
 	FROM 	
         france.dbeel_station_aspe sta
-   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  -- JOIN donc les operations sans sta_id sont gardÃ©es
    -- nomenclatures 	 
 
 	
@@ -252,9 +262,31 @@ SELECT
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
-	; --33301
+	; --33300 ROWS 28s
 	
+ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
+UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
+ france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --33300
 	
+-- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
+-- IL N'en reste que 24 aprÃ¨s jointure.... on oublie....
+/*	
+	
+SELECT * FROM   france.dbeel_station_aspe sta WHERE sta_id IS NULL; --0
+SELECT *  FROM france.point_prelevement_aspe
+SELECT count(*)  FROM france.point_prelevement_aspe;--115323
+SELECT count(*) FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; --10394
+
+
+SELECT * FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; 
+
+SELECT *  FROM france.point_prelevement_aspe pop
+JOIN  france.operation_aspe ope ON ope.pop_id=pop.pop_id
+WHERE ope.sta_id IS NULL; --10394 => 24
+
+SELECT * FROM france.point_prelevement_aspe WHERE pop_id=100971
+*/
+
 -- Some verifs
 	
 /*	
@@ -270,10 +302,10 @@ SELECT * FROM count_ope WHERE nb > 1
 SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ;
 /*
 op_typ  count
-Pêche partielle par points (grand milieu) 8759
-Pêche par ambiances 2232
-Pêche partielle sur berge 3033
-Pêche complète à un ou plusieurs passages 18189
+Pï¿½che partielle par points (grand milieu) 8759
+Pï¿½che par ambiances 2232
+Pï¿½che partielle sur berge 3033
+Pï¿½che complï¿½te ï¿½ un ou plusieurs passages 18189
 Indice Abondance Anguille 1088
 */
 SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY mom_libelle;
@@ -317,16 +349,16 @@ GROUP BY ef_no_fishingmethod, no_name;
 select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 */
 	
---TODO HERE (CEDRIC + DENIS) => see aspe_import.R line 227
+
 
 --------------------------------------------	
 -- NUMBER PER PASS... AND TOTAL NUMBER
 -- BATCH INTEGRATION
+-- WE DON'T NEED DENSITY, WILL BE RECALCULATED LATER
 --------------------------------------------
 
 DROP TABLE if exists sudoang.batch_ope CASCADE;
 CREATE TABLE sudoang.batch_ope (
-		locationid integer,
 	CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
 	CONSTRAINT fk_batch_ope_ba_no_species_id FOREIGN KEY (ba_no_species) 
 		REFERENCES dbeel_nomenclature.species (no_id) 
@@ -346,146 +378,13 @@ CREATE TABLE sudoang.batch_ope (
 	CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) 
 		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE;
-		-- here I'm not putting any restriction concerning parent table within sudoang
-		-- Perhaps we will need them later but currently the information is not well structured anyways
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) 
+    REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
+    ON DELETE CASCADE ON UPDATE CASCADE;
 		) INHERITS (dbeel.batch);
 
--- select * from sudoang.batch_ope;
--- select coalesce(run1,0)+coalesce(run2,0)+coalesce(run3,0) from sudoang.temp_pesca_electrica where locationid=-2102599566
 
-/*
-alter table sudoang.batch_ope add constraint c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
-		ON DELETE CASCADE ON UPDATE CASCADE;
-*/
-/*-----------------------------------------------
-Two cases, first the operation contains an eel then we select it
-	   second there are no eels, 
-           this means that "and locationid not in (select locationid from anguila)"
-           we are not in the first case
-           We also select places where ob_id is null because some operations code could not be 
-           generated in the table temp_pesca_electrica as there were missing dates
----------------------------------------------------------------------------------------------------*/
-
-
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0),
-coalesce(run2,0),
-coalesce(run3,0),
-round(coalesce(indha/10000,0),3) AS density
-from sudoang.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from sudoang.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null)
-select * from anguila 
-union
-select * from other 
-order by locationid; -- 5579 rows
-
--- select * from france.dbeel_electrofishing_aspe e join sudoang.survey s on e.surveyid=s.surveyid
-
-
--- number per pass and total number are  
--- referenced by biological_characteristic_type.no_name='Number' (see biological_characteristic_type.no_id=47)
-
-
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0) as run1,
-coalesce(run2,0) as run2,
-coalesce(run3,0) as run3,
-round(coalesce(indha/10000,0),3) AS density
-from sudoang.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from sudoang.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-electrofishing as (select * from anguila 
-union
-select * from other 
-order by locationid)
-
-INSERT INTO sudoang.batch_ope
-	SELECT uuid_generate_v4() AS ba_id,
-	species.no_id AS ba_no_species,
-	stage.no_id AS ba_no_stage,
-	value_type.no_id AS ba_no_value_type,
-	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	electrofishing.run1+electrofishing.run2+electrofishing.run3 AS ba_quantity,
-	individual_status.no_id AS ba_no_individual_status,
-	1 AS ba_batch_level,
-	electrofishing.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-        electrofishing.locationid
-	FROM 
-        electrofishing,
-	dbeel_nomenclature.species, 
-	dbeel_nomenclature.stage, 
-	dbeel_nomenclature.biological_characteristic_type,
-	dbeel_nomenclature.value_type,
-	dbeel_nomenclature.individual_status        
-	WHERE species.no_name='Anguilla anguilla' 
-	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number' 
-	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'
-	AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-	; -- 5579 rows
-
--- op_p1 (this batch is of level 2, 1 is total number, the pass is identified by the number in pa_numero)
--- I kept this as in the first version of the dbeel there was not number_p1 the new version corrects this
--- also referenced by biological_characteristic_type.no_name='Number p1' (i.e. biological_characteristic_type.no_id=231)
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0) as run1,
-coalesce(run2,0) as run2,
-coalesce(run3,0) as run3,
-round(coalesce(indha/10000,0),3) AS density
-from sudoang.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from sudoang.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-electrofishing as (select * from anguila 
-union
-select * from other 
-order by locationid)
 
 INSERT INTO sudoang.batch_ope
 	SELECT uuid_generate_v4() AS ba_id,
@@ -12803,13 +12702,13 @@ UPDATE dbeel.establishment SET et_establishment_name ='Valencia Council (VAERSA)
 
 UPDATE dbeel.establishment SET et_establishment_name ='University of Lisbon (FCUL) & APA, EDP, MARE' WHERE et_establishment_name ='FCUL (APA, EDP, MARE)';
 
-UPDATE dbeel.establishment SET et_establishment_name ='Gipuzkoa Council & EKOLUR' WHERE et_establishment_name ='Diputación de Gipuzkoa';
+UPDATE dbeel.establishment SET et_establishment_name ='Gipuzkoa Council & EKOLUR' WHERE et_establishment_name ='Diputaciï¿½n de Gipuzkoa';
 
 UPDATE dbeel.establishment SET et_establishment_name ='Navarra Council (GAN-NIK)' WHERE et_establishment_name ='The Navarra Environmental Management';
 
 UPDATE dbeel.establishment SET et_establishment_name ='Galicia Council (Xunta de Galicia)' WHERE et_establishment_name ='The Xunta of Galicia';
 
-UPDATE dbeel.establishment SET et_establishment_name ='University of Córdoba (UCO)' WHERE et_establishment_name ='UCO';
+UPDATE dbeel.establishment SET et_establishment_name ='University of Cï¿½rdoba (UCO)' WHERE et_establishment_name ='UCO';
 
 UPDATE dbeel.establishment SET et_establishment_name ='Catalonia Council (ACA)' WHERE et_establishment_name ='ACA';
 

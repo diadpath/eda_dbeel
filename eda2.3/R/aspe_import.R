@@ -1,12 +1,12 @@
 # setwd("C:\\workspace\\eda_dbeel")
-memory.limit(size =4000)
+# memory.limit(size =4000)
 
 # Libraries
 library(aspe)
 library(tidyverse)
 library(sf)
 library(RPostgres)
-
+# remotes::install_github("PascalIrz/aspeQual")
 rivernetwork <- "RIOS"
 
 # Load data
@@ -29,10 +29,6 @@ load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData")) # al
 load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
 
 
-operation_description_peche <- operation_description_peche %>%
-  rename("odp_largeur_lame_eau"="largeur") # temp 2022: correct strange name for width
-
-
 
 # Create tables to be written in the database
 
@@ -47,7 +43,7 @@ station_aspe <- station %>%
 
 # TODO filter locations based on a polygon of France ...
 
-# TODO LATER r?cup?rer les stations historiques pour voir les manques d'import depuis bd_map
+# TODO LATER recuperer les stations historiques pour voir les manques d'import depuis bd_map
 
 # reproject coordinates in European system
 
@@ -66,7 +62,7 @@ station_aspe <- station_aspe %>%
 station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove all column starting with "typ"
 # we probably should use select(!start_with) by it daesn't work
 
-# nrow(station_aspe)  #32727
+# nrow(station_aspe)  #32727 => 32720
 
 # Converting table as a sf object to get functionning geometry (the one in the 
 # table is stored as text and not recognized by postgis)
@@ -85,6 +81,9 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
 # Some sampling locations do not have sta_id : we need to import their coordinates
 # from point_prelevement
+
+point_prelevement[point_prelevement$pop_id==100971,] # 136346
+point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
@@ -160,9 +159,6 @@ ref_objectif
 operation_objectif
 
 
-operation_description_peche <- operation_description_peche %>% 
-		rename(largeur = odp_largeur_lame_eau) # for reason this name is not recognised by select
-
 
 # On repart de mef_creer_passerelle() en enlevant les lots
 operation_aspe <- 
@@ -184,7 +180,7 @@ operation_aspe <-
 						select(opo_ope_id) %>%
 						distinct() %>%
 						mutate(objectif="Suivi des populations d'anguilles"), by=c("ope_id"="opo_ope_id")) %>%	
-		# nombre de points pour les op?rations grand milieu
+		# nombre de points pour les opérations grand milieu
 		left_join(
 				prelevement_elementaire %>%
 						left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
@@ -214,7 +210,7 @@ DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
 
 # the left join ensures that operations with no eels have zero after replace_na
-operation %>% 
+batch_aspe <- operation %>%   # 48387
 		select(ope_id)%>%
 		left_join(
 				prelevement_elementaire %>%
@@ -240,21 +236,12 @@ operation %>%
 		pivot_wider(id_cols=c(ope_id,pas_numero,nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
 		mutate("pas_1"=replace_na(pas_1,0))  
 
+DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
+DBI::dbWriteTable(con, "batch_aspe", batch_aspe)
+DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 
 
 
-
-left_join(y = lot_poissons %>%
-						select(pre_id = lop_pre_id,
-								lop_id,
-								tyl_id = lop_tyl_id,
-								tlo_id = lop_tlo_id,
-								esp_id = lop_esp_id,
-								lop_effectif)) %>%
-		left_join(y = ref_espece %>%
-						select(esp_id,
-								esp_code_alternatif)) %>%
-		select(-esp_id)
 
 
 
