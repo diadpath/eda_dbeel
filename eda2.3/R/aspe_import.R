@@ -7,6 +7,8 @@ library(tidyverse)
 library(sf)
 library(RPostgres)
 library(aspeQual)
+library(rnaturalearth)
+library(rnaturalearthdata)
 
 # remotes::install_github("PascalIrz/aspeQual")
 rivernetwork <- "RIOS"
@@ -39,19 +41,17 @@ load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
 station_aspe <- station %>%
 	left_join(y = ref_type_projection,
 	          by = c("sta_typ_id" = "typ_id")) %>%
-  filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France 
-  filter(sta_coordonnees_y > 6000000) # some station have wrong coordinates
-# we limit the south extent to south Corsica for now...
-
-# TODO filter locations based on a polygon of France ...
+  filter(typ_code_epsg==2154) # filter data from metropolitan France. Spatial join
+# will be performed to filter wrong coordinates later on
+ 
 
 # TODO LATER recuperer les stations historiques pour voir les manques d'import depuis bd_map
 
 # reproject coordinates in European system
 
 coords <- aspe::geo_convertir_coords_df(df = station_aspe,
-		var_x = sta_coordonnees_x,
-		var_y = sta_coordonnees_y,
+		var_x = "sta_coordonnees_x",
+		var_y = "sta_coordonnees_y",
 		var_id = "sta_id",
 		var_crs_initial = "typ_code_epsg",
 		crs_sortie = 3035) 
@@ -70,13 +70,26 @@ station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove al
 # table is stored as text and not recognized by postgis)
 station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035) 
 
+
+# Spatial filtering
+
+france_polygone <- rnaturalearth::ne_countries(type = "countries", 
+                                               country = "france", 
+                                               returnclass = "sf") %>% 
+  select(name_sort) %>% # import only france on remove all col except name
+  st_transform(3035) # reproject in the same crs as stations
+
+station_aspe_france <- st_intersection( # filter stations in France
+  station_aspe_sf, france_polygone) %>% 
+  select(name_sort) # remove extra column from france polygone
+  
 # Just checking that everything works fine
-mapview::mapview(station_aspe_sf, color = "green") # some points in Africa, to remove
+mapview::mapview(station_aspe_france, color = "green")
 
 
 # Write station table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
-DBI::dbWriteTable(con, "station_aspe", station_aspe_sf) # written in public scheme
+DBI::dbWriteTable(con, "station_aspe", station_aspe_france) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
 # Sampling locations
