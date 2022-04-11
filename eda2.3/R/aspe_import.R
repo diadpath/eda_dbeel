@@ -41,9 +41,9 @@ load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
 station_aspe <- station %>%
 	left_join(y = ref_type_projection,
 	          by = c("sta_typ_id" = "typ_id")) %>%
-  filter(typ_code_epsg==2154) # filter data from metropolitan France. Spatial join
+  filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France. Spatial join
 # will be performed to filter wrong coordinates later on
- 
+  filter(sta_coordonnees_x > 0)
 
 # TODO LATER recuperer les stations historiques pour voir les manques d'import depuis bd_map
 
