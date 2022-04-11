@@ -369,8 +369,8 @@ select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 
 -- Drop table
 
-SELECT  * FROM france.batch_aspe 
- 
+-- SELECT  * FROM france.batch_aspe 
+
  
 -- DROP TABLE france.dbeel_batch_ope_aspe;
 CREATE TABLE france.dbeel_batch_ope_aspe (
@@ -385,20 +385,23 @@ CREATE TABLE france.dbeel_batch_ope_aspe (
 )
 INHERITS (dbeel.batch);
 
+-- nbeel
+DELETE FROM france.dbeel_batch_ope_aspe;
 INSERT INTO france.dbeel_batch_ope_aspe
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.nbeel AS ba_quantity,
+  ba.nb_eel AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
-  electrofishing.ob_id as ba_ob_id, 
+  ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.batch_aspe ba,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -406,26 +409,28 @@ INSERT INTO france.dbeel_batch_ope_aspe
   dbeel_nomenclature.individual_status 
         WHERE species.no_name='Anguilla anguilla'
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number p1' 
+  AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-  ; -- 5579 rows
+  ; -- 31919 rows
 
+  
+-- number p1
 INSERT INTO france.dbeel_batch_ope_aspe
-	SELECT uuid_generate_v4() AS ba_id,
-	species.no_id AS ba_no_species,
-	stage.no_id AS ba_no_stage,
-	value_type.no_id AS ba_no_value_type,
-	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	electrofishing.run1 AS ba_quantity,
-	individual_status.no_id AS ba_no_individual_status,
-	2 AS ba_batch_level,
-	electrofishing.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-        electrofishing.locationid
-	FROM 
-	france.batch_aspe,
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
 	dbeel_nomenclature.species, 
 	dbeel_nomenclature.stage, 
 	dbeel_nomenclature.biological_characteristic_type,
@@ -436,190 +441,105 @@ INSERT INTO france.dbeel_batch_ope_aspe
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-	; -- 5579 rows
+	; -- 31919 rows
 
--- op_p2
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0) as run1,
-coalesce(run2,0) as run2,
-coalesce(run3,0) as run3,
-round(coalesce(indha/10000,0),3) AS density
-from france.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from france.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-electrofishing as (select * from anguila 
-union
-select * from other 
-order by locationid)
-
-INSERT INTO france.dbeel_batch_ope_aspe
-	SELECT uuid_generate_v4() AS ba_id,
-	species.no_id AS ba_no_species,
-	stage.no_id AS ba_no_stage,
-	value_type.no_id AS ba_no_value_type,
-	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	electrofishing.run2 AS ba_quantity,
-	individual_status.no_id AS ba_no_individual_status,
-	3 AS ba_batch_level,
-	electrofishing.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-        electrofishing.locationid
-	FROM 
-	electrofishing,
-	dbeel_nomenclature.species, 
-	dbeel_nomenclature.stage, 
-	dbeel_nomenclature.biological_characteristic_type,
-	dbeel_nomenclature.value_type,
-	dbeel_nomenclature.individual_status
-	WHERE species.no_name='Anguilla anguilla' 
-	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number p2' 
-	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'
-	AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-	; -- 5579 rows
-
-
-/*  Example of one locationid
-select * from france.dbeel_batch_ope_aspe where locationid=-382286476;
-select * from france.temp_pesca_electrica where locationid=-382286476;	-- There are 3 pass but only run1 has data
-select count(*) from france.temp_pesca_electrica where codspecies='aang'; --1273
-
-select * from ireland.batch_ope where op_locationcode=1936 and op_surveyid=1892; -- Looking how works in Ireland
-*/
-
--- op_p3
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0) as run1,
-coalesce(run2,0) as run2,
-coalesce(run3,0) as run3,
-round(coalesce(indha/10000,0),3) AS density
-from france.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from france.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-electrofishing as (select * from anguila 
-union
-select * from other 
-order by locationid)
-
-INSERT INTO france.dbeel_batch_ope_aspe
-	SELECT uuid_generate_v4() AS ba_id,
-	species.no_id AS ba_no_species,
-	stage.no_id AS ba_no_stage,
-	value_type.no_id AS ba_no_value_type,
-	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	electrofishing.run3 AS ba_quantity,
-	individual_status.no_id AS ba_no_individual_status,
-	4 AS ba_batch_level,
-	electrofishing.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-        electrofishing.locationid
-	FROM 
-	electrofishing,
-	dbeel_nomenclature.species, 
-	dbeel_nomenclature.stage, 
-	dbeel_nomenclature.biological_characteristic_type,
-	dbeel_nomenclature.value_type,
-	dbeel_nomenclature.individual_status
-	WHERE species.no_name='Anguilla anguilla' 
-	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number p3' 
-	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'
-	AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-	; -- 5579 rows
-
--- In SIBIC table there aren't op_p4 and op_p5
+-- number p2
 	
--- Densities as below are also calculated later but still I integrate them here
--- referenced by biological_characteristic_type.no_name='density' and the corresponding biological_characteristic_type.no_id
-with anguila as (
-select ob_id,
-locationid,
-coalesce(run1,0) as run1,
-coalesce(run2,0) as run2,
-coalesce(run3,0) as run3,
-round(coalesce(indha/10000,0),3) AS density
-from france.temp_pesca_electrica 
-where codspecies='aang' and ob_id is not null),
-
-other as (
-select distinct on (ob_id)
-ob_id,
-locationid,
-0 as run1,
-0 as run2,
-0 as run3,
-0 AS density
-from france.temp_pesca_electrica 
-where codspecies!='aang'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-electrofishing as (select * from anguila 
-union
-select * from other 
-order by locationid)
-
+--	SELECT * FROM france.dbeel_electrofishing_aspe
+	
 INSERT INTO france.dbeel_batch_ope_aspe
-	SELECT uuid_generate_v4() AS ba_id,
-	species.no_id AS ba_no_species,
-	stage.no_id AS ba_no_stage,
-	value_type.no_id AS ba_no_value_type,
-	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	electrofishing.density AS ba_quantity,
-	individual_status.no_id AS ba_no_individual_status,
-	1 AS ba_batch_level,
-	electrofishing.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-        electrofishing.locationid
-	FROM
-	electrofishing, 
-	dbeel_nomenclature.species, 
-	dbeel_nomenclature.stage, 
-	dbeel_nomenclature.biological_characteristic_type,
-	dbeel_nomenclature.value_type,
-	dbeel_nomenclature.individual_status
-	WHERE species.no_name='Anguilla anguilla' 
-	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Density' 
-	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'
-	AND ob_id is not null -- in the table some lines are not joined to the electrofishing table, in those lines the value is NULL and we don't want to use those lines
-	; -- 5579 rows
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_2 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p2' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas>1
+  ; -- 8745 ROWS
+  
+ -- number p3
+  
+INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_3 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  3 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p3' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas>2
+  ; -- 154 ROWS
+  
+ -- number p4   
+  
+ INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_4 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  4 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p4' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas>3
+  ; -- 4 ROWS
+    
 
 
+  
+  
+  
 /*----------------------------------------------------
 INTEGRATING MISSING DATA OF SIBIC (mostly about size)
 
