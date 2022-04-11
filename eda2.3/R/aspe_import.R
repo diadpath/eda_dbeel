@@ -50,8 +50,8 @@ station_aspe <- station %>%
 # reproject coordinates in European system
 
 coords <- aspe::geo_convertir_coords_df(df = station_aspe,
-		var_x = "sta_coordonnees_x",
-		var_y = "sta_coordonnees_y",
+		var_x = sta_coordonnees_x,
+		var_y = sta_coordonnees_y,
 		var_id = "sta_id",
 		var_crs_initial = "typ_code_epsg",
 		crs_sortie = 3035) 
@@ -81,7 +81,7 @@ france_polygone <- rnaturalearth::ne_countries(type = "countries",
 
 station_aspe_france <- st_intersection( # filter stations in France
   station_aspe_sf, france_polygone) %>% 
-  select(name_sort) # remove extra column from france polygone
+  select(-name_sort) # remove extra column from france polygone 31734
   
 # Just checking that everything works fine
 mapview::mapview(station_aspe_france, color = "green")
