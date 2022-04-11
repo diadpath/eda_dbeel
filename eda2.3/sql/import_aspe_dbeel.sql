@@ -572,7 +572,19 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 
 SELECT * FROM france.batch_fish_aspe baf 
 
+-- On rentre les lots correspondant au premier passage.
+
 INSERT INTO france.dbeel_batch_fish_aspe
+
+  WITH bap1 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p1'  
+  ),
+
+  bafp1 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 1 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
+        
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -580,14 +592,16 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
 	1 AS ba_quantity,
 	individual_status.no_id AS ba_no_individual_status,
-	6 AS ba_batch_level,
-	sample.ob_id as ba_ob_id, 
-	cast(NULL as uuid) as ba_ba_id,
-	sample.fish_id,        
-	sample.locationid,
-	sample.place_classification
+	2 AS ba_batch_level,
+	bap1.ba_ob_id as ba_ob_id, 
+	ba_id as ba_ba_id,
+	bap1.ope_id ,
+  bafp1.mei_id ,
+  bafp1.lop_id ,
+  bafp1.tyl_libelle
 	FROM 
-	france.batch_fish_aspe baf,
+	bafp1
+	JOIN bap1 ON (bap1.ope_id=bafp1.ope_id),
 	dbeel_nomenclature.species, 
 	dbeel_nomenclature.stage, 
 	dbeel_nomenclature.biological_characteristic_type,
@@ -597,73 +611,98 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	AND stage.no_name='Yellow eel' 
 	AND biological_characteristic_type.no_name='Number' 
 	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'; -- 454 rows
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 285 096 poissons mesurés au premier passage
+
+-- To integrate length and weight of fish, we need the "ba_id" 
+-- that corresponds to the batch (each line must be different) 
 
 
--- To integrate length and weight of fish, we need the "ba_id" that corresponds to the batch (each line must be different) 
-alter table france.ebro_fish add column ba_id uuid;
-
-UPDATE france.ebro_fish b
-SET ba_id = a.ba_id
-FROM france.dbeel_batch_fish_aspe a
-WHERE a.fish_id = b.fish_id; -- 21298 rows (total rows: 21504)
-
-DROP TABLE if exists france.mensurationindiv_biol_charac CASCADE;
-CREATE TABLE france.mensurationindiv_biol_charac  (
-	fish_id integer,
-	locationid integer, 
-	place_classification text,
+DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_aspe CASCADE;
+CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
+	mei_id integer,
+	ope_id integer,
 	CONSTRAINT pk_mensindivbiocho_id PRIMARY KEY (bc_id),
 	CONSTRAINT fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
 		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
 		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
-		REFERENCES france.dbeel_dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
-)INHERITS (dbeel.biological_characteristic);
+)INHERITS (dbeel.biological_characteristic); --0
 
-select * from dbeel.biological_characteristic limit 10;
+select * from france.batch_fish_aspe limit 10;
 
+
+
+SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096
+SELECT (coalesce(mei_poids_estime,0)+COALESCE(mei_poids,0))>0 AS toto
+FROM   france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;
+SELECT 1>0
 -- Insert WEIGHT (gr)
-INSERT INTO france.mensurationindiv_biol_charac
-	SELECT uuid_generate_v4() AS bc_id, 
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+	SELECT 
+	uuid_generate_v4() AS bc_id, 
 	ba_id AS bc_ba_id, 
-	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-	value_type.no_id AS bc_no_value_type, 
-	"Peso..gr." AS bc_numvalue,
-	fish_id,
-	locationid, 
-	place_classification
-	FROM france.ebro_fish, 
-	dbeel_nomenclature.biological_characteristic_type, 
-	dbeel_nomenclature.value_type
-	WHERE "Peso..gr.">0 
-	AND codspecies='aang' 
-	AND ob_id is not null
-	AND biological_characteristic_type.no_name = 'Weight' 
-	AND value_type.no_name = 'Raw data or Individual data'
-; -- 170 rows
+	biological_characteristic_type.no_id AS bc_no_characteristic_type,
+	
+   CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN 54 -- Unkown
+       WHEN mei_poids >0 THEN 55 --'Raw data or Individual data'
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN 58 -- elaborated DATA
+  END AS bc_no_value_type,
+	CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN NULL 
+	     WHEN mei_poids >0 THEN mei_poids
+	     WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN mei_poids_estime
+	ELSE NULL END AS bc_numvalue,
+	
+  baf.mei_id,
+  baf.ope_id
+	FROM 
+	france.dbeel_batch_fish_aspe dbaf JOIN
+	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+	dbeel_nomenclature.biological_characteristic_type 
+	--WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
+	AND biological_characteristic_type.no_name = 'Weight';
 
 -- Insert LENGTH (mm)
-INSERT INTO france.mensurationindiv_biol_charac
-	SELECT uuid_generate_v4() AS bc_id, 
-	ba_id AS bc_ba_id, 
-	biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-	value_type.no_id AS bc_no_value_type, 
-	"LF..mm." AS bc_numvalue,
-	fish_id,
-	locationid, 
-	place_classification
-	FROM france.ebro_fish,  
-	dbeel_nomenclature.biological_characteristic_type, 
-	dbeel_nomenclature.value_type
-	WHERE "LF..mm.">0
-	AND codspecies='aang' 
-	AND ob_id is not null
-	AND biological_characteristic_type.no_name = 'Length' 
-	AND value_type.no_name = 'Raw data or Individual data'
-; -- 170 rows
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+   CASE WHEN mei_taille_reelle='f' THEN 55 --'Raw data or Individual data'
+       WHEN mei_taille_reelle='t' THEN 58-- elaborated DATA
+       ELSE 54 -- Unknown 
+  END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type, 
+  dbeel_nomenclature.value_type  
+  WHERE biological_characteristic_type.no_name = 'Length';
+
+
+-- SECOND PASS
 
 -- Insert SEX: for this table, the sex is missing!
 select count(*) from france.ebro_fish where codspecies='aang' and "Sexo" = ''; -- 170 rows
@@ -688,7 +727,12 @@ INSERT INTO france.mensurationindiv_biol_charac
 	AND biological_characteristic_type.no_name = 'Sex' 
 	AND value_type.no_name = 'Raw data or Individual data'; -- 0 lines
 
+alter table france.ebro_fish add column ba_id uuid;
 
+UPDATE france.ebro_fish b
+SET ba_id = a.ba_id
+FROM france.dbeel_batch_fish_aspe a
+WHERE a.fish_id = b.fish_id; -- 21298 rows (total rows: 21504)
 /*----------------------------------------------------
 INTEGRATING MISSING DATA OF SIBIC (mostly about size)
 
