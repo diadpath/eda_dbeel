@@ -424,7 +424,7 @@ SELECT uuid_generate_v4() AS ba_id,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
   ba.pas_1 AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
-  2 AS ba_batch_level,
+  1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
@@ -455,7 +455,7 @@ SELECT uuid_generate_v4() AS ba_id,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
   ba.pas_2 AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
-  2 AS ba_batch_level,
+  1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
@@ -485,7 +485,7 @@ SELECT uuid_generate_v4() AS ba_id,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
   ba.pas_3 AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
-  3 AS ba_batch_level,
+  1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
@@ -515,7 +515,7 @@ SELECT uuid_generate_v4() AS ba_id,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
   ba.pas_4 AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
-  4 AS ba_batch_level,
+  1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
@@ -538,89 +538,16 @@ SELECT uuid_generate_v4() AS ba_id,
   
   
   
-/*----------------------------------------------------
-INTEGRATING MISSING DATA OF SIBIC (mostly about size)
-
-1. EBRO (from Ebro Datos IBI.xls):
-	"place_classification" corresponds to the operation, not station, but only 3 rows are duplicated:
-		SELECT count(*) FROM france.ebro_location; -- 369 rows
-		SELECT count(distinct geom) FROM france.ebro_location; -- 366 rows
-
-	We have to include missing information about:
-	-- ebro_location:	"Longitud..m." = mean length of station (as "ef_fished_length") 
-				"Anchura.media..m." = mean width of station (as "ef_fished_width")
-		SELECT * FROM france.ebro_location where place_classification='(IBI011)'; -- 54 m length and 6.3 m width but NOT "locationid"
-		SELECT * FROM france.stationdbeel where place_classification='(IBI033)';  -- locationid = 258166863
-		SELECT * FROM france.dbeel_electrofishing where locationid = '258166863'; -- no length no width
-	But "Area (m2)" = Surface is included in the SIBIC db!
-
-SELECT * FROM france.stationdbeel where place_classification like '(JU08210015-RB161)' -- locationid = 2114742390
-SELECT * FROM france.dbeel_electrofishing_aspe where locationid = '2114742390'; -- no length no width
-
-	-- ebro_ope: nothing to import, only infomrative
-			"num_inv_totales" as "run1" in SIBIC (there is no nb of pass)
-			"num_ind_medidos" = nb of sampled fishes (not included but we don't need?)
-			"Densidad..ind.ha." = density as "ind/ha" in SIBIC
-		SELECT * FROM france.ebro_ope where place_classification='(IBI011)'; 		-- "Especie" but not codspecies
-		SELECT * FROM france.temp_pesca_electrica where locationid = '258166863'; 	-- "codspecies" but not the name of species
-		SELECT * FROM france.species_location where locationid = '258166863';		-- "codspecies" but not the name of species
-		SELECT * FROM france.dbeel_batch_ope where locationid = '-777537002';		-- "codspecies" but not the name of species
-
-		
-	-- ebro_fish:	"LF..mm." = fork length (mm)
-			"Peso..gr." = weight (gr)
-		SELECT * FROM france.ebro_fish where place_classification='(IBI033)';
-		SELECT * FROM france.temp_pesca_electrica where locationid = '258166863';
------------------------------------------------------------------------------------------------------------------------------------------------*/	
-
--- We need a previous step (before insert length and width of stations) since ebro_location has "place_classification" and 
--- electrofishing has "locationid". Using stationdbeel, we update ebro_location with the corresponding "locationid"
-alter table france.ebro_location add column locationid integer;
-
-UPDATE france.ebro_location b
-SET locationid = a.locationid
-FROM france.stationdbeel a
-WHERE a.place_classification = b.place_classification; -- 350 rows, 24 msec (There are 16 codes missing)
-
-update france.dbeel_electrofishing_aspe
-set (ef_fished_length,ef_fished_width) = ("Longitud (m)","Anchura media (m)") from 
-	france.ebro_location WHERE ebro_location.locationid = electrofishing.locationid; -- 302 rows
-
-
--- Before insert length and width of fish, we need: 
---	"fish_id"
---	"locationid"
---	"place_classification"
---	"codspecies" (ebro_fish has the name of species but not the code)
--- 	"ob_id"
--- In different queries since there aren't tables with all parameters together
-
-alter table france.ebro_fish add column fish_id serial;
-
-alter table france.ebro_fish add column locationid integer;
-UPDATE france.ebro_fish b
-SET locationid = a.locationid
-FROM france.stationdbeel a
-WHERE a.place_classification = b.place_classification; -- 21484 rows (total rows: 21504)
-
-alter table france.ebro_fish add column codspecies text;
-UPDATE france.ebro_fish set codspecies = 'aang' where "Especie" = 'Anguilla anguilla'; -- 170 rows
-UPDATE france.ebro_fish set codspecies = 'oth' where "Especie" != 'Anguilla anguilla'; -- 21334 rows
-
-alter table france.ebro_fish add column ob_id uuid;
-UPDATE france.ebro_fish b
-SET ob_id = a.ob_id
-FROM france.dbeel_electrofishing_aspe a
-WHERE a.locationid = b.locationid; -- 21298 rows (total rows: 21504)
-
-
+----------------------------------------------------------------------
 -- Batch integration, the second level will reference the fish table
-
-DROP TABLE if exists france.batch_fish CASCADE;
-CREATE TABLE france.batch_fish (
-	fish_id integer,
-	locationid integer, 
-	place_classification text,
+----------------------------------------------------------------------
+  
+DROP TABLE if exists france.dbeel_dbeel_batch_fish_aspe_aspe CASCADE;
+CREATE TABLE france.dbeel_batch_fish_aspe (
+  ope_id INTEGER,
+  mei_id INTEGER,
+  lop_id INTEGER,
+  tyl_libelle TEXT, 
 	CONSTRAINT pk_fish_fi_id PRIMARY KEY (ba_id),
 	CONSTRAINT fk_fish_fi_ba_no_species_id FOREIGN KEY (ba_no_species) 
 		REFERENCES dbeel_nomenclature.species (no_id) 
@@ -643,35 +570,9 @@ CREATE TABLE france.batch_fish (
 		) INHERITS (dbeel.batch);
 
 
-with anguila as (
-select fish_id,
-locationid,
-place_classification,
-ob_id,
-coalesce("LF..mm.",0) as length,
-coalesce("Peso..gr.",0) as weight
-from france.ebro_fish 
-where codspecies='aang' and ob_id is not null),
+SELECT * FROM france.batch_fish_aspe baf 
 
-other as (
-select distinct on (ob_id)
-fish_id,
-locationid,
-place_classification,
-ob_id,
-0 as length,
-0 as weight
-from france.ebro_fish 
-where codspecies='oth'
-and locationid not in (select locationid from anguila)
-and ob_id is not null),
-
-sample as (select * from anguila 
-union
-select * from other 
-order by locationid)
-
-INSERT INTO france.batch_fish
+INSERT INTO france.dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -679,14 +580,14 @@ INSERT INTO france.batch_fish
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
 	1 AS ba_quantity,
 	individual_status.no_id AS ba_no_individual_status,
-	4 AS ba_batch_level,
+	6 AS ba_batch_level,
 	sample.ob_id as ba_ob_id, 
 	cast(NULL as uuid) as ba_ba_id,
 	sample.fish_id,        
 	sample.locationid,
 	sample.place_classification
 	FROM 
-	sample,
+	france.batch_fish_aspe baf,
 	dbeel_nomenclature.species, 
 	dbeel_nomenclature.stage, 
 	dbeel_nomenclature.biological_characteristic_type,
@@ -704,7 +605,7 @@ alter table france.ebro_fish add column ba_id uuid;
 
 UPDATE france.ebro_fish b
 SET ba_id = a.ba_id
-FROM france.batch_fish a
+FROM france.dbeel_batch_fish_aspe a
 WHERE a.fish_id = b.fish_id; -- 21298 rows (total rows: 21504)
 
 DROP TABLE if exists france.mensurationindiv_biol_charac CASCADE;
@@ -718,7 +619,7 @@ CREATE TABLE france.mensurationindiv_biol_charac  (
 	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
 		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
-		REFERENCES france.dbeel_batch_fish (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+		REFERENCES france.dbeel_dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
 )INHERITS (dbeel.biological_characteristic);
 
@@ -1172,7 +1073,7 @@ SET ob_id = a.ob_id
 FROM france.dbeel_electrofishing a
 WHERE a.locationid = b.locationid; -- 162971 rows (39 rows are missing)
 
--- Insert into dbeel_batch_fish the individuals which were caught
+-- Insert into dbeel_dbeel_batch_fish_aspe the individuals which were caught
 -- select count(*) from france.nsp_efiplus_fish where codspecies='aang' and ob_id is not null -- 9028
 -- select sum(total_nb) from france.nsp_efiplus_ope where codspecies='aang' and "Fishlength" = 'Yes' and ob_id is not null -- 9028 rows
 with count_fish as
@@ -1276,7 +1177,7 @@ INSERT INTO france.nsp_efiplus_ope(
 	FROM anguila; -- 4 rows
 
 
--- Insert individuals that were measured into the dbeel_batch_fish
+-- Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 begin;
 with anguila as (
 select fish_id,
@@ -1287,7 +1188,7 @@ coalesce(total_length,0) as length
 from france.nsp_efiplus_fish 
 where codspecies='aang' and ob_id is not null)
 
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -1320,7 +1221,7 @@ alter table france.nsp_efiplus_fish add column ba_id uuid;
 begin;
 UPDATE france.nsp_efiplus_fish b
 SET ba_id = a.ba_id
-FROM france.dbeel_batch_fish a
+FROM france.dbeel_dbeel_batch_fish_aspe a
 WHERE (a.fish_id, a.locationid) = (b.fish_id, b.locationid); -- 9028 rows
 commit;
 
@@ -1643,7 +1544,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
--- 	3. INSERT into dbeel_batch_fish: fish that were measured
+-- 	3. INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- Before insert length of fish, we need: "fish_id", "locationid", "codspecies", "ob_id"
 
 alter table france.levante_fish add column fish_id serial;
@@ -1693,7 +1594,7 @@ from levante_fish_extract
 where codspecies='aang' and modulo = 0)
 
 --select * from anguila; -- 289 rows
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -1727,14 +1628,14 @@ commit;
 ---- 		Before insert length of fish, we need: "ba_id" (we had some problems to obtain it, but they are solved)
 alter table france.levante_fish add column ba_id uuid;
 
----- Joining levante_fish and dbeel_batch_fish by "fish_id" and "locationid"
-select * from france.levante_fish a full outer join france.dbeel_batch_fish b on (a.fish_id, a.locationid) = (b.fish_id, b.locationid)
+---- Joining levante_fish and dbeel_dbeel_batch_fish_aspe by "fish_id" and "locationid"
+select * from france.levante_fish a full outer join france.dbeel_dbeel_batch_fish_aspe b on (a.fish_id, a.locationid) = (b.fish_id, b.locationid)
 	where b.locationid in (select locationid from france.levante_ope); -- 289 rows
--- delete from france.dbeel_batch_fish where ba_id in (select ba_id from france.levante_fish);
+-- delete from france.dbeel_dbeel_batch_fish_aspe where ba_id in (select ba_id from france.levante_fish);
 -- update france.levante_fish set ba_id = null;
 
 with l as
-	(select a.fish_id, b.ba_id from france.levante_fish a join france.dbeel_batch_fish b on (a.fish_id, a.locationid) = (b.fish_id, b.locationid)
+	(select a.fish_id, b.ba_id from france.levante_fish a join france.dbeel_dbeel_batch_fish_aspe b on (a.fish_id, a.locationid) = (b.fish_id, b.locationid)
 	where b.locationid in (select locationid from france.levante_ope))
 -- select * from l
 UPDATE france.levante_fish b
@@ -2135,7 +2036,7 @@ commit;
 SELECT * FROM france.dbeel_station_aspe LIMIT 10;
 SELECT * FROM france.guipuz_station LIMIT 10;
 SELECT * FROM france.guipuz_ope LIMIT 10
-SELECT * from france.dbeel_batch_fish;
+SELECT * from france.dbeel_dbeel_batch_fish_aspe;
 SELECT * from france.dbeel_batch_ope;
 
 -- 	STEP 2.2. INSERT into dbeel_batch_ope: total number, run1, run2 and density
@@ -2419,31 +2320,31 @@ INSERT INTO france.dbeel_batch_ope
 	; -- 1317 rows
 commit;
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.guipuz_fish add column fish_id serial;
 alter table france.guipuz_fish add column ba_id uuid; -- We can't generate hte ba_id for the whole table because there are more than 200 000 rows!
 
----- 		Check duplicates: Joining levante_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining levante_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.guipuz_fish a join france.guipuz_ope o on a.sampling = o.sampling
 	join france.dbeel_electrofishing l on l.ob_id = o.guipuz_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 	
--- delete from france.dbeel_batch_fish where ba_id in (select ba_id from france.guipuz_fish);
+-- delete from france.dbeel_dbeel_batch_fish_aspe where ba_id in (select ba_id from france.guipuz_fish);
 -- update france.guipuz_fish set ba_id = null;
 
-/*   There aren't fishes in dbeel_batch_fish from guipuz_fish, so this query is not necessary
+/*   There aren't fishes in dbeel_dbeel_batch_fish_aspe from guipuz_fish, so this query is not necessary
 with l as
 	(select * from france.guipuz_fish a join france.guipuz_ope o on a.sampling = o.sampling
 	join france.dbeel_electrofishing l on l.ob_id = o.dbeel_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id)) -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id)) -- 0 rows
 UPDATE france.levante_fish b
 SET ba_id = l.ba_id
 FROM l
 WHERE l.fish_id = b.fish_id; -- 0 rows
 */
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
@@ -2470,7 +2371,7 @@ from france.guipuz_fish a
 	where species = 'Anguilla anguilla')
 --SELECT * FROM anguila; -- 31 972 rows
 
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN typeang='Amarilla' THEN 226 --'Yellow eel' 
@@ -2507,7 +2408,7 @@ select distinct op_gislocation from france.dbeel_station_aspe;
 with fish_from_iker as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 14) -- 31 972 rows	
 --select * from fish_from_iker join france.guipuz_fish on fish_from_iker.fish_id = guipuz_fish.fish_id limit 10;
 
@@ -2557,7 +2458,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac
 commit; 
 
 -- Update LENGTH
-select * from france.dbeel_electrofishing join france.dbeel_batch_fish on ob_id = ba_ob_id
+select * from france.dbeel_electrofishing join france.dbeel_dbeel_batch_fish_aspe on ob_id = ba_ob_id
 join france.dbeel_mensurationindiv_biol_charac on bc_ba_id = ba_id where ob_dp_id = 14 and bc_no_characteristic_type = 39 -- 31110 rows
 
 begin;
@@ -2726,13 +2627,13 @@ commit;
 /*
 Corrections for the view
 there were a lot more lines than operation
-the first was due to counts from batch_fish integrated in the batch file, solved by setting batch level to 4 in batch_fish as the view only takes 1 as batch_level
+the first was due to counts from dbeel_batch_fish_aspe integrated in the batch file, solved by setting batch level to 4 in dbeel_batch_fish_aspe as the view only takes 1 as batch_level
 The second was duplicated values, every second rows was removed from 5 operations
 */
 
 
 begin;
-update france.dbeel_batch_fish set ba_batch_level=4 --41743
+update france.dbeel_dbeel_batch_fish_aspe set ba_batch_level=4 --41743
 --select count(*) from dbeel.view_electrofishing; --7311
 COMMIT;
 
@@ -2747,7 +2648,7 @@ SELECT * from  dbeel_nomenclature.nomenclature where no_id in (47,48,231,232)
 
 select * from france.dbeel_batch_ope where ba_ob_id='0006cd83-93a7-45cc-8b46-96372def8b29'
 
-select * from france.dbeel_batch_fish where ba_ob_id='0006cd83-93a7-45cc-8b46-96372def8b29'
+select * from france.dbeel_dbeel_batch_fish_aspe where ba_ob_id='0006cd83-93a7-45cc-8b46-96372def8b29'
 
 select  ob_id, count(*) from dbeel.view_electrofishing group by ob_id ;
 select * from dbeel.view_electrofishing where ob_id='2d56351d-596a-4379-8d02-0d7e4b87fd29';
@@ -3158,7 +3059,7 @@ INSERT INTO france.dbeel_batch_ope
 	; -- 857 rows
 commit;
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.portugal_fish add column fish_id serial;
 alter table france.portugal_fish add column ba_id uuid;
@@ -3166,16 +3067,16 @@ alter table france.portugal_fish add column ba_id uuid;
 select sum(op_nbeel) as quantity from france.portugal_ope; -- 4 202 rows
 select count(*) from france.portugal_fish; -- 4 202 rows
 
----- 		Check duplicates: Joining portugal_fish and dbeel_batch_fish by "op_sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining portugal_fish and dbeel_dbeel_batch_fish_aspe by "op_sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.portugal_fish a join france.portugal_ope o on a.ang_op_id = o.op_sta_id
 	join france.dbeel_electrofishing l on ob_id = o.portugal_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = ba_ob_id; -- 0 rows
 
-/*   There aren't fishes in dbeel_batch_fish from _fish, so this query is not necessary
+/*   There aren't fishes in dbeel_dbeel_batch_fish_aspe from _fish, so this query is not necessary
 with l as
 	(select * from france.portugal_fish a join france.portugal_ope o on a.ang_op_id = o.op_sta_id
 	join france.dbeel_electrofishing l on l.ob_id = o.dbeel_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id)) --  rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id)) --  rows
 UPDATE france.portugal_fish b
 SET ba_id = l.ba_id
 FROM l
@@ -3183,14 +3084,14 @@ WHERE l.fish_id = b.fish_id; --  rows
 */
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy
 select distinct on (fish_id) * from france.portugal_fish; -- 4202 rows
 -- todo
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -3230,7 +3131,7 @@ commit;
 with fish_from_portugal as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 19) -- Verify that ob_dp_id = 19: 4089 rows
 --select * from fish_from_portugal join france.portugal_fish on fish_from_portugal.fish_id = portugal_fish.fish_id; -- 4089 rows
 UPDATE france.portugal_fish b
@@ -3600,7 +3501,7 @@ INSERT INTO france.dbeel_batch_ope
 	; -- 44 rows
 commit;
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.portugal_fish_bis add column fish_id serial;
 alter table france.portugal_fish_bis add column ba_id uuid;
@@ -3613,16 +3514,16 @@ select count(*) from france.portugal_fish_bis
 	on ang_op_id = op_id			-- 1035 rows
 	where is_duplicate = FALSE; 		-- 400 rows
 
----- 		Check duplicates: Joining portugal_fish and dbeel_batch_fish by "op_sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining portugal_fish and dbeel_dbeel_batch_fish_aspe by "op_sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.portugal_fish_bis a join france.portugal_ope_bis o on a.ang_op_id = o.op_sta_id
 	join france.dbeel_electrofishing l on ob_id = o.portugal_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = ba_ob_id; -- 0 rows
 
-/*   There aren't fishes in dbeel_batch_fish from _fish, so this query is not necessary
+/*   There aren't fishes in dbeel_dbeel_batch_fish_aspe from _fish, so this query is not necessary
 with l as
 	(select * from france.portugal_fish_bis a join france.portugal_ope_bis o on a.ang_op_id = o.op_sta_id
 	join france.dbeel_electrofishing l on l.ob_id = o.dbeel_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id)) --  rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id)) --  rows
 UPDATE france.portugal_fish_bis b
 SET ba_id = l.ba_id
 FROM l
@@ -3630,12 +3531,12 @@ WHERE l.fish_id = b.fish_id; --  rows
 */
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -3667,9 +3568,9 @@ INSERT INTO france.dbeel_batch_fish
 	; -- 400 rows
 commit;
 
--- SOLVED PROBLEM WITH STAGE: update stage of dbeel_batch_fish using the ba_id key (from portugal_fish_bis with ba_id key)
+-- SOLVED PROBLEM WITH STAGE: update stage of dbeel_dbeel_batch_fish_aspe using the ba_id key (from portugal_fish_bis with ba_id key)
 begin;
-update france.dbeel_batch_fish as fi set ba_no_stage = CASE WHEN ang_silver = 'FALSE' THEN 226 -- 'Yellow eel' 
+update france.dbeel_dbeel_batch_fish_aspe as fi set ba_no_stage = CASE WHEN ang_silver = 'FALSE' THEN 226 -- 'Yellow eel' 
 	     WHEN ang_silver='TRUE' THEN 227 	-- 'Silver eel'
 	     when ang_silver is null then 226   -- 'Yellow eel' 
 	     END
@@ -3684,7 +3585,7 @@ select * from france.dbeel_electrofishing where ob_dp_id = 19
 with fish_from_portugal as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 19
 	and ob_starting_date in (select op_dat from france.portugal_ope_bis where is_duplicate = FALSE) -- ba_id is repeated because fish_id is the same in portugal_fish table and portugal_fish_bis
 	) -- 809 rows
@@ -3885,39 +3786,39 @@ SELECT * from france.portugal_fish_bis where ba_id is NULL; --1496
 SELECT * from  	france.portugal_ope_bis 
 		JOIN  france.portugal_fish_bis on ang_op_id=portugal_ope_bis.op_id
 
-SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
  france.portugal_ope_bis ON dbeel_ob_id= ba_ob_id --1035
 -- not more datat
-SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
  france.portugal_ope_bis ON dbeel_ob_id= ba_ob_id
  UNION
-SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
  france.portugal_ope ON dbeel_ob_id= ba_ob_id;	--1035
 		
 
--- which are the fish already in the database for which we have the size and for which we have new rows in dbeel_batch_fish : we want to delete them
-SELECT * FROM france.dbeel_batch_fish JOIN 
+-- which are the fish already in the database for which we have the size and for which we have new rows in dbeel_dbeel_batch_fish_aspe : we want to delete them
+SELECT * FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
  france.portugal_ope_bis ON dbeel_ob_id= ba_ob_id 
  where is_duplicate; --635
 
-SELECT * FROM france.dbeel_batch_fish 
+SELECT * FROM france.dbeel_dbeel_batch_fish_aspe 
 
 
 SELECT * FROM 
 france.dbeel_mensurationindiv_biol_charac 
 JOIN
-france.dbeel_batch_fish on bc_ba_id=ba_id
+france.dbeel_dbeel_batch_fish_aspe on bc_ba_id=ba_id
 JOIN 
  france.portugal_ope_bis ON dbeel_ob_id= ba_ob_id 
  where is_duplicate; --635
  
 
 -- france.dbeel_mensurationindiv_biol_charac has delete cascade on ba_id,
--- so we delete one line per fish in dbeel_batch_fish and all lines corresponding to length (there was only this) in dbeel_mensurationindiv_biol_charac
+-- so we delete one line per fish in dbeel_dbeel_batch_fish_aspe and all lines corresponding to length (there was only this) in dbeel_mensurationindiv_biol_charac
 
 BEGIN;
-DELETE FROM france.dbeel_batch_fish WHERE ba_id in (
-SELECT ba_id FROM france.dbeel_batch_fish JOIN 
+DELETE FROM france.dbeel_dbeel_batch_fish_aspe WHERE ba_id in (
+SELECT ba_id FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
  france.portugal_ope_bis ON dbeel_ob_id= ba_ob_id 
  where is_duplicate);--635
 COMMIT; 
@@ -3935,7 +3836,7 @@ france.portugal_ope_bis ON ba_ob_id=dbeel_ob_id
 -- Now it's time to insert the fish that were marked 'as duplicate' in portugal_ope_bis 
 begin;	
 
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -3974,8 +3875,8 @@ with fishinserteddupl as
 	),
       fish_from_portugal AS 
       (
-SELECT fishinserteddupl.fish_id, dbeel_batch_fish.ba_id from fishinserteddupl 
-	join france.dbeel_batch_fish on (fishinserteddupl.fish_id,fishinserteddupl.dbeel_ob_id) = (dbeel_batch_fish.fish_id, dbeel_batch_fish.ba_ob_id)
+SELECT fishinserteddupl.fish_id, dbeel_dbeel_batch_fish_aspe.ba_id from fishinserteddupl 
+	join france.dbeel_dbeel_batch_fish_aspe on (fishinserteddupl.fish_id,fishinserteddupl.dbeel_ob_id) = (dbeel_dbeel_batch_fish_aspe.fish_id, dbeel_dbeel_batch_fish_aspe.ba_ob_id)
 	)
 
 UPDATE france.portugal_fish_bis b
@@ -4172,7 +4073,7 @@ regexp_replace(ang_op_id, '001', '0001')  WHERE isbigpuree; --461
 COMMIT;
 
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -4212,8 +4113,8 @@ with fishinserteddupl as
 	),
       fish_from_portugal AS 
       (
-SELECT fishinserteddupl.fish_id, dbeel_batch_fish.ba_id from fishinserteddupl 
-	join france.dbeel_batch_fish on (fishinserteddupl.fish_id,fishinserteddupl.dbeel_ob_id) = (dbeel_batch_fish.fish_id, dbeel_batch_fish.ba_ob_id)
+SELECT fishinserteddupl.fish_id, dbeel_dbeel_batch_fish_aspe.ba_id from fishinserteddupl 
+	join france.dbeel_dbeel_batch_fish_aspe on (fishinserteddupl.fish_id,fishinserteddupl.dbeel_ob_id) = (dbeel_dbeel_batch_fish_aspe.fish_id, dbeel_dbeel_batch_fish_aspe.ba_ob_id)
 	)
 
 UPDATE france.portugal_fish_bis b
@@ -4871,7 +4772,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.asturias_fish add column fish_id serial;
 alter table france.asturias_fish add column ba_id uuid;
@@ -4882,22 +4783,22 @@ DELETE FROM france.asturias_fish WHERE ang_lng is null; -- 11 rows
 */
 
 
----- 		Check duplicates: Joining asturias_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining asturias_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.asturias_fish a join france.asturias_ope o on a.ang_op_id = o.op_id
 	join france.dbeel_electrofishing l on l.ob_id = o.asturias_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 /* Problem wiht silvering state: in most of the lines where the silvering fields are given, the column on the silvering state is false 
 select * from france.asturias_fish where ang_silver = FALSE and ang_pect is not null; -- 1120 rows
 select * from france.asturias_fish where ang_silver = TRUE and ang_pect is not null; -- 431 rows
 */
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN ang_silver='FALSE' THEN 226 	--'Yellow eel' 
@@ -4937,7 +4838,7 @@ select distinct op_gislocation from france.dbeel_station_aspe;
 with fish_from_asturias as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 21) -- 12819 rows
 --select * from fish_from_asturias join france.asturias_fish on fish_from_asturias.fish_id = asturias_fish.fish_id; -- 12819 rows
 UPDATE france.asturias_fish b
@@ -5488,7 +5389,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.catalonia_fish add column fish_id serial;
 alter table france.catalonia_fish add column ba_id uuid;
@@ -5505,26 +5406,26 @@ select * from france.catalonia_fish where id_species = 8 and id_ope in (
 select * from france.catalonia_fish where id_species = 8; -- 193 rows
 
 
----- 		Check duplicates: Joining catalonia_fish and dbeel_batch_fish by "cod_stat" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining catalonia_fish and dbeel_dbeel_batch_fish_aspe by "cod_stat" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.catalonia_fish a join france.catalonia_ope o on cod_stat = o.cod_stat
 	join france.dbeel_electrofishing l on ob_id = o.cat_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = ba_ob_id; -- 0 rows
 	
--- delete from france.dbeel_batch_fish where ba_id in (select ba_id from france.catalonia_fish);
+-- delete from france.dbeel_dbeel_batch_fish_aspe where ba_id in (select ba_id from france.catalonia_fish);
 -- update france.catalonia_fish set ba_id = null;
 
-/*   There aren't fishes in dbeel_batch_fish from _fish, so this query is not necessary
+/*   There aren't fishes in dbeel_dbeel_batch_fish_aspe from _fish, so this query is not necessary
 with l as
 	(select * from france.catalonia_fish a join france.catalonia_ope o on a.cod_stat = o.cod_stat
 	join france.dbeel_electrofishing l on l.ob_id = o.dbeel_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id)) --  rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id)) --  rows
 UPDATE france.catalonia_fish b
 SET ba_id = l.ba_id
 FROM l
 WHERE l.fish_id = b.fish_id; --  rows
 */
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	begin;	
@@ -5544,7 +5445,7 @@ from france.catalonia_fish a
 	join france.catalonia_ope o on a.id_ope = o.id_ope
 	where id_species = 8)
 --SELECT * FROM anguila order by ba_ob_id; -- 193 rows
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -5578,7 +5479,7 @@ commit;
 with fish_from_catalonia as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 11) -- Verify that ob_dp_id = 11: 193 rows
 --select * from fish_from_catalonia join france.catalonia_fish on fish_from_catalonia.fish_id = catalonia_fish.fish_id; -- 193 rows
 UPDATE france.catalonia_fish b
@@ -6363,7 +6264,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.galicia_fish add column fish_id serial;
 alter table france.galicia_fish add column ba_id uuid;
@@ -6371,16 +6272,16 @@ alter table france.galicia_fish add column ba_id uuid;
 select sum((coalesce(run1_ang, 0) + coalesce(run2_ang, 0) + coalesce(run3_ang, 0) + coalesce(run4_ang, 0) + coalesce(run5_ang, 0))) as quantity from france.galicia_ope; -- 50 035 rows
 select count(*) from france.galicia_fish; -- 44 191 rows
 
----- 		Check duplicates: Joining galicia_fish and dbeel_batch_fish by "cod_ope" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining galicia_fish and dbeel_dbeel_batch_fish_aspe by "cod_ope" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.galicia_fish a join france.galicia_ope o on a.cod_ope = o.cod_ope
 	join france.dbeel_electrofishing l on ob_id = o.galicia_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = ba_ob_id; -- 0 rows
 
-/*   There aren't fishes in dbeel_batch_fish from _fish, so this query is not necessary
+/*   There aren't fishes in dbeel_dbeel_batch_fish_aspe from _fish, so this query is not necessary
 with l as
 	(select * from france.galicia_fish a join france.galicia_ope o on a.cod_ope = o.cod_ope
 	join france.dbeel_electrofishing l on l.ob_id = o.dbeel_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id)) --  rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id)) --  rows
 UPDATE france.galicia_fish b
 SET ba_id = l.ba_id
 FROM l
@@ -6388,14 +6289,14 @@ WHERE l.fish_id = b.fish_id; --  rows
 */
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	begin;	
 select distinct on (fish_id) * from france.galicia_fish; -- 44 191 rows
 
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN stage='Amarilla' THEN 226 	--'Yellow eel' 
@@ -6434,7 +6335,7 @@ commit;
 with fish_from_galicia as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 12) -- Verify that ob_dp_id = 12: 43 897 rows
 --select * from fish_from_galicia join france.galicia_fish on fish_from_galicia.fish_id = galicia_fish.fish_id; -- 43 897 rows
 UPDATE france.galicia_fish b
@@ -6861,24 +6762,24 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.bc_fish add column fish_id serial;
 alter table france.bc_fish add column ba_id uuid;
 
 
----- 		Check duplicates: Joining bc_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining bc_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.bc_fish a join france.bc_ope o on a.ang_op_id = o.op_id
 	join france.dbeel_electrofishing l on l.ob_id = o.bc_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -6924,7 +6825,7 @@ WITH fish_ope AS	(
 
 dbeel as		(
 			SELECT ob_id, ba_id, bc_id, bc_numvalue as length, dbeel_mensurationindiv_biol_charac.fish_id FROM 
-			france.dbeel_electrofishing join france.dbeel_batch_fish on ba_ob_id = ob_id join 
+			france.dbeel_electrofishing join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id join 
 			france.dbeel_mensurationindiv_biol_charac on bc_ba_id = ba_id 
 			join dbeel_nomenclature.biological_characteristic_type nn on no_id = bc_no_characteristic_type
 			where no_name = 'Length' and ob_dp_id = 23 -- 9137 rows (bc_fish + bc_fish_bis)
@@ -6947,7 +6848,7 @@ WITH fish_ope AS	(
 			),
 
 dbeel as		(
-			select dbeel_batch_fish.*, fish_ope.op_id, fish_ope.ang_lng_cm from france.dbeel_batch_fish join fish_ope on (fish_ope.fish_id, bc_ob_id) = (dbeel_batch_fish.fish_id, ba_ob_id)
+			select dbeel_dbeel_batch_fish_aspe.*, fish_ope.op_id, fish_ope.ang_lng_cm from france.dbeel_dbeel_batch_fish_aspe join fish_ope on (fish_ope.fish_id, bc_ob_id) = (dbeel_dbeel_batch_fish_aspe.fish_id, ba_ob_id)
 			)
 --select * from dbeel; -- 5972 rows
 UPDATE france.bc_fish a
@@ -6964,14 +6865,14 @@ fish_count_basque as 	(
 			),
 dbeel_l as 		(
 			SELECT ob_id, ba_id, bc_id, bc_numvalue as length FROM 
-			france.dbeel_electrofishing join france.dbeel_batch_fish on ba_ob_id = ob_id join 
+			france.dbeel_electrofishing join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id join 
 			france.dbeel_mensurationindiv_biol_charac on bc_ba_id = ba_id 
 			join dbeel_nomenclature.biological_characteristic_type nn on no_id = bc_no_characteristic_type
 			where no_name = 'Length' and ob_dp_id = 23 -- 9137 rows (bc_fish + bc_fish_bis)
 			),
 dbeel_w as 		(
 			SELECT ob_id, ba_id, bc_id, bc_numvalue as weight FROM 
-			france.dbeel_electrofishing join france.dbeel_batch_fish on ba_ob_id = ob_id join 
+			france.dbeel_electrofishing join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id join 
 			france.dbeel_mensurationindiv_biol_charac on bc_ba_id = ba_id 
 			join dbeel_nomenclature.biological_characteristic_type nn on no_id = bc_no_characteristic_type
 			where no_name = 'Weight' and ob_dp_id = 23 -- 9137 rows (bc_fish + bc_fish_bis)
@@ -6996,7 +6897,7 @@ select distinct op_gislocation from france.dbeel_station_aspe;
 with fish_from_bc as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 23) -- 5972 rows
 --select * from fish_from_bc join france.bc_fish on fish_from_bc.fish_id = bc_fish.fish_id; -- 5972 rows
 UPDATE france.bc_fish b
@@ -7619,21 +7520,21 @@ where sta_id in (select op_sta_id from france.bc_ope_bis);
 
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.bc_fish_bis add column fish_id serial;
 alter table france.bc_fish_bis add column ba_id uuid;
 
----- 		Check duplicates: Joining bc_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining bc_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select count(*) from france.bc_fish_bis; -- 3790 rows
 select sum(op_nb_eels) from france.bc_ope_bis; -- 3771 roxs
 
 select * from france.bc_fish_bis a join france.bc_ope_bis o on ang_op_id = op_id -- 3758 rows
 	join france.dbeel_electrofishing l on l.ob_id = o.bc_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
@@ -7643,7 +7544,7 @@ with uniques as (
 	join france.bc_ope_bis on bc_station_bis.sta_id = bc_ope_bis.op_sta_id
 	) -- 11 rows
 	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -7682,7 +7583,7 @@ commit;
 with fish_from_bc as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 23
 	and ob_starting_date in (select op_dat from france.bc_ope_bis where is_duplicate = FALSE) -- ba_id is repeated because fish_id is the same in bc_fish table and bc_fish_bis
 ) -- 3174 rows
@@ -7694,7 +7595,7 @@ WHERE fish_from_bc.fish_id = b.fish_id; -- 3174 rows
 -- select * from france.bc_fish_bis where ba_id is null; -- 616 rows
 
 /* There are 9 rows that are more than one individual: nag_nb_indiv > 1 (with length and weigth as a mean): Remove them!
-delete from france.dbeel_batch_fish where ba_id in (select ba_id from france.bc_fish_bis where ang_nb_indiv > 1); -- 9 rows
+delete from france.dbeel_dbeel_batch_fish_aspe where ba_id in (select ba_id from france.bc_fish_bis where ang_nb_indiv > 1); -- 9 rows
 update france.bc_fish_bis set ba_id = NULL where ang_nb_indiv > 1;  -- 9 rows
 */
 ---- 		Insert LENGTH
@@ -8128,28 +8029,28 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.navarra_fish add column fish_id serial;
 alter table france.navarra_fish add column ba_id uuid;
 
 
----- 		Check duplicates: Joining navarra_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining navarra_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.navarra_fish a join france.navarra_ope o on a.ang_op_id = o.op_id
 	join france.dbeel_electrofishing l on l.ob_id = o.navarra_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 /*  
 select * from france.navarra_fish where ang_silver = FALSE; -- 446 rows
 select * from france.navarra_fish where ang_silver = TRUE; -- 287 rows
 */
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy
 
-/* ERROR: insertion or update in the table  «dbeel_batch_fish» violates foreign key «c_fk_fi_ob_id»
+/* ERROR: insertion or update in the table  «dbeel_dbeel_batch_fish_aspe» violates foreign key «c_fk_fi_ob_id»
    DETAIL:  The key (ba_ob_id)=(ead4d27d-b9cd-4532-b861-20681b23464f) is not present in the table «dbeel_electrofishing»
 
 select * from france.dbeel_electrofishing where ob_op_id = 'a3d7c74e-8bd8-4075-a130-b0a27ab18a8a';
@@ -8172,7 +8073,7 @@ update france.navarra_ope set navarra_ob_id = ob_id from op_duplicates od where 
 commit;
 
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN ang_silver='FALSE' THEN 226 	--'Yellow eel' 
@@ -8211,7 +8112,7 @@ commit;
 with fish_from_navarra as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 24) -- 3627 rows
 -- select * from fish_from_navarra join france.navarra_fish on fish_from_navarra.fish_id = navarra_fish.fish_id; -- 3627 rows
 UPDATE france.navarra_fish b
@@ -8701,24 +8602,24 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.andalucia_fish add column fish_id serial;
 alter table france.andalucia_fish add column ba_id uuid;
 
 
----- 		Check duplicates: Joining andalucia_fish and dbeel_batch_fish by "sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining andalucia_fish and dbeel_dbeel_batch_fish_aspe by "sta_id" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.andalucia_fish a join france.andalucia_ope o on a.fish_sta_id = o.sta_id
 	join france.dbeel_electrofishing l on l.ob_id = o.andalucia_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows (NOT sure that it's right)
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows (NOT sure that it's right)
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT distinct on (andalucia_fish.fish_id)
 	uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
@@ -8757,7 +8658,7 @@ commit;
 with fish_from_andalucia as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 16) 
 --select * from fish_from_andalucia join france.andalucia_fish on fish_from_andalucia.fish_id = andalucia_fish.fish_id; -- 29 rows
 UPDATE france.andalucia_fish b
@@ -9212,24 +9113,24 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.minho_fish add column fish_id serial;
 alter table france.minho_fish add column ba_id uuid;
 
 
----- 		Check duplicates: Joining asturias_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining asturias_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.minho_fish a join france.minho_ope o on a.ang_op_id = o.op_id
 	join france.dbeel_electrofishing l on l.ob_id = o.minho_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -9267,7 +9168,7 @@ commit;
 with fish_from_minho as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 13) -- 1896 rows
 --select * from fish_from_minho join france.minho_fish on fish_from_minho.fish_id = minho_fish.fish_id; -- 1896 rows
 UPDATE france.minho_fish b
@@ -9765,18 +9666,18 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.spain_fish add column fish_id serial;
 alter table france.spain_fish add column ba_id uuid;
 
----- 		Check duplicates: Joining spain_fish and dbeel_batch_fish by "ang_op_id" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining spain_fish and dbeel_dbeel_batch_fish_aspe by "ang_op_id" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.spain_fish a join france.spain_ope o on a.ang_op_id = o.op_id 	-- 2828 rows (where is_duplicate = FALSE : 2380 rows)
 	join france.dbeel_electrofishing l on l.ob_id = o.spain_ob_id			-- 2363 rows
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 select sum(op_nbeel) from france.spain_ope; 	-- 5423 eels
 select count(*) from france.spain_fish; 	-- 3488 eels
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
@@ -9787,7 +9688,7 @@ with ope as (
 		select spain_station.dbeel_op_id, spain_station.id, spain_ope.* from france.spain_station 
 		join france.spain_ope on spain_station.sta_cod = spain_ope.sta_cod where is_duplicate = FALSE -- 972 rows
 	     )
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -9826,7 +9727,7 @@ commit;
 with fish_from_spain as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 15) -- 2363 rows
 --select * from fish_from_spain join france.spain_fish on fish_from_spain.fish_id = spain_fish.fish_id; -- 2363 rows
 UPDATE france.spain_fish b
@@ -10230,7 +10131,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.valencia_fish add column fish_id serial;
 alter table france.valencia_fish add column ba_id uuid; -- We can't generate hte ba_id for the whole table because there are more than 200 000 rows!
@@ -10240,20 +10141,20 @@ update france.valencia_fish set tl = fl where tl is null -- 1257 rows
 select count(*) from france.valencia_fish where tl is null; -- 749
 --DELETE FROM france.valencia_fish where tl is null; -- 749 rows
 
----- 		Check duplicates: Joining valencia_fish and dbeel_batch_fish by "ang_sta" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining valencia_fish and dbeel_dbeel_batch_fish_aspe by "ang_sta" and "ob_id" (to join "ob_id" we need to go through different tables)
 select count(*) from france.valencia_fish a join france.valencia_sta_ope o on a.ang_sta_id = o.op_sta_id -- 2208 rows (3435 TOTAL)
 
 select * from france.valencia_fish a join france.valencia_sta_ope o on a.ang_sta_id = o.op_sta_id
 	join france.dbeel_electrofishing l on l.ob_id = o.val_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 -- There are 1594 fish that miss because of the id of the operation, which doesn't match!
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -10291,7 +10192,7 @@ commit;
 with fish_from_valencia as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 25) -- 2208 rows
 --select * from fish_from_valencia join france.valencia_fish on fish_from_valencia.fish_id = valencia_fish.fish_id; -- 2208 rows
 UPDATE france.valencia_fish b
@@ -10613,7 +10514,7 @@ op_duplicates as (
 	),
 
 fish_duplicates as (
-	select * from france.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates)
+	select * from france.dbeel_dbeel_batch_fish_aspe where ba_ob_id in (select ob_id from op_duplicates)
 	)
 
 --select * from france.dbeel_mensurationindiv_biol_charac where bc_ba_id in (select ba_id from fish_duplicates);
@@ -10629,8 +10530,8 @@ with duplicates as (
 op_duplicates as (
 	select * from duplicates JOIN france.dbeel_electrofishing on(ob_starting_date, ob_op_id) = (op_dat, dbeel_op_id)
 	)
---select * from france.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates);
-delete from france.dbeel_batch_fish where ba_ob_id in (select ob_id from op_duplicates); -- 816 rows
+--select * from france.dbeel_dbeel_batch_fish_aspe where ba_ob_id in (select ob_id from op_duplicates);
+delete from france.dbeel_dbeel_batch_fish_aspe where ba_ob_id in (select ob_id from op_duplicates); -- 816 rows
 commit;
 
 begin;
@@ -10869,24 +10770,24 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 alter table france.gt6_fish add column fish_id serial;
 alter table france.gt6_fish add column ba_id uuid; -- We can't generate hte ba_id for the whole table because there are more than 200 000 rows!
 
----- 		Check duplicates: Joining gt6_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining gt6_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.gt6_fish a join france.gt6_ope o on a.op_cod = o.op_cod
 	join france.dbeel_electrofishing l on l.ob_id = o.gt6_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN ang_silver='FALSE' THEN 226 --'Yellow eel' 
@@ -10926,7 +10827,7 @@ select distinct op_gislocation from france.dbeel_station_aspe;
 with fish_from_gt6 as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 20) -- 4463 rows
 --select * from fish_from_gt6 join france.gt6_fish on fish_from_gt6.fish_id = gt6_fish.fish_id; -- 4463 rows
 UPDATE france.gt6_fish b
@@ -11521,7 +11422,7 @@ INSERT INTO france.dbeel_batch_ope
 commit;
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 /* Delete fish from the previous year (Minho)
 with is_2020 as (select fi.* from france.gt6_ope2 op join france.gt6_fish2 fi on op.op_cod = fi.op_cod)
 delete from france.gt6_fish2 where op_cod not in (select op_cod from is_2020); -- 211 rows
@@ -11531,19 +11432,19 @@ delete from france.gt6_fish2 where op_cod not in (select op_cod from is_2020); -
 alter table france.gt6_fish2 add column fish_id serial;
 alter table france.gt6_fish2 add column ba_id uuid;
 
----- 		Check duplicates: Joining gt6_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining gt6_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select * from france.gt6_fish2 a join france.gt6_ope2 o on a.op_cod = o.op_cod
 	join france.dbeel_electrofishing l on l.ob_id = o.gt6_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
 
 begin;	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN ang_silver='FALSE' THEN 226 --'Yellow eel' 
@@ -11583,7 +11484,7 @@ select distinct op_gislocation from france.dbeel_station_aspe;
 with fish_from_gt6 as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	where ob_dp_id = 20), -- 8311 rows
 final_select as (
 	select * from fish_from_gt6 join france.gt6_ope2 on fish_from_gt6.ob_id = gt6_ope2.gt6_ob_id
@@ -12204,31 +12105,31 @@ SELECT * from france.bc_ope_bis
 	JOIN  
 	france.bc_fish_bis on ang_op_id=bc_ope_bis.op_id; 	-- 3758
 
-SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
 	france.bc_ope_bis ON dbeel_ob_id= ba_ob_id; 		-- 3235
 -- not more datat
-SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
 	france.bc_ope_bis ON dbeel_ob_id= ba_ob_id
 	UNION
-	SELECT dbeel_batch_fish.* FROM france.dbeel_batch_fish JOIN 
+	SELECT dbeel_dbeel_batch_fish_aspe.* FROM france.dbeel_dbeel_batch_fish_aspe JOIN 
 	france.bc_ope ON dbeel_ob_id= ba_ob_id;		-- 3235
 		
--- which are the fish already in the database for which we have the size and for which we have new rows in dbeel_batch_fish: we want to delete them
-SELECT * FROM france.dbeel_batch_fish 
+-- which are the fish already in the database for which we have the size and for which we have new rows in dbeel_dbeel_batch_fish_aspe: we want to delete them
+SELECT * FROM france.dbeel_dbeel_batch_fish_aspe 
 	JOIN 
 	france.bc_ope_bis ON dbeel_ob_id= ba_ob_id 
 	where is_duplicate; -- 70
 
-SELECT * FROM france.dbeel_batch_fish limit 10;
+SELECT * FROM france.dbeel_dbeel_batch_fish_aspe limit 10;
 
 SELECT * FROM france.dbeel_mensurationindiv_biol_charac 
 	JOIN
-	france.dbeel_batch_fish on bc_ba_id=ba_id
+	france.dbeel_dbeel_batch_fish_aspe on bc_ba_id=ba_id
 	JOIN 
 	france.bc_ope_bis ON dbeel_ob_id= ba_ob_id where is_duplicate; -- 70 
 
 -- france.dbeel_mensurationindiv_biol_charac has delete cascade on ba_id,
--- so we delete one line per fish in dbeel_batch_fish and all lines corresponding to length (there was only this) in dbeel_mensurationindiv_biol_charac
+-- so we delete one line per fish in dbeel_dbeel_batch_fish_aspe and all lines corresponding to length (there was only this) in dbeel_mensurationindiv_biol_charac
 
 select * from france.bc_ope_bis 
 except select * from france.bc_ope_bis 
@@ -12455,20 +12356,20 @@ commit;
 -- nothing 
 
 
----- STEP 3: INSERT into dbeel_batch_fish: fish that were measured
+---- STEP 3: INSERT into dbeel_dbeel_batch_fish_aspe: fish that were measured
 ---- 		Before insert length of fish, we need: "ba_id" and "fish_id"
 
 
----- 		Check duplicates: Joining bc_fish and dbeel_batch_fish by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
+---- 		Check duplicates: Joining bc_fish and dbeel_dbeel_batch_fish_aspe by "sampling" and "ob_id" (to join "ob_id" we need to go through different tables)
 select count(*) from france.bc_fish_bis; -- 3790 rows
 select sum(op_nb_eels) from france.bc_ope_bis; -- 3771 rows
 
 select * from france.bc_fish_bis a join france.bc_ope_bis o on ang_op_id = op_id -- 3758 rows
 	join france.dbeel_electrofishing l on l.ob_id = o.bc_ob_id
-	join france.dbeel_batch_fish b on l.ob_id = b.ba_ob_id; -- 0 rows
+	join france.dbeel_dbeel_batch_fish_aspe b on l.ob_id = b.ba_ob_id; -- 0 rows
 
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 -- There is a stage possible in biological characteristic, but this stage is entered in the dbeel batch fish table,
 -- so we will not use it, because it comes from a table above in the hierarchy	
@@ -12480,7 +12381,7 @@ with uniques as (
 	WHERE sta_id NOT IN (select sta_id from france.bc_station_bis )
 	) 
 	
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
@@ -12528,7 +12429,7 @@ WITH missing AS (
 	(	
 	select * from missing 
 	join france.dbeel_electrofishing on ob_id = bc_ob_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	) --437
 UPDATE france.bc_fish_bis b
 SET ba_id = fish_from_bc.ba_id
@@ -12539,7 +12440,7 @@ WHERE fish_from_bc.fish_id = b.fish_id; -- 437 rows
 -- select * from france.bc_fish_bis where ba_id is null; -- 188 rows
 
 /* There are 9 rows that are more than one individual: nag_nb_indiv > 1 (with length and weigth as a mean): Remove them!
-delete from france.dbeel_batch_fish where ba_id in (select ba_id from france.bc_fish_bis where ang_nb_indiv > 1); -- 9 rows
+delete from france.dbeel_dbeel_batch_fish_aspe where ba_id in (select ba_id from france.bc_fish_bis where ang_nb_indiv > 1); -- 9 rows
 update france.bc_fish_bis set ba_id = NULL where ang_nb_indiv > 1;  -- 9 rows
 */
 ---- 		Insert LENGTH
@@ -13057,7 +12958,7 @@ INSERT INTO france.dbeel_batch_ope
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 15 rows
 
-----		Insert individuals that were measured into the dbeel_batch_fish
+----		Insert individuals that were measured into the dbeel_dbeel_batch_fish_aspe
 
 
 with anguila as (
@@ -13080,7 +12981,7 @@ from france.guipuz_fish a
 	AND detected_missing =TRUE)
 --SELECT * FROM anguila; -- 816
 
-INSERT INTO france.dbeel_batch_fish
+INSERT INTO france.dbeel_dbeel_batch_fish_aspe
 	SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	CASE WHEN typeang='Amarilla' THEN 226 --'Yellow eel' 
@@ -13119,7 +13020,7 @@ ALTER TABLE france.guipuz_fish ADD COLUMN detected_missing BOOLEAN DEFAULT FALSE
 with fish_from_iker as
 	(select * from france.dbeel_station_aspe 
 	join france.dbeel_electrofishing on op_id = ob_op_id
-	join france.dbeel_batch_fish on ba_ob_id = ob_id
+	join france.dbeel_dbeel_batch_fish_aspe on ba_ob_id = ob_id
 	JOIN france.guipuz_ope ON guipuz_ope.guipuz_ob_id = ba_ob_id
 	where ob_dp_id = 14
 	AND detected_missing =TRUE) -- 816 rows	

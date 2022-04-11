@@ -247,11 +247,9 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 # First create a (large) table with all fish mesured
 data <- operation %>%   # 48387
 		select(ope_id)%>%
-		left_join(
-				prelevement_elementaire %>%
-						left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")),
-				by=c("ope_id"="pre_ope_id")
-		) %>%	
+		left_join(prelevement_elementaire, by=c("ope_id"="pre_ope_id"))%>%
+		left_join(passage %>% rename(pre_id = pas_id), by="pre_id") %>%
+		left_join(lot_poissons, by = c("pre_id"="lop_pre_id"))		 %>%	
 		rename(esp_id = lop_esp_id) %>%
 		left_join(y = ref_espece %>%
 						select(esp_id,
@@ -266,6 +264,7 @@ data <- operation %>%   # 48387
 				ope_id,
 				mei_id,
 				lop_id,
+				pas_numero,
 				tyl_libelle,
 				mei_taille, # taille mesurée
 				mei_mesure_reelle, # boolean est ce que la taille est mesurée
@@ -310,7 +309,7 @@ data_lots_not_corrected <-
 		mutate(is_taille_alt=FALSE)
 
 data_lot2 <- bind_rows(data_lots_corrected,
-		data_lots_not_corrected)
+		data_lots_not_corrected) # 403623
 
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
