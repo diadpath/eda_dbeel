@@ -535,8 +535,6 @@ SELECT uuid_generate_v4() AS ba_id,
   AND ef_nbpas>3
   ; -- 4 ROWS
     
-
-
   
   
   

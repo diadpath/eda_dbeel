@@ -39,11 +39,11 @@ load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
 # Station table
 
 station_aspe <- station %>%
-	left_join(y = ref_type_projection,
-	          by = c("sta_typ_id" = "typ_id")) %>%
-  filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France. Spatial join
+		left_join(y = ref_type_projection,
+				by = c("sta_typ_id" = "typ_id")) %>%
+		filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France. Spatial join
 # will be performed to filter wrong coordinates later on
-  filter(sta_coordonnees_x > 0)
+		filter(sta_coordonnees_x > 0)
 
 # TODO LATER recuperer les stations historiques pour voir les manques d'import depuis bd_map
 
@@ -74,15 +74,15 @@ station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035)
 # Spatial filtering
 
 france_polygone <- rnaturalearth::ne_countries(type = "countries", 
-                                               country = "france", 
-                                               returnclass = "sf") %>% 
-  select(name_sort) %>% # import only france on remove all col except name
-  st_transform(3035) # reproject in the same crs as stations
+				country = "france", 
+				returnclass = "sf") %>% 
+		select(name_sort) %>% # import only france on remove all col except name
+		st_transform(3035) # reproject in the same crs as stations
 
 station_aspe_france <- st_intersection( # filter stations in France
-  station_aspe_sf, france_polygone) %>% 
-  select(-name_sort) # remove extra column from france polygone 31734
-  
+				station_aspe_sf, france_polygone) %>% 
+		select(-name_sort) # remove extra column from france polygone 31734
+
 # Just checking that everything works fine
 mapview::mapview(station_aspe_france, color = "green")
 
@@ -104,10 +104,10 @@ point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
 		filter(typ_code_epsg==2154) %>%  #limit points to metropolitan France
-    filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  # some station have wrong coordinates
+		filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  # some station have wrong coordinates
 # we limit the south extent to south Corsica for now...
-    filter(pop_coordonnees_x < 1500000) %>% 
-    filter(pop_coordonnees_x > 0) # filter some wrong coordinates
+		filter(pop_coordonnees_x < 1500000) %>% 
+		filter(pop_coordonnees_x > 0) # filter some wrong coordinates
 
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		var_x = pop_coordonnees_x,
@@ -231,7 +231,7 @@ batch_aspe <- operation %>%   # 48387
 		) %>%
 		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (p?che grand milieu) on consid?re que le passage c'est 1
 		pivot_wider(id_cols=c(ope_id, nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
-		mutate("pas_1"=replace_na(pas_1,0))  
+		mutate("pas_1"=replace_na(pas_1,0))   # remplace les passages NULLs (protocole peche par point) par un
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
 DBI::dbWriteTable(con, "batch_aspe", batch_aspe) # written in public scheme
@@ -245,49 +245,75 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 # from the mesured individuals
 
 # First create a (large) table with all fish mesured
-data <- mef_creer_passerelle() %>%
-  mef_ajouter_lots() %>%
-  mef_ajouter_type_lot() %>%
-  mef_ajouter_mei() %>%
-  filter(mei_taille > 0) %>% # positive length
-  mef_ajouter_libelle() %>%
-  mef_ajouter_esp() %>% 
-  select(
-    mei_id,
-    lop_id,
-    ope_id,
-    tyl_libelle,
-    pop_id,
-    mei_taille,
-    mei_mesure_reelle,
-    mei_poids,
-    mei_poids_estime,
-    mei_mep_id,
-    esp_code_alternatif
-  ) %>%
-  distinct() # remove doublons / opérations on several aims (networks)
-
+data <- operation %>%   # 48387
+		select(ope_id)%>%
+		left_join(
+				prelevement_elementaire %>%
+						left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")),
+				by=c("ope_id"="pre_ope_id")
+		) %>%	
+		rename(esp_id = lop_esp_id) %>%
+		left_join(y = ref_espece %>%
+						select(esp_id,
+								esp_code_alternatif,
+								esp_nom_commun,
+								esp_nom_latin), by="esp_id") %>%
+		select(-esp_id) %>%
+		mef_ajouter_type_lot() %>%
+		mef_ajouter_mei() %>%
+		filter(mei_taille > 0) %>% # positive length
+		select(
+				ope_id,
+				mei_id,
+				lop_id,
+				tyl_libelle,
+				mei_taille, # taille mesurée
+				mei_mesure_reelle, # boolean est ce que la taille est mesurée
+				mei_poids,
+				mei_poids_estime,
+				mei_mep_id,
+				esp_code_alternatif
+		) # 17127311
 # keep only eels
 data_ang <- data %>% 
-  filter(esp_code_alternatif == "ANG")
-
+		filter(esp_code_alternatif == "ANG")
+rm(data)
 # count sample mesures to use the function only when the sample is large enough
 n_measures <- data_ang %>%
-  filter(tyl_libelle == "S/L") %>% # only lots with measures on on a subsample
-  group_by(lop_id, mei_mesure_reelle) %>%
-  tally() %>%
-  ungroup() %>%
-  pivot_wider(
-    names_from = mei_mesure_reelle,
-    values_from = n
-  )
+		filter(tyl_libelle == "S/L") %>% # only lots with measures on on a subsample
+		group_by(lop_id, mei_mesure_reelle) %>%
+		tally() %>%
+		ungroup() %>%
+		pivot_wider(
+				names_from = mei_mesure_reelle,
+				values_from = n
+		)
 # Select lots with at least 30 mesures
 mes_lots <- n_measures %>%
-  filter(t > 29) %>%
-  pull(lop_id)
+		filter(t > 29) %>%
+		pull(lop_id)
 
 # Finaly add estimated measures
-data_lots <- data_ang %>%
-  filter(lop_id %in% mes_lots) %>%
-  qta_ajouter_mei_taille_alt()
+# adding a column mei_taille_alt
+data_lots_corrected <- 
+		data_ang %>%
+		filter(lop_id %in% mes_lots) %>%
+		qta_ajouter_mei_taille_alt() %>%
+		mutate(is_taille_alt=TRUE) %>%
+		select(-mei_taille) %>%
+		rename(mei_taille=mei_taille_alt)
+
+
+data_lots_not_corrected <-
+		data_ang %>%
+		filter(!lop_id %in% mes_lots) %>%
+		mutate(is_taille_alt=FALSE)
+
+data_lot2 <- bind_rows(data_lots_corrected,
+		data_lots_not_corrected)
+
+
+DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
+DBI::dbWriteTable(con, "batch_fish_aspe", data_lot2) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
