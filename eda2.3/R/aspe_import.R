@@ -277,42 +277,44 @@ data <- operation %>%   # 48387
 data_ang <- data %>% 
 		filter(esp_code_alternatif == "ANG")
 rm(data)
+# TODO DIG A BIT HERE IN THE FUNCTIONS TO REGENERATE DATA ....
 # count sample mesures to use the function only when the sample is large enough
-n_measures <- data_ang %>%
-		filter(tyl_libelle == "S/L") %>% # only lots with measures on on a subsample
-		group_by(lop_id, mei_mesure_reelle) %>%
-		tally() %>%
-		ungroup() %>%
-		pivot_wider(
-				names_from = mei_mesure_reelle,
-				values_from = n
-		)
-# Select lots with at least 30 mesures
-mes_lots <- n_measures %>%
-		filter(t > 29) %>%
-		pull(lop_id)
+# TRIAL => recalculation of size structure, does not really work. ... generates missing values
+# n_measures <- data_ang %>%
+#		filter(tyl_libelle == "S/L") %>% # only lots with measures on on a subsample
+#		group_by(lop_id, mei_mesure_reelle) %>%
+#		tally() %>%
+#		ungroup() %>%
+#		pivot_wider(
+#				names_from = mei_mesure_reelle,
+#				values_from = n
+#		)
+## Select lots with at least 30 mesures
+#mes_lots <- n_measures %>%
+#		filter(t > 29) %>%
+#		pull(lop_id)
+#
+## Finaly add estimated measures
+## adding a column mei_taille_alt
+#data_lots_corrected <- 
+#		data_ang %>%
+#		filter(lop_id %in% mes_lots) %>%
+#		qta_ajouter_mei_taille_alt() %>%
+#		mutate(is_taille_alt=TRUE) %>%
+#		select(-mei_taille) %>%
+#		rename(mei_taille=mei_taille_alt)
+#
+#
+#data_lots_not_corrected <-
+#		data_ang %>%
+#		filter(!lop_id %in% mes_lots) %>%
+#		mutate(is_taille_alt=FALSE)
+#data_lot2 <- bind_rows(data_lots_corrected,
+#		data_lots_not_corrected) # 403623
 
-# Finaly add estimated measures
-# adding a column mei_taille_alt
-data_lots_corrected <- 
-		data_ang %>%
-		filter(lop_id %in% mes_lots) %>%
-		qta_ajouter_mei_taille_alt() %>%
-		mutate(is_taille_alt=TRUE) %>%
-		select(-mei_taille) %>%
-		rename(mei_taille=mei_taille_alt)
-
-
-data_lots_not_corrected <-
-		data_ang %>%
-		filter(!lop_id %in% mes_lots) %>%
-		mutate(is_taille_alt=FALSE)
-
-data_lot2 <- bind_rows(data_lots_corrected,
-		data_lots_not_corrected) # 403623
 
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
-DBI::dbWriteTable(con, "batch_fish_aspe", data_lot2) # written in public scheme
+DBI::dbWriteTable(con, "batch_fish_aspe", data_ang) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
