@@ -655,7 +655,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	AND biological_characteristic_type.no_name='Number' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 285 096 poissons mesurés au premier passage
+	; -- 285 096 poissons mesurés au premier passage => 204805 AFTER modif ON nb_pas
 
 -- To integrate length and weight of fish, we need the "ba_id" 
 -- that corresponds to the batch (each line must be different) 
@@ -711,7 +711,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
-	AND biological_characteristic_type.no_name = 'Weight'; --142654
+	AND biological_characteristic_type.no_name = 'Weight'; --142654 => 98038
 
 -- Insert LENGTH (mm)
 	
@@ -765,7 +765,7 @@ SELECT
   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096
+  WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096 => 204805
 
 
 
@@ -810,7 +810,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 34 292 p2
+  ; -- 34 292 p2 => 34010
 
 
 -- Insert WEIGHT (gr)
@@ -842,7 +842,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=2
-  AND biological_characteristic_type.no_name = 'Weight'; --19272
+  AND biological_characteristic_type.no_name = 'Weight'; --19272 => 19187
 
 -- Insert LENGTH (mm)
   
@@ -915,7 +915,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 143 fish measured with infinite delicacy on the third pass
+  ; -- 143 fish measured with infinite delicacy on the third pass => 136
 
 
 -- Insert WEIGHT (gr)
@@ -947,7 +947,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=3
-  AND biological_characteristic_type.no_name = 'Weight'; --35
+  AND biological_characteristic_type.no_name = 'Weight'; --35 =>30
 
 -- Insert LENGTH (mm)
   
@@ -977,7 +977,7 @@ SELECT
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=3; -- 143
+    AND baf.pas_numero=3; -- 143 =>136
     
     
 -- FOURTH PASS
