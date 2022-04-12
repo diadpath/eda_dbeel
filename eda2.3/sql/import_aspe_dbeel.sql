@@ -408,7 +408,7 @@ INSERT INTO france.dbeel_batch_ope_aspe
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
         WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' 
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
@@ -441,7 +441,8 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 31919 rows
+	AND ef_nbpas = 1
+	; -- 31919 ROWS => 23174 WITH nbpas = 1
 
 -- number p2
 	
@@ -472,8 +473,8 @@ SELECT uuid_generate_v4() AS ba_id,
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas>1
-  ; -- 8745 ROWS
+  AND ef_nbpas = 2
+  ; -- 8745 ROWS => 8591 WITH nb_pas = 2
   
  -- number p3
   
@@ -502,8 +503,8 @@ SELECT uuid_generate_v4() AS ba_id,
   AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas>2
-  ; -- 154 ROWS
+  AND ef_nbpas = 3
+  ; -- 154 ROWS => 150 WITH nbpas = 3
   
  -- number p4   
   
@@ -532,7 +533,7 @@ SELECT uuid_generate_v4() AS ba_id,
   AND biological_characteristic_type.no_name='Number p4' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas>3
+  AND ef_nbpas = 4
   ; -- 4 ROWS
     
   
