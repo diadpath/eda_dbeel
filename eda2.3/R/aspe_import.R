@@ -318,3 +318,60 @@ DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
 DBI::dbWriteTable(con, "batch_fish_aspe", data_ang) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
+
+
+#-------------------------------------
+# Import des données d'argenture manquantes
+
+
+ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
+load( file = str_c(ddatawd,"table_silv_final.Rdata")) # table_silv, synthese
+
+# les données françaises utilisent le code_wama_operation comme code d'operation dans ob_id
+# le reste dans le tableau c'est les données Espagnoles
+options(scipen=999)
+operation_aspe <- DBI::dbGetQuery(con, "SELECT * FROM france.operation_aspe;")
+
+
+nrow(table_silv) # 151403
+str(table_silv)
+table_silv <- table_silv[table_silv$country=='FR',]
+nrow(table_silv) # 29034
+table_silv$ob_id
+
+operation_aspe$ope_code_wama <- as.character(operation_aspe$ope_code_wama)
+operation_aspe <- operation_aspe[!is.na(operation_aspe$ope_code_wama),]
+hist(nchar(table_silv$ob_id))
+nrow(operation_aspe) # 37698
+
+batch_silver_wama <- inner_join(operation_aspe,table_silv, by=c("ope_code_wama"="ob_id")) # 28974
+
+exclusion_finale <- batch_silver_wama$a_exclure_taille  | 
+		batch_silver_wama$a_exclure_poids | 
+		batch_silver_wama$a_exclure_pecto | 
+		batch_silver_wama$a_exclure_diah | 
+		batch_silver_wama$a_exclure_diav | 
+		batch_silver_wama$a_exclure_excentricite 
+batch_silver_wama = batch_silver_wama[!is.na(exclusion_finale) & !exclusion_finale,] # 14575
+
+batch_silver_wama <- 
+		batch_silver_wama[,
+		c("ope_dbeel_ob_id",
+				"ope_code_wama",
+				"length",                                    
+				"size",                                      
+				"weight",                                    
+				"sex",                                       
+				"stage",                                     
+				"eye_diam_vert",                             
+				"eye_diam_horiz" ,                           
+				"presence_neuromast",                        
+				"contrast",                                  
+				"length_pect",                               
+				"mesure_poids",                   
+				"MD"                                      
+				)]
+
+DBI::dbExecute(con, "DROP TABLE if exists france.batch_silver_wama;")
+DBI::dbWriteTable(con, "batch_silver_wama", batch_silver_wama) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE batch_silver_wama set schema france")

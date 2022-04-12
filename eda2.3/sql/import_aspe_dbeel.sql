@@ -542,7 +542,7 @@ SELECT uuid_generate_v4() AS ba_id,
 -- Batch integration, the second level will reference the fish table
 ----------------------------------------------------------------------
   
-DROP TABLE if exists france.dbeel_dbeel_batch_fish_aspe_aspe CASCADE;
+DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
 CREATE TABLE france.dbeel_batch_fish_aspe (
   ope_id INTEGER,
   mei_id INTEGER,
@@ -572,7 +572,49 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 
 SELECT * FROM france.batch_fish_aspe baf 
 
--- On rentre les lots correspondant au premier passage.
+-- test il manque des poissons on comprend pas pourquoi 12/04
+/*
+SELECT  pas_numero, count(*) as N FROM france.batch_fish_aspe group by pas_numero;
+|pas_numero|n     |
+|----------|------|
+|1         |237081|
+|2         |48587 |
+|3         |434   |
+|4         |4     |
+|          |117517|
+WITH dist AS(
+SELECT  distinct on (pas_numero,ope_id) * FROM france.batch_fish_aspe
+)
+SELECT count(*) FROM dist
+group by pas_numero;
+
+|count|
+|-----|
+|10186|
+|3575 |
+|41   |
+|1    |
+|6409 |
+
+
+SELECT * FROM  france.dbeel_batch_fish_aspe; --319535
+SELECT * FROM france.batch_fish_aspe;--403623
+
+WITH bap1 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p1'  
+  ),
+
+  bafp1 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 1 OR pas_numero IS NULL) 
+  SELECT * 
+  FROM 
+  bafp1
+  JOIN bap1 ON (bap1.ope_id=bafp1.ope_id) ;   --285 096
+SELECT distinct (ope_id) FROM france.dbeel_batch_fish_aspe;--13785
+SELECT distinct (ope_id) FROM france.batch_fish_aspe; --16888
+*/
 
 INSERT INTO france.dbeel_batch_fish_aspe
 
@@ -1042,6 +1084,142 @@ SELECT
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=4; -- 4  
     
-    
+-- TODO weight 350 Britany
+-- TODO probable size & weight    
 
--- TODO 11/04/2022 Other silvering creteria, seel import_sibic_dbeel for code
+--  11/04/2022 for code commit #e9572d44da8c96c1fceff7b2f4f45ab940817b0a
+    
+/*----------------------
+ * SILVERING DATA 12/04/2022
+ * Imported from Laurent's treatment and further explorted in eda2.3 chunk silvering_analysis line 8409 in EDA_build.rnw
+ * Currently not available in the database ASPE (only size and weight)
+ * The import to db is done in aspe_import.R line 323
+ * The table copied is  batch_silver_wama with column ope_dbeel_ob_id corresponding to current ob_id
+ * 
+ * ----------------------- */
+
+ WITH bc_size AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =39
+),
+ bc_weight AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =42
+),
+bc AS (
+SELECT bc_size.*, weight FROM bc_size JOIN bc_weight ON bc_size.bc_ba_id=bc_weight.bc_ba_id),
+
+bcop AS (        
+ SELECT ba_ob_id AS ob_id, bc.* FROM bc
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
+/*
+SELECT * FROM bcop
+FULL OUTER JOIN france.batch_silver_wama wam
+ ON (bcop.ob_id::TEXT, bcop.size, bcop.weight)=(wam.ope_dbeel_ob_id,wam.length,wam.weight)
+ */
+ 
+SELECT DISTINCT bcop.ob_id FROM bcop
+JOIN france.batch_silver_wama wam
+ ON (bcop.ob_id::TEXT)=(wam.ope_dbeel_ob_id) 
+
+ 
+-- PREMIERE OPERATION
+ 
+SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
+c4991ed3-714c-4f74-9619-0d873efb8783 79990004133 448.0 3 - [300-450[ 121.0 NO ???
+c4991ed3-714c-4f74-9619-0d873efb8783  79990004133 449.0 3 - [300-450[ 120.0 OK
+
+
+WITH bc_size AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =39
+),
+ bc_weight AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =42
+),
+bc AS (
+SELECT bc_size.*, weight FROM bc_size JOIN bc_weight ON bc_size.bc_ba_id=bc_weight.bc_ba_id),
+
+bcop AS (        
+ SELECT ba_ob_id AS ob_id, bc.* FROM bc
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
+SELECT * FROM bcop  WHERE bcop.ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
+ 
+c4991ed3-714c-4f74-9619-0d873efb8783  8ab7cfd0-8f27-415c-a568-958ecf84bef2  eb13402e-cabc-4dfe-836b-ecd116622142  449.0 120.0 OK
+
+
+-- DEUXIEME OPERATION
+SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='bdf20f05-0434-4e61-a365-16a42200cb44'
+bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 609.0 5 - [600-750[ 357.0 NO
+bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 324.0 3 - [300-450[ 66.0 NO
+bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 331.0 3 - [300-450[ 67.0 NO
+bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 325.0 3 - [300-450[ 58.0 OK
+
+
+WITH bc_size AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =39
+),
+ bc_weight AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =42
+),
+bc AS (
+SELECT bc_size.*, weight FROM bc_size JOIN bc_weight ON bc_size.bc_ba_id=bc_weight.bc_ba_id),
+
+bcop AS (        
+ SELECT ba_ob_id AS ob_id, bc.* FROM bc
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
+SELECT * FROM bcop  WHERE bcop.ob_id='bdf20f05-0434-4e61-a365-16a42200cb44'
+bdf20f05-0434-4e61-a365-16a42200cb44  2d60ad19-ad06-4c87-b9cf-e4edc46cd17b  1660aa96-1178-488b-a4ab-8a65a018aee6  325.0 58.0 OK
+bdf20f05-0434-4e61-a365-16a42200cb44  8675585e-b638-4302-b80f-6e4131ba519e  775e42d4-e7bd-4e84-a0ed-40dc0a0eae80  159.0 5.0 NO
+
+-- TROISIEME OPERATION'26290e2d-ee52-42c7-9787-4573f795bd22'
+
+SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 357.0 3 - [300-450[ 83.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 283.0 2 - [150-300[ 37.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 301.0 3 - [300-450[ 42.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 257.0 2 - [150-300[ 27.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 303.0 3 - [300-450[ 47.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 287.0 2 - [150-300[ 43.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 422.0 3 - [300-450[ 130.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 392.0 3 - [300-450[ 101.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 281.0 2 - [150-300[ 40.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 276.0 2 - [150-300[ 38.0  NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 397.0 3 - [300-450[ 121.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 292.0 2 - [150-300[ 48.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 412.0 3 - [300-450[ 153.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  19010002030 277.0 2 - [150-300[ 34.0 OK
+
+
+WITH bc_size AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =39
+),
+ bc_weight AS (
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
+ WHERE bc_no_characteristic_type =42
+),
+bc AS (
+SELECT bc_size.*, weight FROM bc_size JOIN bc_weight ON bc_size.bc_ba_id=bc_weight.bc_ba_id),
+
+bcop AS (        
+ SELECT ba_ob_id AS ob_id, bc.* FROM bc
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
+SELECT * FROM bcop  WHERE bcop.ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
+26290e2d-ee52-42c7-9787-4573f795bd22  2c9cf43e-c8bd-45c9-b706-fe2ddb72973a  42d9be88-9435-41f5-b4c6-f79114cc4741  172.0 9.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  60911de9-41d3-485b-aa0e-46dae20bac3e  e9a46958-bd10-4db1-9d9e-0ef18a98d7b8  301.0 42.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  0e33a75d-1556-4ab2-b59f-ec8633da12bc  af6da92c-eb48-4c3b-b3b4-8d155648f6d4  392.0 101.0  OK
+26290e2d-ee52-42c7-9787-4573f795bd22  cbdff159-bebc-486f-af67-63f7a7498339  b46d7624-8e76-4090-9211-e8e53c5253af  119.0 3.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  1dfcceff-b19e-4218-985b-0720e364c684  183b9562-6275-45cb-809c-92e5c785494e  277.0 34.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  71e197ad-f41a-49de-8997-8e56bf76a7ff  cf799985-fe51-4235-9901-629dc451b1fd  195.0 13.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  5fdd434d-76f1-490f-9538-b8eb24875a09  f12fab0f-ea2c-4bd0-910c-71589cbb4013  183.0 11.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  c9e78379-8558-4567-a0e5-d3ca935aa7c4  ce70f1a8-a83d-44f9-9e53-2b6cd423cb35  357.0 83.0 OK
+26290e2d-ee52-42c7-9787-4573f795bd22  763aa482-4bad-48ac-ab01-4511bb9bcc88  059f63a3-5e11-4335-9773-b4a2fdbbd1fe  210.0 16.0 NO
+26290e2d-ee52-42c7-9787-4573f795bd22  cb32705c-6b97-4fab-bf95-1d7c2ac93531  c6788b0b-554a-4d93-b92d-bc3a914bb0fe  422.0 130.0 OK
+
+SELECT *  FROM france.dbeel_batch_fish_aspe dboa WHERE ba_ob_id= '26290e2d-ee52-42c7-9787-4573f795bd22'; => ope_id==4609
+
+
