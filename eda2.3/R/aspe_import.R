@@ -321,30 +321,31 @@ DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
 
 #-------------------------------------
-# Import des données d'argenture manquantes
+# Import missing (from ASPE) silvering data
 
 
 ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
 load( file = str_c(ddatawd,"table_silv_final.Rdata")) # table_silv, synthese
 
-# les données françaises utilisent le code_wama_operation comme code d'operation dans ob_id
-# le reste dans le tableau c'est les données Espagnoles
-options(scipen=999)
-operation_aspe <- DBI::dbGetQuery(con, "SELECT * FROM france.operation_aspe;")
+# French data use "code_wama" as "ob_id"
+# the remining data are from Spain 
+options(scipen=999) # prevent R to convert lorge numbers as scientific notation
 
-
-nrow(table_silv) # 151403
-str(table_silv)
+# Collect operations from the database
+operation_aspe_silver <- DBI::dbGetQuery(con, "SELECT * FROM france.operation_aspe;") %>% 
+  mutate(ope_code_wama = as.character(ope_code_wama)) %>% # necessary for joins
+  filter(!is.na(ope_code_wama))  # silvering data only "joinable" with code_wama
+  
+# Keep only french data
 table_silv <- table_silv[table_silv$country=='FR',]
-nrow(table_silv) # 29034
-table_silv$ob_id
 
-operation_aspe$ope_code_wama <- as.character(operation_aspe$ope_code_wama)
-operation_aspe <- operation_aspe[!is.na(operation_aspe$ope_code_wama),]
-hist(nchar(table_silv$ob_id))
-nrow(operation_aspe) # 37698
+# hist(nchar(table_silv$ob_id))
+# nrow(operation_aspe_silver) # 37698
 
-batch_silver_wama <- inner_join(operation_aspe,table_silv, by=c("ope_code_wama"="ob_id")) # 28974
+# Join operation and silvering data
+batch_silver_wama <- inner_join(operation_aspe_silver,table_silv, 
+                                by=c("ope_code_wama"="ob_id")) # 28974
+
 
 exclusion_finale <- batch_silver_wama$a_exclure_taille  | 
 		batch_silver_wama$a_exclure_poids | 
