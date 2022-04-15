@@ -274,10 +274,12 @@ data <- operation %>%   # 48387
 				mei_mep_id,
 				esp_code_alternatif
 		) # 17127311
+
 # keep only eels
 data_ang <- data %>% 
-		filter(esp_code_alternatif == "ANG")
+		filter(esp_code_alternatif == "ANG" & mei_taille > 49) # remove unlikely sizes
 rm(data)
+
 # TODO DIG A BIT HERE IN THE FUNCTIONS TO REGENERATE DATA ....
 # count sample mesures to use the function only when the sample is large enough
 # TRIAL => recalculation of size structure, does not really work. ... generates missing values
@@ -292,13 +294,12 @@ n_measures <- data_ang %>%
 	)
 # Select lots with at least 30 mesures
 mes_lots <- n_measures %>%
-	filter(t > 29) %>%
+	filter(f > 0 & t > 29) %>%
 	pull(lop_id)
 
 # Finaly add estimated measures
 # adding a column mei_taille_alt
-data_lots_corrected <-
-	data_ang %>%
+data_lots_corrected <-data_ang %>%
 	filter(lop_id %in% mes_lots) %>%
 	qta_ajouter_mei_taille_alt() %>%
 	mutate(is_taille_alt=TRUE) %>%
@@ -310,6 +311,7 @@ data_lots_not_corrected <-
 	data_ang %>%
 	filter(!lop_id %in% mes_lots) %>%
 	mutate(is_taille_alt=FALSE)
+
 data_lot2 <- bind_rows(data_lots_corrected,
 	data_lots_not_corrected) # 403623
 
