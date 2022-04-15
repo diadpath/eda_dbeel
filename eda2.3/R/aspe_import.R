@@ -280,7 +280,7 @@ data_ang <- data %>%
 		filter(esp_code_alternatif == "ANG" & mei_taille > 49) # remove unlikely sizes
 rm(data)
 
-# TODO DIG A BIT HERE IN THE FUNCTIONS TO REGENERATE DATA ....
+
 # count sample mesures to use the function only when the sample is large enough
 # TRIAL => recalculation of size structure, does not really work. ... generates missing values
 n_measures <- data_ang %>%
@@ -315,6 +315,7 @@ data_lots_not_corrected <-
 data_lot2 <- bind_rows(data_lots_corrected,
 	data_lots_not_corrected) # 403623
 
+# TODO consider using data_lot2 instead of data_ang as there isn't NAs anymore
 
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
