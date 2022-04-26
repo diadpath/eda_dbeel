@@ -789,16 +789,16 @@ WITH survey AS(
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
 	CASE WHEN wfdmethod = 'Depletion (Handset)' THEN 62 --whole
-				WHEN wfdmethod = 'TEF (Handset)' THEN  305 
+				WHEN wfdmethod = 'TEF (Handset)' THEN  305 -- changed later TO 304
 				WHEN wfdmethod = 'Separate sides (Boat)' THEN  301 -- deep habitat
 				WHEN wfdmethod = 'Boom Boat (Pulsed)' THEN 301 -- deep habitat
-				WHEN wfdmethod = '10 Min (Handset)' THEN 305 -- deep habitat
+				WHEN wfdmethod = '10 Min (Handset)' THEN 305 -- deep habitat changed TO 304
 				WHEN wfdmethod = 'SPASE (Boat)' THEN 301 -- deep habitat
 				WHEN wfdmethod = 'Single Pass (Boat)' THEN 301 -- deep habitat
 				WHEN wfdmethod = 'ADEF (Handset)' THEN 62 -- Area delimited Electrofishing  --Technically depletions as far as I can gather
 				WHEN wfdmethod = 'Depletion (Boat)' THEN 301
 				WHEN wfdmethod = 'ADEF (Boat)' THEN 301
-				WHEN wfdmethod = '10 Min (Boat)' THEN 301
+				WHEN wfdmethod = '10 Min (Boat)' THEN 301 --changed later TO 304
 	END AS  ef_no_fishingmethod,
 	CASE WHEN "EfishingEquipment" = 'boat' THEN 72
      WHEN "EfishingEquipment"  = 'backpack' THEN 71
@@ -855,7 +855,7 @@ CREATE TABLE 	ireland.batch_ope (
 ) 
 		INHERITS (dbeel.batch); --0
 
-DELETE FROM ireland.batch_ope;
+--DELETE FROM ireland.batch_ope;
 INSERT INTO ireland.batch_ope(
 			ba_id,
 			ba_no_species,
@@ -1260,7 +1260,7 @@ INSERT INTO ireland.batch_ope(
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data';    --226
 
-
+--SELECT * FROM ireland.batch_ope where ba_batch_level=0 and datasource='IFI'
 
 -- op_p1 (ba_batch_level = 1 corresponds to pass number 1 ) 
 -- is the pass identified by the number in pa_numero)
@@ -1715,7 +1715,7 @@ dbeel_nomenclature.value_type,
 dbeel_nomenclature.individual_status
 WHERE species.no_name='Anguilla anguilla' 
 AND stage.no_name='Yellow eel' 
-AND biological_characteristic_type.no_name='Number p1' 
+AND biological_characteristic_type.no_name='Number p1' -- WRONG corrected later should be number p2
 AND individual_status.no_name='Alive' 
 AND value_type.no_name='Raw data or Individual data';
 
@@ -1764,7 +1764,7 @@ dbeel_nomenclature.value_type,
 dbeel_nomenclature.individual_status
 WHERE species.no_name='Anguilla anguilla' 
 AND stage.no_name='Yellow eel' 
-AND biological_characteristic_type.no_name='Number p1' 
+AND biological_characteristic_type.no_name='Number p1' -- SHOULD BE Number p3
 AND individual_status.no_name='Alive' 
 AND value_type.no_name='Raw data or Individual data';
 
@@ -1774,8 +1774,6 @@ AND value_type.no_name='Raw data or Individual data';
  * 
  * The type 305 needs to be updated as 304 for boom boats
  */
-
-
 
 
   
@@ -1793,6 +1791,69 @@ UPDATE ireland.electrofishing SET ef_no_fishingmethod=305 WHERE ob_id IN (
 UPDATE ireland.electrofishing SET ef_no_fishingmethod=304 WHERE ob_id IN (
   SELECT  ob_id FROM ireland.eel_wfd_survey WHERE wfdmethod IN ('TEF (Handset)','10 Min (Handset)','10 Min (Boat)'));  --736
   
+/*
+ * the number entered in ba_quantity is always the total number, we need to update it, the correct value is stored in the op_nb additional column of batch_ope
+  */  
+
+WITH faulty_p1 AS (
+SELECT * FROM ireland.batch_ope
+JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
+WHERE bct.no_name='Number p1')
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p1); --2217
+
+/*|no_id|no_code|no_type                       |no_name  |bc_label                 |bc_unit      |bc_data_type|
+|-----|-------|------------------------------|---------|-------------------------|-------------|------------|
+|232  |       |Biological characteristic type|Number p2|Number in the second pass|Dimensionless|Integer     |
+|231  |       |Biological characteristic type|Number p1|Number in the first pass |Dimensionless|Integer     |
+|233  |       |Biological characteristic type|Number p3|Number in the 3rd pass   |Dimensionless|Integer     |
+*/
+
+--SELECT count(*) FROM ireland.batch_ope WHERE ba_batch_level=2 AND ba_no_biological_characteristic_type =231; --246 
+UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=232 WHERE ba_batch_level=2 AND ba_no_biological_characteristic_type =231; --246
+--SELECT count(*) FROM ireland.batch_ope WHERE ba_batch_level=3 AND ba_no_biological_characteristic_type =231; --246 
+UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=233 WHERE ba_batch_level=3 AND ba_no_biological_characteristic_type =231; --246
+
+
+WITH faulty_p2 AS (
+SELECT * FROM ireland.batch_ope
+JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
+WHERE bct.no_name='Number p2')
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p2); --907
+
+WITH faulty_p3 AS (
+SELECT * FROM ireland.batch_ope
+JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
+WHERE bct.no_name='Number p3')
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p3); --1260
+
+ALTER TABLE ireland.batch_ope ADD COLUMN datasource TEXT;
+
+
+UPDATE ireland.batch_ope SET datasource='WFD' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_wfd_survey);--3729
+UPDATE ireland.batch_ope SET datasource='MI' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_mi_survey);--984
+UPDATE ireland.batch_ope SET datasource='IFI' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_ifi_survey);--678
+
+
+SELECT count(*), datasource,ba_no_biological_characteristic_type FROM ireland.batch_ope 
+GROUP BY datasource, ba_no_biological_characteristic_type
+ORDER BY datasource, ba_no_biological_characteristic_type
+/*
+|count|datasource|ba_no_biological_characteristic_type|
+|-----|----------|------------------------------------|
+|226  |IFI       |47                                  |
+|226  |IFI       |231                                 |
+|226  |IFI       |232                                 |
+|226  |IFI       |233                                 |
+|246  |MI        |47                                  |
+|246  |MI        |231                                 |
+|246  |MI        |232                                 |
+|246  |MI        |233                                 |
+|1253 |WFD       |47                                  |
+|1253 |WFD       |231                                 |
+|435  |WFD       |232                                 |
+|788  |WFD       |233                                 |
+*/
+
 -- densities as below are also calculated later but still I integrate them here
 -- referenced by biological_characteristic_type.no_name='density' and the corresponding biological_characteristic_type.no_id
 
