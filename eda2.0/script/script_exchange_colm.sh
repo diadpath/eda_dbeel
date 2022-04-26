@@ -29,6 +29,7 @@ cd eda/base/eda2.0
 pg_dump -U postgres -FC -h 185.135.126.250 -p 5432 --schema ireland -f ireland_26_04.sql --verbose eda2.3
 psql -U postgres -h 185.135.126.250 -p 5432 eda2.0
 
+drop table ireland.stationdbeel CASCADE;
 drop table ireland.electrofishing CASCADE;
 drop table ireland.batch_ope CASCADE;
 drop table ireland.eel_ifi_length;
@@ -38,14 +39,15 @@ drop table ireland.eel_mi_survey;
 drop table ireland.eel_wfd_length;
 drop table ireland.eel_wfd_survey;
 
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_stationdbeel_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_batchope_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelifilength_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelifisurvey_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelmilength_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelmisurvey_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelwfdlength_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_eelwfdsurvey_colm.backup
-pg_restore -U postgres -d eda2.0 -h 185.135.12.250 ireland_electrofishing_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_stationdbeel_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_electrofishing_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_batchope_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelifilength_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelifisurvey_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelmilength_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelmisurvey_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelwfdlength_colm.backup
+pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelwfdsurvey_colm.backup
+
 
 
