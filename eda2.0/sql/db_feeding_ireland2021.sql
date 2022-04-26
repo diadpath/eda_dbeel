@@ -1004,7 +1004,10 @@ INSERT INTO ireland.batch_ope(
 	AND value_type.no_name='Raw data or Individual data'
 	AND pass_number=2;  -- 435
 
-
+	
+	
+-- DELETE FROM ireland.batch_ope WHERE datasource='WFD' AND ba_no_biological_characteristic_type=233;--1182
+	
 
 	-- op_p3
 INSERT INTO ireland.batch_ope(
@@ -1829,7 +1832,7 @@ UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM
 ALTER TABLE ireland.batch_ope ADD COLUMN datasource TEXT;
 
 
-UPDATE ireland.batch_ope SET datasource='WFD' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_wfd_survey);--3729
+UPDATE ireland.batch_ope SET datasource='WFD' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_wfd_survey);--3335
 UPDATE ireland.batch_ope SET datasource='MI' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_mi_survey);--984
 UPDATE ireland.batch_ope SET datasource='IFI' WHERE ba_ob_id IN (SELECT ob_id FROM ireland.eel_ifi_survey);--678
 
@@ -1851,7 +1854,7 @@ ORDER BY datasource, ba_no_biological_characteristic_type
 |1253 |WFD       |47                                  |
 |1253 |WFD       |231                                 |
 |435  |WFD       |232                                 |
-|788  |WFD       |233                                 |
+|394  |WFD       |233                                 |
 */
 
 -- densities as below are also calculated later but still I integrate them here
