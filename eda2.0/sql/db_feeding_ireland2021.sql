@@ -183,6 +183,7 @@ UPDATE ireland.ireland_2021_stations SET isduplicated=FALSE FROM  uniquewfd100 W
   */
  
 SELECT distinct(source) FROM ireland.ireland_2021_stations;
+SELECT count(*) FROM ireland.ireland_2021_stations GROUP BY source;
 
 WITH ifi AS (
   SELECT * FROM ireland.ireland_2021_stations WHERE isduplicated AND SOURCE='IFI'
@@ -244,21 +245,29 @@ UPDATE ireland.ireland_2021_stations SET isduplicated=FALSE FROM  uniquemi100 WH
 --1
 
  /*
-  * UPDATE WHERE POSSIBLE, sidecode IN THE OLD DATABASE
+  * UPDATE WHERE POSSIBLE, sitecode IN THE OLD DATABASE (stationdbeel)
   * the sitecode _original column will keep the sitecode
   */
 
 
 SELECT s2.site,s2.YEAR, s2.sitecode,  op_placename, s.site, s.sitecode, s.sitecode_original FROM ireland.ireland_2021_stations s2
 JOIN ireland.stationdbeel s ON st_dwithin(s.the_geom, st_transform(s2.geom,3035),100)
-WHERE NOT isduplicated -- remove only spatial duplicates for NEW  ('266 lines)
+WHERE NOT isduplicated -- remove only spatial duplicates for NEW stations (ireland_2021_stations) ('266 lines)
 
 -- This will UPDATE sitecode in the old database to make it match the new codes, using spatial join
 -- with ireland.ireland_2021_stations where we have removed spatial duplicates (so only one stations will be selected)
 -- note if we have selected the wrong one it will not be OK, a quick manual check showed that it was mostly correct.
 
 WITH jjj AS (
-SELECT s2.site,s2.YEAR, s2.sitecode,  op_placename, s.op_id, s.site AS dbeelsite, s.sitecode AS dbeelsitecode, s.sitecode_original 
+SELECT 
+	s2.site,
+	s2.YEAR, 
+	s2.sitecode,  
+	op_placename, 
+	s.op_id, 
+	s.site AS dbeelsite, 
+	s.sitecode AS dbeelsitecode, 
+	s.sitecode_original 
 FROM ireland.ireland_2021_stations s2
 JOIN ireland.stationdbeel s ON st_dwithin(s.the_geom, st_transform(s2.geom,3035),100)
 WHERE NOT isduplicated 
@@ -360,6 +369,8 @@ JOIN ireland.ireland_2021_stations ss ON s.sitecode=ss.sitecode
 -- since there will now be repeated op_id i need to drop the primary key constraint
 ALTER TABLE ireland.ireland_2021_stations DROP CONSTRAINT c_pk_op_id;
 UPDATE  ireland.ireland_2021_stations SET op_id=NULL;
+-- do we need this: ALTER TABLE ireland.ireland_2021_stations ALTER COLUMN op_id DROP NOT NULL;
+
 
 WITH ii AS (
 SELECT  s.sitecode, s.op_id FROM ireland.stationdbeel s
@@ -383,7 +394,7 @@ CREATE TABLE ireland.ireland_station_ccm_500 as (
                SELECT 
                sitecode,
                op_id,
-               wso1_id, 
+               r.wso1_id, 
                st_distance(r.the_geom, s.the_geom) as distance,
                s.the_geom 
                FROM ireland.stationdbeel As s
@@ -617,7 +628,7 @@ UPDATE dbeel_nomenclature.scientific_observation_method set (no_code,sc_definiti
 -- START HERE COLM 08/10
 
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 301,'DH','Scientific_observation_type','Deep habitat','Electro-fishing','Normalized method for deep habitat (Belliard et al.,2018)';-- P�che grands milieux
+SELECT 301,'DH','Scientific_observation_type','Deep habitat','Electro-fishing','Normalized method for deep habitat (Belliard et al.,2018)';-- Pêche grands milieux
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
 SELECT 302,'WE','Scientific_observation_type','Whole eel','Electro-fishing','Electrofishing, whole eel specific';-- COA
 SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fishing','Electrofishing, eel specific point sampling (Germis, 2009)';-- point sampling
@@ -628,15 +639,11 @@ SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fish
  * as there are very few of those sampling available.
  */
 
-
-
-
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 304,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
---DELETE FROM dbeel_nomenclature.scientific_observation_method where no_id=305 ;
+SELECT 305,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+-- SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)'; --1
+UPDATE dbeel_nomenclature.scientific_observation_method set (no_name, sc_definition) = ('Boom boat', 'Boom boat (Pulsed)') where no_id = 305;
 
-INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)';--1
 
 
 ALTER SEQUENCE dbeel_nomenclature.nomenclature_no_id_seq RESTART WITH 303;
@@ -1045,14 +1052,724 @@ INSERT INTO ireland.batch_ope(
 	AND value_type.no_name='Raw data or Individual data'
 	AND pass_number=3;  -- 394
 	
-	
 
+/*
+ * IFI electrofishing data - insert into ireland.electrofishing and ireland.batch_ope
+ */
+ 
+ALTER TABLE ireland.eel_ifi_survey ADD CONSTRAINT c_ifi_pk_id PRIMARY KEY ("row.names"); -- c_pk_id already exists?
+ALTER TABLE ireland.eel_ifi_survey RENAME COLUMN "row.names" to id;
+ALTER TABLE ireland.eel_ifi_survey ADD COLUMN op_id uuid;
+
+SELECT * FROM ireland.eel_ifi_survey
+
+/* check "joined" - do we need Samplingcode join?
+-- problem IFI, WFD stations table does not have unique set of stations
+SELECT 
+	s21.op_id,id 
+	FROM ireland.ireland_2021_stations s21
+JOIN ireland.eel_ifi_survey  su ON (su."SiteCode")=(s21.sitecode) -- 422
+
+
+WITH site_sample AS (
+    SELECT 
+	s21.op_id AS op_id,
+	id,
+	su."Site" AS site,
+	su."Samplingcode" AS samplingcode
+	FROM ireland.ireland_2021_stations s21
+	JOIN ireland.eel_ifi_survey  su ON (su."SiteCode",su."Samplingcode")=(s21.sitecode,s21.samplingcode))
+SELECT op_id, id, samplingcode FROM site_sample
+INTERSECT
+(SELECT DISTINCT
+	s21.op_id,id, s21.samplingcode 
+	FROM ireland.ireland_2021_stations s21
+	JOIN ireland.eel_ifi_survey  su ON (su."Site")=(s21.site)) -- 226
+*/
+
+
+WITH joined as (
+SELECT s21.op_id,id FROM ireland.ireland_2021_stations s21
+JOIN ireland.eel_ifi_survey  su ON (su."SiteCode",su."Samplingcode")=(s21.sitecode,s21.samplingcode)) 
+UPDATE ireland.eel_ifi_survey set op_id = joined.op_id FROM joined where joined.id=eel_ifi_survey.id; -- 226 
+
+-- check op_id for stations/surveys
+SELECT op_id FROM ireland.eel_ifi_survey -- 226
+SELECT DISTINCT op_id FROM ireland.eel_ifi_survey -- 149
+
+
+-- survey and station sitecodes
+
+-- which sitecodes are in the survey table but not the station?
+SELECT * FROM ireland.eel_ifi_survey
+EXCEPT
+SELECT eel_ifi_survey.* FROM ireland.eel_ifi_survey
+JOIN ireland.stationdbeel ON stationdbeel.sitecode="SiteCode" -- 0 rows
+
+-- checking FOR duplicates
+WITH j1 AS(
+SELECT *, EXTRACT(year FROM ob_starting_date) AS year FROM ireland.stationdbeel 
+JOIN ireland.electrofishing  ON ob_op_id=op_id)
+SELECT * FROM j1
+JOIN ireland.eel_ifi_survey s ON (s."Year", s."SiteCode")=(j1.year,j1.sitecode); -- NO duplicates
+
+-- so no duplicates there. I can insert everything
+
+-- NOTE
+-- Dodder river site with no date in WFD data
+SELECT *, 
+	EXTRACT(year FROM ob_starting_date) AS year 
+	FROM ireland.stationdbeel 
+	JOIN ireland.electrofishing  ON ob_op_id=op_id
+	WHERE EXTRACT(year FROM ob_starting_date) IS NULL
+
+
+ 
+-- run the inner query (starting with SELECT before running the insert if you want to see the data prior to inserting.
+INSERT INTO ireland.electrofishing (
+	ob_id,
+	ob_no_origin,
+	ob_no_type,
+	ob_no_period,
+	ob_starting_date,
+	ob_ending_date,
+	ob_dp_id,
+	ef_no_fishingmethod,
+	ef_no_electrofishing_mean,
+	ef_wetted_area,
+	ef_fished_length,
+	ef_fished_width,
+	ef_duration,
+	ef_nbpas,
+	ob_op_id,
+	surveyid,
+	samplingcode
+	)
+ 
+WITH survey AS(
+	SELECT st.op_id AS ob_op_id, -- this will become the foreign key in the new table
+	s.*
+	FROM ireland.stationdbeel st
+	JOIN ireland.eel_ifi_survey s ON s.op_id=st.op_id
+	--LEFT JOIN ireland.wfd_count c ON s."Samplingcode"= c.samplingcode
+	)
+	SELECT 
+	uuid_generate_v4() AS ob_id ,
+	observation_origin.no_id AS ob_no_origin,
+	observation_type.no_id AS ob_no_type, 
+	period_type.no_id AS ob_no_period,
+	"Date" AS ob_starting_date,
+	CAST(NULL AS date) as ob_ending_date,
+	data_provider.dp_id AS ob_dp_id, 
+	CASE 
+		WHEN "Methodology" = 'e/fishing wading quant' THEN 62 -- whole eel
+		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- point sampling eel - TE 
+	END AS  ef_no_fishingmethod,
+    71::numeric AS ef_no_electrofishing_mean,  -- all backpack/handset operations?
+	sitewettedarea AS ef_wetted_area, 
+	sitelength AS ef_fished_length,
+	siteaveragewettedwidth AS ef_fished_width,
+	cast(NULL as numeric) AS ef_duration,
+	survey."Numfishingpasses"::integer AS ef_nbpas,
+	survey.ob_op_id as ob_op_id,
+	NULL AS survey_id,
+	survey."Samplingcode" AS samplingcode
+	FROM 	
+		dbeel_nomenclature.observation_origin,
+		dbeel_nomenclature.observation_type,
+		dbeel_nomenclature.period_type, 
+		dbeel.data_provider,
+		survey	
+	WHERE observation_origin.no_name='Raw data' 
+	AND observation_type.no_name='Electro-fishing'  
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Colm & Ciara'; -- 226
+
+
+--UPDATE back IN the original database 	;
+ALTER TABLE ireland.eel_ifi_survey ADD COLUMN ob_id uuid;
+
+UPDATE ireland.eel_ifi_survey s SET ob_id = e.ob_id 
+	FROM ireland.electrofishing e 
+	WHERE e.samplingcode = s."Samplingcode"; -- 226
+ 
+ 
+-- NUMBER PER PASS... AND TOTAL NUMBER
+-- Batch integration, the first level will reference operation again, the second will reference the fish table
+
+
+-- number per pass and total number are  
+-- referenced by biological_characteristic_type.no_name='Number' (see biological_characteristic_type.no_id=47)
+
+-- create ireland.batch_ope
+SELECT pa_numero, count(*) FROM ireland.batch_ope 
+	GROUP BY pa_numero
+
+/*
+ * ba_quantity = "Totaleel" value in eel_ifi_survey
+ * ba_batch_level = 0
+ */
+ 
+INSERT INTO ireland.batch_ope(
+			ba_id,
+			ba_no_species,
+			ba_no_stage,
+			ba_no_value_type,
+			ba_no_biological_characteristic_type,
+			ba_quantity,
+			ba_no_individual_status,
+			ba_batch_level,
+			ba_ob_id,
+			ba_ba_id,
+			op_locationcode,
+			op_surveyid,
+			op_nb,
+			pa_numero,
+			samplingcode	
+)
+		select 
+		uuid_generate_v4() AS ba_id,
+		species.no_id AS ba_no_species,
+		stage.no_id AS ba_no_stage,
+		value_type.no_id AS ba_no_value_type,
+		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+		"Totaleel" AS ba_quantity,
+		individual_status.no_id AS ba_no_individual_status,
+		0 AS ba_batch_level,
+		ob_id as ba_ob_id,  
+		cast(NULL as uuid) as ba_ba_id, 
+		"SiteCode" as op_locationcode,
+		id::integer as op_surveyid,	
+		"Totaleel" as op_nb,
+		 cast(NULL as integer) as pa_numero,	
+		 "Samplingcode" AS samplingcode	
+	FROM 
+	ireland.eel_ifi_survey,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data';    --226
+
+
+
+-- op_p1 (ba_batch_level = 1 corresponds to pass number 1 ) 
+-- is the pass identified by the number in pa_numero)
+INSERT INTO ireland.batch_ope(
+		ba_id,
+		ba_no_species,
+		ba_no_stage,
+		ba_no_value_type,
+		ba_no_biological_characteristic_type,
+		ba_quantity,
+		ba_no_individual_status,
+		ba_batch_level,
+		ba_ob_id,
+		ba_ba_id,
+		op_locationcode,
+		op_surveyid,
+		op_nb,
+		pa_numero,
+		samplingcode	
+)
+	SELECT 
+	--wfd_count.*,
+	uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	"Totaleel" AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	ob_id as ba_ob_id,  
+	cast(NULL as uuid) as ba_ba_id, 
+	"SiteCode" as op_locationcode,
+	id::integer as op_surveyid,	
+	"Fishing1" as op_nb,
+	 cast(NULL as integer) as pa_numero, -- what goes here?
+	 "Samplingcode" AS samplingcode	
+FROM 
+ireland.eel_ifi_survey,
+dbeel_nomenclature.species, 
+dbeel_nomenclature.stage, 
+dbeel_nomenclature.biological_characteristic_type,
+dbeel_nomenclature.value_type,
+dbeel_nomenclature.individual_status
+WHERE species.no_name='Anguilla anguilla' 
+AND stage.no_name='Yellow eel' 
+AND biological_characteristic_type.no_name='Number p1' 
+AND individual_status.no_name='Alive' 
+AND value_type.no_name='Raw data or Individual data';
 	
+	
+-- op_p2
+INSERT INTO ireland.batch_ope(
+			ba_id,
+			ba_no_species,
+			ba_no_stage,
+			ba_no_value_type,
+			ba_no_biological_characteristic_type,
+			ba_quantity,
+			ba_no_individual_status,
+			ba_batch_level,
+			ba_ob_id,
+			ba_ba_id,
+			op_locationcode,
+			op_surveyid,
+			op_nb,
+			pa_numero,
+			samplingcode	
+)
+		SELECT 
+		--wfd_count.*,
+		uuid_generate_v4() AS ba_id,
+		species.no_id AS ba_no_species,
+		stage.no_id AS ba_no_stage,
+		value_type.no_id AS ba_no_value_type,
+		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+		"Totaleel" AS ba_quantity,
+		individual_status.no_id AS ba_no_individual_status,
+		2 AS ba_batch_level,
+		ob_id as ba_ob_id,  
+		cast(NULL as uuid) as ba_ba_id, 
+		"SiteCode" as op_locationcode,
+		id::integer as op_surveyid,	
+		"Fishing2" as op_nb,
+		 cast(NULL as integer) as pa_numero, -- what goes here?	
+		 "Samplingcode" AS samplingcode	
+	FROM 
+	ireland.eel_ifi_survey,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p2' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data';
+	
+-- op_p3
+INSERT INTO ireland.batch_ope(
+			ba_id,
+			ba_no_species,
+			ba_no_stage,
+			ba_no_value_type,
+			ba_no_biological_characteristic_type,
+			ba_quantity,
+			ba_no_individual_status,
+			ba_batch_level,
+			ba_ob_id,
+			ba_ba_id,
+			op_locationcode,
+			op_surveyid,
+			op_nb,
+			pa_numero,
+			samplingcode	
+)
+		SELECT 
+		--wfd_count.*,
+		uuid_generate_v4() AS ba_id,
+		species.no_id AS ba_no_species,
+		stage.no_id AS ba_no_stage,
+		value_type.no_id AS ba_no_value_type,
+		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+		"Totaleel" AS ba_quantity,
+		individual_status.no_id AS ba_no_individual_status,
+		3 AS ba_batch_level,
+		ob_id as ba_ob_id,  
+		cast(NULL as uuid) as ba_ba_id, 
+		"SiteCode" as op_locationcode,
+		id::integer as op_surveyid,	
+		"Fishing3" as op_nb,
+		 cast(NULL as integer) as pa_numero, -- what goes here?	
+		 "Samplingcode" AS samplingcode	
+	FROM 
+	ireland.eel_ifi_survey,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p3' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'; 
+
+/*
+ * MI electrofishing data - insert into ireland.electrofishing and ireland.batch_ope
+ */
+ 
+ALTER TABLE ireland.eel_mi_survey ADD CONSTRAINT c_mi_pk_id PRIMARY KEY ("row.names"); -- c_pk_id already exists?
+ALTER TABLE ireland.eel_mi_survey RENAME COLUMN "row.names" to id;
+ALTER TABLE ireland.eel_mi_survey ADD COLUMN op_id uuid;
+
+-- all NULL SurveyCode, Samplingcode in eel_mi_survey
+ALTER TABLE ireland.eel_mi_survey ALTER COLUMN "SurveyCode" TYPE text;
+ALTER TABLE ireland.eel_mi_survey ALTER COLUMN "Samplingcode" TYPE text;
+
+-- create samplingcode from Date and SiteCode columns
+SELECT
+	EXTRACT(year FROM "Date") AS year, 
+	"SiteCode" AS sitecode,
+	'MI'::text||to_char("Date", 'YY')||'_'::text||"SiteCode" AS samplingcode
+    FROM ireland.eel_mi_survey -- 246 survey entries
+
+UPDATE ireland.eel_mi_survey SET "Samplingcode" = 'MI'::text||to_char("Date", 'YY')||'_'::text||"SiteCode";
+
+SELECT 
+	s21.op_id,
+	id,
+	source AS data_source
+	FROM ireland.ireland_2021_stations s21
+	JOIN ireland.eel_mi_survey  su ON (su."SiteCode")=(s21.sitecode)  -- 246 survey entries
+
+SELECT DISTINCT
+	s21.op_id
+	FROM ireland.ireland_2021_stations s21
+	JOIN ireland.eel_mi_survey  su ON (su."SiteCode")=(s21.sitecode)  -- 35 rows
+
+SELECT * FROM ireland.ireland_2021_stations
+	WHERE source = 'MI' -- 35 stations
+
+
+/*
+ * STOPPED HERE 06/04/2022
+ * don't need to fix samplingcode column because data is structured correctly
+ */
+ 
+WITH joined as (
+SELECT s21.op_id,id FROM ireland.ireland_2021_stations s21
+JOIN ireland.eel_mi_survey  su ON (su."SiteCode")=(s21.sitecode)) 
+UPDATE ireland.eel_mi_survey set op_id = joined.op_id FROM joined where joined.id=eel_mi_survey.id; -- 246 
+
+SELECT op_id FROM ireland.eel_mi_survey -- 246
+SELECT DISTINCT op_id FROM ireland.eel_mi_survey -- 35
+
+
+-- survey and station sitecodes
+-- which sitecodes are in the survey table but not the station?
+SELECT * FROM ireland.eel_mi_survey
+EXCEPT
+SELECT eel_mi_survey.* FROM ireland.eel_mi_survey
+JOIN ireland.stationdbeel ON stationdbeel.sitecode="SiteCode" -- 0 rows
+
+-- checking FOR duplicates
+WITH j1 AS(
+SELECT *, EXTRACT(year FROM ob_starting_date) AS year FROM ireland.stationdbeel 
+JOIN ireland.electrofishing  ON ob_op_id=op_id)
+SELECT * FROM j1
+JOIN ireland.eel_mi_survey s ON (s."Year", s."SiteCode")=(j1.year,j1.sitecode); -- NO duplicates
+
+-- so no duplicates there. I can insert everything
+
+/* 
+ * electrofishing information
+ * data_provider - "Russell Poole & Elvira de Eito"
+ */
+
+-- run the inner query (starting with SELECT before running the insert if you want to see the data prior to inserting.
+INSERT INTO ireland.electrofishing (
+	ob_id,
+	ob_no_origin,
+	ob_no_type,
+	ob_no_period,
+	ob_starting_date,
+	ob_ending_date,
+	ob_dp_id,
+	ef_no_fishingmethod,
+	ef_no_electrofishing_mean,
+	ef_wetted_area,
+	ef_fished_length,
+	ef_fished_width,
+	ef_duration,
+	ef_nbpas,
+	ob_op_id,
+	surveyid,
+	samplingcode
+	)
+ 
+WITH survey AS(
+	SELECT st.op_id AS ob_op_id, -- this will become the foreign key in the new table
+	s.*
+	FROM ireland.stationdbeel st
+	JOIN ireland.eel_mi_survey s ON s.op_id=st.op_id
+	)
+	SELECT 
+	uuid_generate_v4() AS ob_id ,
+	observation_origin.no_id AS ob_no_origin,
+	observation_type.no_id AS ob_no_type, 
+	period_type.no_id AS ob_no_period,
+	"Date" AS ob_starting_date,
+	CAST(NULL AS date) as ob_ending_date,
+	data_provider.dp_id AS ob_dp_id, 
+	CASE 
+		WHEN "Methodology" = 'e/fishing wading quant' THEN 62 -- whole eel
+		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- point sampling eel - TE 
+	END AS  ef_no_fishingmethod,
+    71::numeric AS ef_no_electrofishing_mean,  -- all backpack/handset operations?
+	sitewettedarea AS ef_wetted_area, 
+	sitelength AS ef_fished_length,
+	siteaveragewettedwidth AS ef_fished_width,
+	cast(NULL as numeric) AS ef_duration,
+	survey."Numfishingpasses"::integer AS ef_nbpas,
+	survey.ob_op_id as ob_op_id,
+	NULL AS survey_id,
+	survey."Samplingcode" AS samplingcode
+	FROM 	
+		dbeel_nomenclature.observation_origin,
+		dbeel_nomenclature.observation_type,
+		dbeel_nomenclature.period_type, 
+		dbeel.data_provider,
+		survey	
+	WHERE observation_origin.no_name='Raw data' 
+	AND observation_type.no_name='Electro-fishing'  
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Russell Poole & Elvira de Eito'; -- 246
+
+
+--UPDATE back IN the original database 	;
+ALTER TABLE ireland.eel_mi_survey ADD COLUMN ob_id uuid;
+
+UPDATE ireland.eel_mi_survey s SET ob_id = e.ob_id 
+	FROM ireland.electrofishing e 
+	WHERE e.samplingcode = s."Samplingcode"; -- 246
+
+
+-- NUMBER PER PASS... AND TOTAL NUMBER
+-- Batch integration, the first level will reference operation again, the second will reference the fish table
+UPDATE ireland.eel_mi_survey SET "Totaleel" = "Fishing1" + "Fishing2" + "Fishing3"
+-- check updated version
+SELECT 
+	ob_id,
+	"SiteCode",
+	"Samplingcode",
+	"Fishing1" AS f1,
+	"Fishing2" AS f2,
+	"Fishing3" AS f3,
+	"Totaleel"
+	FROM ireland.eel_mi_survey
+	   
+-- number per pass and total number are  
+-- referenced by biological_characteristic_type.no_name='Number' (see biological_characteristic_type.no_id=47)
+
+-- create ireland.batch_ope
+
+/*
+ * ba_quantity = "Totaleel" value in eel_ifi_survey
+ * ba_batch_level = 0
+ */
+ 
+INSERT INTO ireland.batch_ope(
+			ba_id,
+			ba_no_species,
+			ba_no_stage,
+			ba_no_value_type,
+			ba_no_biological_characteristic_type,
+			ba_quantity,
+			ba_no_individual_status,
+			ba_batch_level,
+			ba_ob_id,
+			ba_ba_id,
+			op_locationcode,
+			op_surveyid,
+			op_nb,
+			pa_numero,
+			samplingcode	
+)
+		select 
+		uuid_generate_v4() AS ba_id,
+		species.no_id AS ba_no_species,
+		stage.no_id AS ba_no_stage,
+		value_type.no_id AS ba_no_value_type,
+		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+		"Totaleel" AS ba_quantity,
+		individual_status.no_id AS ba_no_individual_status,
+		0 AS ba_batch_level,
+		ob_id as ba_ob_id,  
+		cast(NULL as uuid) as ba_ba_id, 
+		"SiteCode" as op_locationcode,
+		id::integer as op_surveyid,	
+		"Totaleel" as op_nb,
+		 cast(NULL as integer) as pa_numero,	
+		 "Samplingcode" AS samplingcode	
+	FROM 
+	ireland.eel_mi_survey,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data';    --246
+
+
+
+-- op_p1 (ba_batch_level = 1 corresponds to pass number 1 ) 
+-- is the pass identified by the number in pa_numero)
+INSERT INTO ireland.batch_ope(
+		ba_id,
+		ba_no_species,
+		ba_no_stage,
+		ba_no_value_type,
+		ba_no_biological_characteristic_type,
+		ba_quantity,
+		ba_no_individual_status,
+		ba_batch_level,
+		ba_ob_id,
+		ba_ba_id,
+		op_locationcode,
+		op_surveyid,
+		op_nb,
+		pa_numero,
+		samplingcode	
+)
+	SELECT 
+	--wfd_count.*,
+	uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	"Totaleel" AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	1 AS ba_batch_level,
+	ob_id as ba_ob_id,  
+	cast(NULL as uuid) as ba_ba_id, 
+	"SiteCode" as op_locationcode,
+	id::integer as op_surveyid,	
+	"Fishing1" as op_nb,
+	 cast(NULL as integer) as pa_numero, -- what goes here?
+	 "Samplingcode" AS samplingcode	
+FROM 
+ireland.eel_mi_survey,
+dbeel_nomenclature.species, 
+dbeel_nomenclature.stage, 
+dbeel_nomenclature.biological_characteristic_type,
+dbeel_nomenclature.value_type,
+dbeel_nomenclature.individual_status
+WHERE species.no_name='Anguilla anguilla' 
+AND stage.no_name='Yellow eel' 
+AND biological_characteristic_type.no_name='Number p1' 
+AND individual_status.no_name='Alive' 
+AND value_type.no_name='Raw data or Individual data';
+
+
+-- op_p2 (ba_batch_level = 2 corresponds to pass number 2 ) 
+-- is the pass identified by the number in pa_numero)
+INSERT INTO ireland.batch_ope(
+		ba_id,
+		ba_no_species,
+		ba_no_stage,
+		ba_no_value_type,
+		ba_no_biological_characteristic_type,
+		ba_quantity,
+		ba_no_individual_status,
+		ba_batch_level,
+		ba_ob_id,
+		ba_ba_id,
+		op_locationcode,
+		op_surveyid,
+		op_nb,
+		pa_numero,
+		samplingcode	
+)
+	SELECT 
+	--wfd_count.*,
+	uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	"Totaleel" AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	2 AS ba_batch_level,
+	ob_id as ba_ob_id,  
+	cast(NULL as uuid) as ba_ba_id, 
+	"SiteCode" as op_locationcode,
+	id::integer as op_surveyid,	
+	"Fishing2" as op_nb,
+	 cast(NULL as integer) as pa_numero, -- what goes here?
+	 "Samplingcode" AS samplingcode	
+FROM 
+ireland.eel_mi_survey,
+dbeel_nomenclature.species, 
+dbeel_nomenclature.stage, 
+dbeel_nomenclature.biological_characteristic_type,
+dbeel_nomenclature.value_type,
+dbeel_nomenclature.individual_status
+WHERE species.no_name='Anguilla anguilla' 
+AND stage.no_name='Yellow eel' 
+AND biological_characteristic_type.no_name='Number p1' 
+AND individual_status.no_name='Alive' 
+AND value_type.no_name='Raw data or Individual data';
+
+-- op_p3 (ba_batch_level = 3 corresponds to pass number 3 ) 
+-- is the pass identified by the number in pa_numero)
+INSERT INTO ireland.batch_ope(
+		ba_id,
+		ba_no_species,
+		ba_no_stage,
+		ba_no_value_type,
+		ba_no_biological_characteristic_type,
+		ba_quantity,
+		ba_no_individual_status,
+		ba_batch_level,
+		ba_ob_id,
+		ba_ba_id,
+		op_locationcode,
+		op_surveyid,
+		op_nb,
+		pa_numero,
+		samplingcode	
+)
+	SELECT 
+	--wfd_count.*,
+	uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	"Totaleel" AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	3 AS ba_batch_level,
+	ob_id as ba_ob_id,  
+	cast(NULL as uuid) as ba_ba_id, 
+	"SiteCode" as op_locationcode,
+	id::integer as op_surveyid,	
+	"Fishing3" as op_nb,
+	 cast(NULL as integer) as pa_numero, -- what goes here?
+	 "Samplingcode" AS samplingcode	
+FROM 
+ireland.eel_mi_survey,
+dbeel_nomenclature.species, 
+dbeel_nomenclature.stage, 
+dbeel_nomenclature.biological_characteristic_type,
+dbeel_nomenclature.value_type,
+dbeel_nomenclature.individual_status
+WHERE species.no_name='Anguilla anguilla' 
+AND stage.no_name='Yellow eel' 
+AND biological_characteristic_type.no_name='Number p1' 
+AND individual_status.no_name='Alive' 
+AND value_type.no_name='Raw data or Individual data';
+
+
 -- densities as below are also calculated later but still I integrate them here
 -- referenced by biological_characteristic_type.no_name='density' and the corresponding biological_characteristic_type.no_id
 
-
-	
+/* 
+COLM STOPPED HERE 25/04/2022
 /*
 
 DROP TABLE if exists ireland.batch_fish CASCADE;
@@ -1136,7 +1853,7 @@ select ob_id as ba_ob_id, cast(NULL AS uuid) as ba_ba_id, fi.* from ireland.elec
 	join ireland.fish_fi fi on fi.fi_op_id=ee.op_id 
 	where op_equipment='Handset'
 */
--- attention toutes les lignes de batch_fish sont int�gr�es modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
 INSERT INTO ireland.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -1662,7 +2379,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont int�gr�es modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -1915,7 +2632,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont int�gr�es modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -2079,7 +2796,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont int�gr�es modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
