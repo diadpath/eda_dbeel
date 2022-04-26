@@ -663,6 +663,17 @@ INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_ty
 SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fishing','Electrofishing, eel specific point sampling (Germis, 2009)';-- point sampling
 ALTER SEQUENCE dbeel_nomenclature.nomenclature_no_id_seq RESTART WITH 303;
 
+-- TO BE UPDATED MARIA / DENIS 26/04 (added two electrofishing types from ireland)
+DELETE FROM dbeel_nomenclature.scientific_observation_method WHERE no_id IN (304,305)
+INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
+SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)';--1
+INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
+SELECT 304,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+
+
+
+
+
 
 --------------------------------------------------------------------------------------------
 -- CREATING INDEXES 13/03/2020

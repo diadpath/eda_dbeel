@@ -639,10 +639,14 @@ SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fish
  * as there are very few of those sampling available.
  */
 
+
+
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 305,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+SELECT 304,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
+SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)';--1
 -- SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)'; --1
-UPDATE dbeel_nomenclature.scientific_observation_method set (no_name, sc_definition) = ('Boom boat', 'Boom boat (Pulsed)') where no_id = 305;
+--UPDATE dbeel_nomenclature.scientific_observation_method set (no_name, sc_definition) = ('Boom boat', 'Boom boat (Pulsed)') where no_id = 305;
 
 
 
@@ -1764,7 +1768,31 @@ AND biological_characteristic_type.no_name='Number p1'
 AND individual_status.no_name='Alive' 
 AND value_type.no_name='Raw data or Individual data';
 
+-- Some corrections before integrating
 
+/*
+ * 
+ * The type 305 needs to be updated as 304 for boom boats
+ */
+
+
+
+
+  
+  SELECT DISTINCT wfdmethod FROM ireland.eel_wfd_survey ;
+    
+--  SELECT * FROM ireland.electrofishing WHERE ob_id IN (
+--  SELECT  ob_id FROM ireland.eel_wfd_survey WHERE wfdmethod='Boom Boat (Pulsed)');
+
+UPDATE ireland.electrofishing SET ef_no_fishingmethod=305 WHERE ob_id IN (
+  SELECT  ob_id FROM ireland.eel_wfd_survey WHERE wfdmethod='Boom Boat (Pulsed)');--79
+  
+--  SELECT * FROM ireland.electrofishing WHERE ob_id IN (
+--  SELECT  ob_id FROM ireland.eel_wfd_survey WHERE wfdmethod IN ('TEF (Handset)','10 Min (Handset)','10 Min (Boat)'));  
+
+UPDATE ireland.electrofishing SET ef_no_fishingmethod=304 WHERE ob_id IN (
+  SELECT  ob_id FROM ireland.eel_wfd_survey WHERE wfdmethod IN ('TEF (Handset)','10 Min (Handset)','10 Min (Boat)'));  --736
+  
 -- densities as below are also calculated later but still I integrate them here
 -- referenced by biological_characteristic_type.no_name='density' and the corresponding biological_characteristic_type.no_id
 
