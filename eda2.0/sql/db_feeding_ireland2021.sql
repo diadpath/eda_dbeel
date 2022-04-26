@@ -1163,7 +1163,7 @@ WITH survey AS(
 	data_provider.dp_id AS ob_dp_id, 
 	CASE 
 		WHEN "Methodology" = 'e/fishing wading quant' THEN 62 -- whole eel
-		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- point sampling eel - TE 
+		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- timed electrofished - TE 
 	END AS  ef_no_fishingmethod,
     71::numeric AS ef_no_electrofishing_mean,  -- all backpack/handset operations?
 	sitewettedarea AS ef_wetted_area, 
@@ -1513,7 +1513,7 @@ WITH survey AS(
 	data_provider.dp_id AS ob_dp_id, 
 	CASE 
 		WHEN "Methodology" = 'e/fishing wading quant' THEN 62 -- whole eel
-		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- point sampling eel - TE 
+		WHEN "Methodology" = 'e/fishing wading semi-quant' THEN  304 -- timed electrofishing - TE 
 	END AS  ef_no_fishingmethod,
     71::numeric AS ef_no_electrofishing_mean,  -- all backpack/handset operations?
 	sitewettedarea AS ef_wetted_area, 
