@@ -617,7 +617,7 @@ UPDATE dbeel_nomenclature.scientific_observation_method set (no_code,sc_definiti
 -- START HERE COLM 08/10
 
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 301,'DH','Scientific_observation_type','Deep habitat','Electro-fishing','Normalized method for deep habitat (Belliard et al.,2018)';-- Pêche grands milieux
+SELECT 301,'DH','Scientific_observation_type','Deep habitat','Electro-fishing','Normalized method for deep habitat (Belliard et al.,2018)';-- Pï¿½che grands milieux
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
 SELECT 302,'WE','Scientific_observation_type','Whole eel','Electro-fishing','Electrofishing, whole eel specific';-- COA
 SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fishing','Electrofishing, eel specific point sampling (Germis, 2009)';-- point sampling
@@ -630,10 +630,13 @@ SELECT 303,'PE','Scientific_observation_type','Point sampling eel','Electro-fish
 
 
 
+
 INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
-SELECT 305,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+SELECT 304,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
+--DELETE FROM dbeel_nomenclature.scientific_observation_method where no_id=305 ;
 
-
+INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
+SELECT 305,'BB','Scientific_observation_type','Boom boat','Electro-fishing','Boom boat (Pulsed)';--1
 
 
 ALTER SEQUENCE dbeel_nomenclature.nomenclature_no_id_seq RESTART WITH 303;
@@ -1133,7 +1136,7 @@ select ob_id as ba_ob_id, cast(NULL AS uuid) as ba_ba_id, fi.* from ireland.elec
 	join ireland.fish_fi fi on fi.fi_op_id=ee.op_id 
 	where op_equipment='Handset'
 */
--- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intï¿½grï¿½es modifier pour le prochain
 INSERT INTO ireland.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -1659,7 +1662,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intï¿½grï¿½es modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -1912,7 +1915,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intï¿½grï¿½es modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
@@ -2076,7 +2079,7 @@ select ba_id AS bc_ba_id,fi_weight from wrbd.gear_exp_fishery
 	join wrbd.batch_fish  on ob_id=ba_ob_id 
 	where op_equipment='fyke net'
 	*/
--- attention toutes les lignes de batch_fish sont intégrées modifier pour le prochain
+-- attention toutes les lignes de batch_fish sont intï¿½grï¿½es modifier pour le prochain
 INSERT INTO wrbd.mensurationindiv_biol_charac
 	SELECT 
 		 uuid_generate_v4() AS bc_id, 
