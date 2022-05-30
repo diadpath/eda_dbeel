@@ -2,8 +2,13 @@
 
 library(readr)
 library(stringr)
-library(DBI)
+#library(DBI)
 library(RPostgres)
+library(sf)
+library(dplyr)
+
+# Options
+options(scipen=999)
 
 # Set up database connection ----
 
@@ -17,8 +22,8 @@ con = dbConnect(Postgres(),
 
 # Load data ----
 
-# Load xls file from template. Data where included by hand from whathever was 
-# transmeted by FDAPPMAs
+# Load csv file from template. Data where included by hand from whatever was 
+# transmitted by FDAPPMAs
 
 ## Stations ----
 
@@ -32,6 +37,16 @@ peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv"))
 
 biometry_FD <- readr::read_csv(str_c(datawd,"/loire/data/bio_FD_EDALoire.csv"))
 
+# Geographic conversion ----
+
+stations_FD_sf <- st_as_sf(x = stations_FD, coords = c("sta_X", "sta_Y"), crs = 2154) %>% 
+  st_transform(crs = 3035) %>% 
+  mutate(SRID = 3035)
+
+coords_FD <-st_coordinates(stations_FD_sf)
+
+stations_FD_sf <- stations_FD_sf %>% 
+  bind_cols(coords_FD)
 
 # Write data into the database ----
 
