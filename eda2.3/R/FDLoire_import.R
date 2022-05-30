@@ -1,8 +1,9 @@
 # Libraries ----
 
 library(readr)
+library(stringr)
 library(DBI)
-
+library(RPostgres)
 
 # Set up database connection ----
 
@@ -21,34 +22,33 @@ con = dbConnect(Postgres(),
 
 ## Stations ----
 
-stations_FD <- readxl::read_excel("../donneesFD_EDALoire.xlsx", sheet = "Station")
+stations_FD <- readr::read_csv(str_c(datawd,"/loire/data/stations_FD_EDALoire.csv"))
 
 ## Peches ----
 
-peches_FD <-readxl::read_excel("../donneesFD_EDALoire.xlsx", sheet = "Peche")
-
+peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv"))
 
 ## Biometry
 
-biometry_FD <- readxl::read_excel("../donneesFD_EDALoire.xlsx", sheet = "Biometrie")
+biometry_FD <- readr::read_csv(str_c(datawd,"/loire/data/bio_FD_EDALoire.csv"))
 
 
 # Write data into the database ----
 
 ## Stations ----
 
-DBI::dbExecute(con, "DROP TABLE if exists france.station_FDLoire;")
-DBI::dbWriteTable(con, "station_FDLoire", station_FD) # written in public scheme
-DBI::dbExecute(con, "ALTER TABLE station_FDLoire set schema france")
+DBI::dbExecute(con, "DROP TABLE if exists france.station_fdloire;")
+DBI::dbWriteTable(con, "station_fdloire", stations_FD) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE station_fdloire set schema france")
 
 ## Peches ----
 
-DBI::dbExecute(con, "DROP TABLE if exists france.operation_FDLoire;")
-DBI::dbWriteTable(con, "operation_FDLoire", peches_FD) # written in public scheme
-DBI::dbExecute(con, "ALTER TABLE operation_FDLoire set schema france")
+DBI::dbExecute(con, "DROP TABLE if exists france.operation_fdloire;")
+DBI::dbWriteTable(con, "operation_fdloire", peches_FD) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE operation_fdloire set schema france")
 
 ## Biometry
 
-DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_FDLoire;")
-DBI::dbWriteTable(con, "batch_fish_FDLoire", biometry_FD) # written in public scheme
-DBI::dbExecute(con, "ALTER TABLE batch_fish_FDLoire set schema france")
+DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_fdloire;")
+DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE batch_fish_fdloire set schema france")
