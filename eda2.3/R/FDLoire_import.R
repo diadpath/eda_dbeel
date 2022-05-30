@@ -53,7 +53,7 @@ stations_FD_sf <- stations_FD_sf %>%
 ## Stations ----
 
 DBI::dbExecute(con, "DROP TABLE if exists france.station_fdloire;")
-DBI::dbWriteTable(con, "station_fdloire", stations_FD) # written in public scheme
+DBI::dbWriteTable(con, "station_fdloire", stations_FD_sf) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE station_fdloire set schema france")
 
 ## Peches ----
