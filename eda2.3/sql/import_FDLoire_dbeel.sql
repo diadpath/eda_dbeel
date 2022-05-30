@@ -1,59 +1,27 @@
 --------------------------------------------------------------------------------------------
---  GT6: reprojection and stations in 2018/2019
+--  Stations
 --------------------------------------------------------------------------------------------
 
--- Move the teble to sudoang schema from public
-ALTER TABLE gt6_station
-    SET SCHEMA sudoang;
 
-ALTER TABLE sudoang.gt6_station RENAME COLUMN geometry TO geom;
+ALTER TABLE france.station_fdloire RENAME COLUMN geometry TO geom;
 
-select * from sudoang.gt6_station; -- 99 rows
 
 CREATE INDEX 
-  ON sudoang.gt6_station
+  ON france.station_fdloire
   USING gist
   (geom);
   
--- Reprojection
-
-select st_srid(geom) from sudoang.gt6_station; -- 3035 (SELECT Find_SRID doesn't work)
-
-select addgeometrycolumn('sudoang','gt6_station','geom_reproj',3035,'POINT',2);
-update sudoang.gt6_station set geom_reproj = sub2.geom_reproj from (
-select distinct on ("sta_cod") "sta_cod", geom_reproj,distance from(
-select
-"sta_cod", 
-ST_ClosestPoint(r.geom,s.geom) as geom_reproj,
-ST_distance(r.geom,s.geom) as distance
-from sudoang.gt6_station s join
-spain.rn r on st_dwithin(r.geom,s.geom,300) 
-order by "sta_cod", distance
-)sub )sub2
-where sub2."sta_cod"= gt6_station."sta_cod"; -- 67 rows (98 total)
-
-CREATE INDEX 
-  ON sudoang.gt6_station
-  USING gist
-  (geom_reproj);
-
-
 
 -- to store the link for dbeel
 ALTER TABLE sudoang.gt6_station ADD COLUMN dbeel_op_id uuid;
   
--- internal duplicate here (added id (GT6_) from SIBIC.R script)
-WITH duplicate AS
-(
-	SELECT sp1.id AS id1, sp2.id AS id2 FROM sudoang.gt6_station AS sp1, sudoang.gt6_station AS sp2
-	WHERE substring(sp1.id from 5) < substring(sp2.id from 5) AND ST_DWithin(sp1.geom, sp2.geom, 0.01)
-) SELECT *, rank() OVER(PARTITION BY id1 ORDER BY id2) FROM duplicate ORDER BY substring(id1 from 5)::integer
-; -- GT6_92 and TG6_97 internal duplicates
 
 
 -- add establishment
 -- select * from dbeel.establishment
-INSERT INTO dbeel.establishment(et_establishment_name) VALUES ('GT6'); --TODO: TO BE MODIFIED
+INSERT INTO dbeel.establishment(et_establishment_name)
+SELECT DISTINCT sf.sta_source from station_fdloire sf ;
+
 -- add data provider
 INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
 	SELECT 'Isabel Domingos', et_id FROM dbeel.establishment WHERE et_establishment_name = 'GT6'
