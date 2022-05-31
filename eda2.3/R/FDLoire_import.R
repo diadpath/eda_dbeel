@@ -31,7 +31,8 @@ stations_FD <- readr::read_csv(str_c(datawd,"/loire/data/stations_FD_EDALoire.cs
 
 ## Peches ----
 
-peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv"))
+peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv")) %>% 
+  left_join(stations_FD %>% select(sta_id, sta_source), by = c("op_sta_id" = "sta_id"))
 
 ## Biometry
 
