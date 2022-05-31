@@ -24,21 +24,108 @@ SELECT DISTINCT sf.sta_source from station_fdloire sf ;
 
 -- add data provider
 INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
-	SELECT 'Isabel Domingos', et_id FROM dbeel.establishment WHERE et_establishment_name = 'GT6'
-; --TODO: TO BE MODIFIED
+	VALUES 
+	('François-Xavier Ripoche', 28),
+	('Cyril Lombardot', 29),
+	('David Maffre', 30),
+	('Barbara Gérard',31),
+	('Brice Nowosielski', 32),
+	('Mélanie Hilaire', 33),
+	('Laurent Delliaux', 34);
 
+
+-- Create the stationdbeel table from dbeel
+DROP TABLE if exists france.dbeel_station_fdloire CASCADE;
+CREATE TABLE france.dbeel_station_fdloire (
+	sta_id integer,
+	country character varying(2),		
+	CONSTRAINT pk_so_op_id_loire PRIMARY KEY (op_id),
+	CONSTRAINT fk_so_observation_place_type_id_loire FOREIGN KEY (op_no_observationplacetype) 
+		REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
+		MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.observation_places);
+
+--select * from france.dbeel_station_aspe limit 10;
+
+DELETE FROM france.dbeel_batch_ope_aspe; --75666
+DELETE FROM france.dbeel_electrofishing_aspe; --33300
+DELETE FROM france.dbeel_station_fdloire; 
+
+
+-- Insert data into the dbeel table
+INSERT INTO france.dbeel_station_fdloire 
+	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
+	'3035' AS op_gis_systemname ,
+	'fdloire' AS op_gis_layername, 
+	NULL AS op_gislocation, 
+	sta_lib AS op_placename,
+	10 AS op_no_observationplacetype, -- Sampling station
+	NULL AS  op_op_id,
+	geom  as the_geom, -- already 3035
+   sta_id,
+   'FR' AS country 
+	FROM france.station_fdloire ;  --32720 17s => 31734 après filtre contour france
+
+------------------------------
+--Add uuid to original table
+--------------------------------
+	
+	
+	ALTER TABLE france.station_fdloire  ADD COLUMN sta_dbeel_op_id UUID;
+	UPDATE france.station_fdloire SET sta_dbeel_op_id = op_id FROM
+ france.dbeel_station_fdloire WHERE dbeel_station_fdloire.sta_id=station_fdloire.sta_id; --2550
+ 
+ 
+ 
+ /*--------------------------------------------------
+-- fdloire.electrofishing
+-------------------------------------------------*/
+	
+DROP TABLE if exists france.dbeel_electrofishing_fdloire CASCADE;
+
+CREATE TABLE france.dbeel_electrofishing_fdloire(
+  odp_nombre_points_anguilles INTEGER,
+  nb_point INTEGER,
+  op_typ TEXT,
+  mom_libelle TEXT,
+  ope_id INTEGER,
+  pop_id INTEGER,
+  sta_id INTEGER,
+  CONSTRAINT pk_oo_ob_id PRIMARY KEY (ob_id),
+	CONSTRAINT fk_oo_op_id FOREIGN KEY (ob_op_id)	
+		REFERENCES france.dbeel_station_aspe (op_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT fk_oo_dp_id FOREIGN KEY (ob_dp_id)	
+		REFERENCES dbeel.data_provider (dp_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_electrofishing_mean FOREIGN KEY (ef_no_electrofishing_mean)
+		REFERENCES dbeel_nomenclature.electrofishing_mean (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_electrofishing_method FOREIGN KEY (ef_no_fishingmethod)
+		REFERENCES dbeel_nomenclature.scientific_observation_method (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_origin FOREIGN KEY (ob_no_origin)
+		REFERENCES dbeel_nomenclature.observation_origin (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_period FOREIGN KEY (ob_no_period)
+		REFERENCES dbeel_nomenclature.period_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_type FOREIGN KEY (ob_no_type)
+		REFERENCES dbeel_nomenclature.observation_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.electrofishing);
 
 -- duplicate with data already in dbeel, there is one internal duplicate in dbeel that we ignore
 -- we choose the closest station to join with
 
 --update sudoang.gt6_station set dbeel_op_id IS NULL;
 WITH 
-projection_gt6 AS (
+projection_fdL AS (
 	SELECT st_distance(g.geom_reproj,d.geom_reproj) as dist,
 	 d.op_id, 
 	 g.id,
 	 d.place_classification
-	FROM sudoang.gt6_station g
+	FROM france.station_fdloire g
         JOIN  sudoang.dbeel_station d on ST_DWithin(d.geom_reproj, g.geom_reproj, 50)
 	WHERE g.geom_reproj IS NOT NULL
 	order by id, dist
