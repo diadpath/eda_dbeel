@@ -148,14 +148,37 @@ SELECT
 		 WHEN sta_source LIKE 'FD43' THEN 36
 		 WHEN sta_source LIKE 'FD45' THEN 37
 	END AS ob_dp_id, 
-	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
-	     WHEN op_typ ILIKE '%compl%' THEN 62
-	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
-	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	CASE WHEN (op_typ ILIKE '%compl%') AND objectif ILIKE '%anguilles%' THEN 302
+	     WHEN op_typ ILIKE '%artielle sur berge%' THEN 302
+	     WHEN (op_typ ILIKE '%compl%' OR op_type ILIKE 'Sauvetage' OR op_type ILIKE '%passage%') THEN 62
+	     WHEN (op_typ ILIKE '%partielle%' OR op_typ ILIKE 'Par points' OR op_typ ILIKE 'Echantillonnage ponctuel d''abondance') THEN 301
+	     WHEN op_typ ILIKE '%mbiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
-       WHEN op_typ ILIKE '%anguille%' THEN 303	
+       WHEN (op_typ ILIKE '%anguille%' OR op_typ ILIKE '%IAA%') THEN 303	
        ELSE 61 -- si y a des des 61 se m�fier
 	END AS ef_no_fishingmethod,
+	
+
+peche_pied_barrage -> code à créer (on aura des données nouvelles sur le Loire cette année)
+
+
+ 
+
+Sondage presence-absence -> a virer?
+Complête -> 62
+EPA ANG -> 303
+EPA -> 301
+Complete -> 62
+Stratifiée par Trait - > 301
+Complète -> 62
+	
+	
+	
+	
+	
+	
+	
+	
 	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
 	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
 	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
