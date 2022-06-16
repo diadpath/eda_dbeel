@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------------------
 SELECT * FROM france.station_fdloire;
 
-ALTER TABLE france.station_fdloire RENAME COLUMN geometry TO geom;
+--ALTER TABLE france.station_fdloire RENAME COLUMN geometry TO geom;
 
 
 CREATE INDEX 
