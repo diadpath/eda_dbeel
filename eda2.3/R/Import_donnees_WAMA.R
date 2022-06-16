@@ -39,34 +39,53 @@ sqlTables(channel)
 # marche pas
 #t_sta <- reseaux %>% right_join(stares, by=c("codereseau")) %>%
 #		right_join(stasandre, by=c("stcod"="CdStationMesureEauxSurface")) %>%
+save(t_ope,t_sta,t_pois,station,file=str_c(datawd,"/loire/data/sauvbasewama.Rdata"))
 
 
+# les données avec un # ne sont que dans station, on filtre pour ne prendre que les stations où on a des opérations
 t_sta <- station %>%
-	filter(stcod%in%unique(t_ope[,c("stcod")])) # 179
+		filter(stcod%in%unique(t_ope[,c("stcod")])) # 179
 
 
 #nrow(t_sta)
 # nrow(stasandre)
-
+# les colonnes à créer sont les suivantes  (utiliser dput(colnames(X))
 c("sta_id", "sta_source", "sta_layername", "sta_cod", "sta_lib", 
 		"sta_X", "sta_Y", "SRID")
 
-str(t_sta)
- t_sta %>% select(stcod, stlieu, stabs,
-				 stola) %>%
+# On sectionne les colonnes d'intérêt (mais voir limites ça pourrait valoir le coup de les garder)
+# 
+t_sta2 <- t_sta %>% select(stcod, stlieu, stabs, stola, StAbs93, Stola93) %>%	
 		rename(sta_cod=stcod, 
 				sta_lib=stlieu,
 				sta_X=stabs, 
-				sta_Y=stola) %>%
-		filter(!is.na(stabs))
+				sta_Y=stola,
+				sta_X2154 =StAbs93,
+				sta_Y2154 = Stola93) %>%
+		mutate(SRID= 27572)
+t_sta3 <- bind_rows(
+		t_sta2 %>% filter(is.na(sta_X)|sta_X==0) %>% mutate(sta_X=sta_X2154, sta_Y=sta_Y2154, SRID=2154),
+		t_sta2 %>% filter(!is.na(sta_X)&sta_X!=0)
+)
+t_sta3[t_sta3$sta_Y<10^6 & !is.na(t_sta3$sta_Y),"sta_Y"] <- t_sta3[t_sta3$sta_Y<10^6 & !is.na(t_sta3$sta_Y),"sta_Y"] +2*10^6
+t_sta3 <- t_sta3[sta_y!=22773879, "sta_Y"] <- 
+
 st_sta2 <-		st_as_sf(x = t_sta2, coords = c("sta_X", "sta_Y"), crs = 27572) %>% 
-  st_transform(crs = 3035) %>% 
-  mutate(SRID = 3035)
+		st_transform(crs = 3035) %>% 
+		mutate(SRID = 3035)
+con = dbConnect(Postgres(),
+		dbname=baseODBCrios[1],
+		host="localhost",
+		port=5432,
+		user=baseODBCrios[2], 
+		password=baseODBCrios[3])
+st_write(st_sta2, con, "temp_sta_37")
+
 plot(st_sta2)
-		
-		
+
+
 #sqlTables(channel)[sqlTables(channel)$TABLE_TYPE=="TABLE",]
-		query <- "select * from PointPrelMetier"
+query <- "select * from PointPrelMetier"
 t_ptPrel <- sqlQuery(channel, query, errors = TRUE)
 t_op <- killfactor(merge(t_ptPrel,t_ope,by.x="Id_PtPrelMetier",by.y="Op_Id_PtPrelMetier"))
 t_ops <- killfactor(merge(t_op,t_sta,by.x="Pm_Id_PointPrel",by.y="Sr_Id_PointPrel")) # operation ptprel station
