@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------------------
 --  Stations
 --------------------------------------------------------------------------------------------
-
+SELECT * FROM france.station_fdloire;
 
 ALTER TABLE france.station_fdloire RENAME COLUMN geometry TO geom;
 
@@ -13,14 +13,14 @@ CREATE INDEX
   
 
 -- to store the link for dbeel
-ALTER TABLE sudoang.gt6_station ADD COLUMN dbeel_op_id uuid;
+ALTER TABLE france.station_fdloire ADD COLUMN dbeel_op_id uuid;
   
 
 
 -- add establishment
 -- select * from dbeel.establishment
 INSERT INTO dbeel.establishment(et_establishment_name)
-SELECT DISTINCT sf.sta_source from station_fdloire sf ;
+SELECT DISTINCT sf.sta_source from france.station_fdloire sf ; --7
 
 -- add data provider
 INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
@@ -47,9 +47,9 @@ CREATE TABLE france.dbeel_station_fdloire (
 
 --select * from france.dbeel_station_aspe limit 10;
 
-DELETE FROM france.dbeel_batch_ope_aspe; --75666
-DELETE FROM france.dbeel_electrofishing_aspe; --33300
-DELETE FROM france.dbeel_station_fdloire; 
+-- DELETE FROM france.dbeel_batch_ope_aspe; --75666
+-- DELETE FROM france.dbeel_electrofishing_aspe; --33300
+-- DELETE FROM france.dbeel_station_fdloire; 
 
 
 -- Insert data into the dbeel table
@@ -64,7 +64,7 @@ INSERT INTO france.dbeel_station_fdloire
 	geom  as the_geom, -- already 3035
    sta_id,
    'FR' AS country 
-	FROM france.station_fdloire ;  --32720 17s => 31734 après filtre contour france
+	FROM france.station_fdloire ;  --2550
 
 ------------------------------
 --Add uuid to original table

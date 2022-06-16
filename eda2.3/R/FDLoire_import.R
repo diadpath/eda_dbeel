@@ -9,7 +9,8 @@ library(dplyr)
 
 # Options
 options(scipen=999)
-
+rivernetwork <- "RIOS"
+source("common/init.r")
 # Set up database connection ----
 
 con = dbConnect(Postgres(),
@@ -56,7 +57,7 @@ stations_FD_sf <- stations_FD_sf %>%
 ## Stations ----
 
 DBI::dbExecute(con, "DROP TABLE if exists france.station_fdloire;")
-DBI::dbWriteTable(con, "station_fdloire", stations_FD_sf) # written in public scheme
+st_write(stations_FD_sf,con,"station_fdloire") # written in public schema with geometry
 DBI::dbExecute(con, "ALTER TABLE station_fdloire set schema france")
 
 ## Peches ----
@@ -70,3 +71,4 @@ DBI::dbExecute(con, "ALTER TABLE operation_fdloire set schema france")
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_fdloire;")
 DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_fish_fdloire set schema france")
+
