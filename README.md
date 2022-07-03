@@ -17,11 +17,9 @@ Version 2.2 RHT
 Vertion 2.3 corresponds to the development in sudoang.
 
 ## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+cedric.briand@eptb-vilaine.fr
 
-
-## Contributing
 
 
 ## Project status
-Still working
+dbeel is active, last developements 2022 june, import of electrofishing data France.
