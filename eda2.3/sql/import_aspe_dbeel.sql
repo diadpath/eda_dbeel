@@ -1,3 +1,4 @@
+-- updated TABLES 04/04 => Maria
 
 /*
 dbeel.establishment
@@ -6,139 +7,130 @@ dbeel.data_provider
 
 
 ---------------------------------------------
--- SCRIPT INTEGRATION RSA => DBEEL me 08/07/2022 Clarisse/ Denis / Cédric
+-- SCRIPT INTEGRATION SIBIC => DBEEL
 ---------------------------------------------
 
 
 -- select * from dbeel.establishment;
-
+INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('OFB');
 --select * from dbeel.data_provider
 --select max(dp_id) from dbeel.data_provider; -- 25
-
-
--- Creation de data providers à partir des noms de la table RSA
-
-INSERT INTO  dbeel.data_provider ( dp_name, dp_et_id) 
-SELECT prod_libelle, 27 FROM rsa.producteurs_prod; --17
-ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 38;
+INSERT INTO  dbeel.data_provider (dp_id, dp_name, dp_et_id) VALUES (30, 'Pascal Irz',27);
+ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
 
 
 -- TABLES FOR IMPORT will be created IN France AND IN loire schema (for electrofishing from f�d�rations de p�che)
--- script for creating station is in eda_dbeel/eda2.3/R/rsa_import.R
+-- script for creating station is in eda_dbeel/eda2.3/R/aspe_import.R
+
+
+select * from dbeel.observation_places limit 10;
 
 
 
 
+-- select * from france.station_aspe limit 10;
 
+SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 32727 true
 
---SELECT * FROM rsa.station s ;
-
---SELECT DISTINCT(st_srid(geom)) FROM rsa.station; -- il y a des NULLS
--- Mise à jours de champs geom manquants (travail en cours de Clarisse)
-UPDATE rsa.station SET geom = ST_GeomFromText('POINT(' ||sta_x93 || ' ' || sta_y93 || ')', 2154)
-WHERE geom IS NULL; --20
-
-
-SELECT DISTINCT  count(*), sta_statut FROM france.station_rsa GROUP BY sta_statut; -- 32727 true
-
-
-SELECT * FROM dbeel.observation_places;
 -- Create the stationdbeel table from dbeel
-DROP TABLE if exists france.dbeel_station_rsa CASCADE;
-CREATE TABLE france.dbeel_station_rsa (
-  sta_id INTEGER,
-	sta_cod TEXT, 
-	sta_code TEXT,
-	sta_zone TEXT,
-	fleuve_lib TEXT,
-	sta_reseau  TEXT,
-  country character varying(2),
-	CONSTRAINT pk_rsa_op_id PRIMARY KEY (op_id),
-	CONSTRAINT c_uk_rsa_sta_id_sta_cod UNIQUE (sta_id,sta_zone),
-	CONSTRAINT fk_rsa_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
+DROP TABLE if exists france.dbeel_station_aspe CASCADE;
+CREATE TABLE france.dbeel_station_aspe (
+	sta_id integer,
+	sta_code_sandre TEXT,
+  country character varying(2),		
+	CONSTRAINT pk_so_op_id PRIMARY KEY (op_id),
+	CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
 		REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
 		MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS (dbeel.observation_places);
 
-COMMENT ON  COLUMN france.dbeel_station_rsa.sta_cod IS 'Code opérateur original avec dièses de wama remplacés par des underscore';
-COMMENT ON  COLUMN  france.dbeel_station_rsa.sta_code IS 'Code opérateur original';
+--select * from france.dbeel_station_aspe limit 10;
 
---select * from france.dbeel_station_rsa limit 10;
+DELETE FROM france.dbeel_batch_ope_aspe; --75666
+DELETE FROM france.dbeel_electrofishing_aspe; --33300
+DELETE FROM france.dbeel_station_aspe; -- 2 min 32720
 
-/*
-DELETE FROM  france.dbeel_station_rsa; 
-DELETE FROM france.dbeel_electrofishing_rsa; 
-*/
 
--- SELECT * FROM france.station_rsa;
+-- SELECT * FROM france.station_aspe
 -- Insert data into the dbeel table
-INSERT INTO france.dbeel_station_rsa 
+INSERT INTO france.dbeel_station_aspe 
 	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
 	'3035' AS op_gis_systemname ,
-	'RSA' AS op_gis_layername, 
+	'ASPE' AS op_gis_layername, 
 	NULL AS op_gislocation, 
-	sta_lib AS op_placename,
+	sta_libelle_sandre AS op_placename,
 	10 AS op_no_observationplacetype, -- Sampling station
 	NULL AS  op_op_id,
-	st_transform(geom,3035)  as the_geom,
-	sta_id,
-	sta_cod, 
-  sta_code,
-  sta_zone,
-  fleuve_lib,
-  sta_reseau,
+	geometry  as the_geom, -- already 3035
+   sta_id,
+   sta_code_sandre,
   'FR' AS country 
-	FROM rsa.station LEFT JOIN rsa.bassin_bas ON station.sta_bas_id=bassin_bas.bas_id
-	;  --1757
+	FROM france.station_aspe;  --32720 17s => 31734 après filtre contour france
 
 ------------------------------
 --retour des identifiants dans la TABLE mère
 --------------------------------
 	
-	--UPDATE rsa.station SET sta_dbeel_op_id =NULL; --1757
-	ALTER TABLE rsa.station ADD COLUMN sta_dbeel_op_id UUID;
-	UPDATE rsa.station SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_rsa WHERE dbeel_station_rsa.sta_code=dbeel_station_rsa.sta_code; --1757
+	
+	ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
+	UPDATE france.station_aspe SET sta_dbeel_op_id = op_id FROM
+ france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; --31734
 
 	
 
 /*--------------------------------------------------
--- rsa.electrofishing	
+-- ASPE.electrofishing
+	https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/R/aspe_import.R#L69
 -------------------------------------------------*/
 	
--- SELECT * FROM rsa.operation oa ;
+-- SELECT * FROM france.operation_aspe oa ;
 
 
 --SELECT * from dbeel.electrofishing limit 10;
 
 
-DROP TABLE if exists france.dbeel_electrofishing_rsa CASCADE;
+DROP TABLE if exists france.dbeel_electrofishing_aspe CASCADE;
 
-CREATE TABLE france.dbeel_electrofishing_rsa(
- op_id INTEGER,
- op_zone TEXT,
- op_typ TEXT,
- op_sta_id INTEGER,
-	CONSTRAINT pk_rsa_ob_id PRIMARY KEY (ob_id),
-	CONSTRAINT fk_rsa_op_id FOREIGN KEY (ob_op_id)	
-		REFERENCES france.dbeel_station_rsa (op_id) MATCH SIMPLE
+CREATE TABLE france.dbeel_electrofishing_aspe(
+  odp_nombre_anodes NUMERIC,
+  odp_nombre_epuisettes NUMERIC,
+  odp_maille_epuisette NUMERIC,
+  odp_tension NUMERIC,
+  odp_intensite NUMERIC,
+  odp_puissance NUMERIC,
+  odp_nombre_points_anguilles INTEGER,
+  nb_point INTEGER,
+  odp_duree_peche NUMERIC,
+  op_typ TEXT,
+  mom_libelle TEXT,
+  ope_id INTEGER,
+  pop_id INTEGER,
+  sta_id INTEGER,
+  sta_code_sandre TEXT,  
+  pop_code_sandre TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  pop_code_wama TEXT, 
+  ope_code_wama TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  ope_id_wama INTEGER,
+	CONSTRAINT pk_oo_ob_id PRIMARY KEY (ob_id),
+	CONSTRAINT fk_oo_op_id FOREIGN KEY (ob_op_id)	
+		REFERENCES france.dbeel_station_aspe (op_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE CASCADE,
-	CONSTRAINT fk_rsa_dp_id FOREIGN KEY (ob_dp_id)	
+	CONSTRAINT fk_oo_dp_id FOREIGN KEY (ob_dp_id)	
 		REFERENCES dbeel.data_provider (dp_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT,
-	CONSTRAINT fk_rsa_electrofishing_mean FOREIGN KEY (ef_no_electrofishing_mean)
+	CONSTRAINT fk_oo_electrofishing_mean FOREIGN KEY (ef_no_electrofishing_mean)
 		REFERENCES dbeel_nomenclature.electrofishing_mean (no_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT,
-	CONSTRAINT fk_rsa_electrofishing_method FOREIGN KEY (ef_no_fishingmethod)
+	CONSTRAINT fk_oo_electrofishing_method FOREIGN KEY (ef_no_fishingmethod)
 		REFERENCES dbeel_nomenclature.scientific_observation_method (no_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT,
-	CONSTRAINT fk_rsa_ob_no_origin FOREIGN KEY (ob_no_origin)
+	CONSTRAINT fk_oo_ob_no_origin FOREIGN KEY (ob_no_origin)
 		REFERENCES dbeel_nomenclature.observation_origin (no_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT,
-	CONSTRAINT fk_rsa_ob_no_period FOREIGN KEY (ob_no_period)
+	CONSTRAINT fk_oo_ob_no_period FOREIGN KEY (ob_no_period)
 		REFERENCES dbeel_nomenclature.period_type (no_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT,
-	CONSTRAINT fk_rsa_ob_no_type FOREIGN KEY (ob_no_type)
+	CONSTRAINT fk_oo_ob_no_type FOREIGN KEY (ob_no_type)
 		REFERENCES dbeel_nomenclature.observation_type (no_id) MATCH SIMPLE
 		ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS (dbeel.electrofishing);
@@ -146,27 +138,18 @@ CREATE TABLE france.dbeel_electrofishing_rsa(
 -----------------------------
 -- I electrofishing 
 ----------------------------
-/*
-ALTER TABLE rsa.station ADD CONSTRAINT c_fk_sta_prod_id FOREIGN KEY (sta_prod_id)
-REFERENCES rsa.producteurs_prod(prod_id) 
-ON UPDATE CASCADE ON DELETE RESTRICT;
-
-
-COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges en bateau';
-COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges à pied';
-*/
 
 /*
 For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
 */
-select * from france.dbeel_station_rsa limit 10;
-select * from rsa.operation limit 10; --43695
-SELECT * FROM  france.dbeel_station_rsa sta
-   JOIN rsa.operation ope ON (sta.id, sat.sta_zone) = (ope.sta_id, op_zone)
+select * from france.dbeel_station_aspe limit 10;
+select * from france.operation_aspe limit 10; --43695
+SELECT * FROM  france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id
 
--- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_rsa
+-- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_aspe
 
-DELETE FROM france.dbeel_electrofishing_rsa;
+DELETE FROM france.dbeel_electrofishing_aspe;
 /*
 electrofishing mean
 70    Electrofishing mean Unknown 
@@ -188,23 +171,9 @@ no_id no_code no_type no_name sc_observation_category sc_definition
 301 DH  Scientific_observation_type Deep habitat  Electro-fishing Normalized method for deep habitat (Belliard et al.,2018)
 302 WE  Scientific_observation_type Whole eel Electro-fishing Electrofishing, whole eel specific
 303 PE  Scientific_observation_type Point sampling eel  Electro-fishing Electrofishing, eel specific point sampling (Germis, 2009)
-306 EP  Scientific_observation_type EPA Electro-fishing Partial point sampling with density current, protocol Feunteun, Rigaud
-**/
-
-SELECT DISTINCT op_typ FROM rsa.operation;
-/*
-|op_typ|
-|------|
-|epap  |
-|inv   |
-|pcbgb |
-|pcbgb |
-|iaa   |
-|pcbgb  |
 */
 
--- 1 insersion de inv
-INSERT INTO france.dbeel_electrofishing_rsa (
+INSERT INTO france.dbeel_electrofishing_aspe (
 	ob_id,
 	ob_no_origin,
 	ob_no_type,
@@ -220,454 +189,127 @@ INSERT INTO france.dbeel_electrofishing_rsa (
 	ef_duration,
 	ef_nbpas,
 	ob_op_id,
-	op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
+	odp_tension,
+	odp_intensite,
+	odp_puissance,
+	odp_nombre_anodes ,
+  odp_nombre_epuisettes,
+  odp_maille_epuisette,
+  odp_nombre_points_anguilles,
+  nb_point,
+  odp_duree_peche,
+  op_typ,
+  mom_libelle,
+  ope_id,
+  pop_id,
+  sta_id,
+  sta_code_sandre,
+  pop_code_wama,
+  ope_code_wama,
+  ope_id_wama
 	)
 SELECT 
 	uuid_generate_v4() AS ob_id ,
 	observation_origin.no_id AS ob_no_origin,
 	observation_type.no_id AS ob_no_type, 
 	period_type.no_id AS ob_no_period,
-	ope.op_date::date AS ob_starting_date,
+	ope.ope_date::date AS ob_starting_date,
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
-	CASE WHEN op_typ = 'inv' THEN 62
-	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-	     WHEN op_typ LIKE '%epa%' THEN 306
-	     WHEN op_typ LIKE '%iaa%' THEN 303 
+	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
+	     WHEN op_typ ILIKE '%compl%' THEN 62
+	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
+	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
+       ELSE 61 -- si y a des des 61 se m�fier
 	END AS ef_no_fishingmethod,
-	CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
-	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72	    
+	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
+	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
+	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	op_inv.inv_long * op_inv.inv_larg AS ef_wetted_area, 
-	op_inv.inv_long AS ef_fished_length,
-	op_inv.inv_larg AS ef_fished_width,
-	NULL AS ef_duration,
-	op_inv.inv_npas AS ef_nbpas,	     
+	ope.ope_surface_calculee AS ef_wetted_area, 
+	odp_longueur AS ef_fished_length,
+	odp_largeur_lame_eau AS ef_fished_width,
+	odp_duree_peche AS ef_duration,
+	CASE WHEN nb_pas IS NULL THEN 1 ELSE nb_pas END AS ef_nbpas,	     
 	sta.op_id as ob_op_id,
-	ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
+	ope.odp_tension,
+  ope.odp_intensite,
+  ope.odp_puissance,
+  ope.odp_nombre_anodes ,
+  ope.odp_nombre_epuisettes,
+  ope.odp_maille_epuisette,
+  ope.odp_nombre_points_anguilles,
+  ope.nb_point,
+  ope.odp_duree_peche,
+  ope.op_typ,
+  ope.mom_libelle,
+  ope.ope_id,
+  ope.pop_id,
+  ope.sta_id,
+  ope.sta_code_sandre,
+  ope.pop_code_wama,
+  ope.ope_code_wama,
+  ope.ope_id_wama
 	FROM 	
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+        france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  -- JOIN donc les operations sans sta_id sont gardées
+   -- nomenclatures 	 
+
+	
 	 dbeel_nomenclature.observation_origin,
 	dbeel_nomenclature.observation_type,
-	 dbeel_nomenclature.period_type 			
+	 dbeel_nomenclature.period_type,
+	 dbeel.data_provider  			
 	WHERE observation_origin.no_name='Raw data' 
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
-	; --950 ROWS 28s
+	AND data_provider.dp_name='Pascal Irz'
+	; --31919 ROWS 28s
 	
 
-
-
- -- 2 insersion de iaa
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-       WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%iaa%' THEN 303 
-       WHEN op_typ ILIKE '%anguille%' THEN 303  
-  END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
-       ELSE 70 -- unknown
-  END AS ef_no_electrofishing_mean, 
-  op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
-  NULL AS ef_fished_length,
-  NULL AS ef_fished_width,
-  NULL AS ef_duration,
-  1 AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --2499 ROWS 28s
-  
-
---ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
-
-SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
-
-WITH the_join AS (
-SELECT ob_id, rsa.operation.* FROM 
- france.dbeel_electrofishing_rsa 
- JOIN rsa.operation ON  (operation.op_id, operation.op_zone) = 
- (dbeel_electrofishing_rsa.op_id, dbeel_electrofishing_rsa.op_zone)
- )
-UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
-WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
-AND  operation.ope_dbeel_ob_id IS NULL; --3449
-
-
- --3 insersion de epap
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-       WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%epap%' THEN 303 
-       WHEN op_typ ILIKE '%anguille%' THEN 303  
-  END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','epap','epap', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
-       ELSE 70 -- unknown
-  END AS ef_no_electrofishing_mean, 
-  op_epap.epap_npnt * 12.5 AS ef_wetted_area, 
-  NULL AS ef_fished_length,
-  NULL AS ef_fished_width,
-  NULL AS ef_duration,
-  1 AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --132 ROWS 28s
-
- --4 insersion de pcbgb
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-       WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
-       WHEN op_typ ILIKE '%anguille%' THEN 303  
-  END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
-       ELSE 70 -- unknown
-  END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_npnt * 12.5 AS ef_wetted_area, 
-  NULL AS ef_fished_length,
-  NULL AS ef_fished_width,
-  NULL AS ef_duration,
-  1 AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --152 ROWS 28s
-  
-
-  --5 insersion de pcbgb
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-       WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
-       WHEN op_typ ILIKE '%anguille%' THEN 303  
-  END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
-       ELSE 70 -- unknown
-  END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
-  pcbgb_long AS ef_fished_length,
-  pcbgb_larg AS ef_fished_width,
-  NULL AS ef_duration,
-  pcbgb_npas AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --17 ROWS 28s
-  
-   --6 insersion de pcbgb
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
-       WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
-       WHEN op_typ ILIKE '%anguille%' THEN 303  
-  END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
-       ELSE 70 -- unknown
-  END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
-  pcbgb_long AS ef_fished_length,
-  pcbgb_larg AS ef_fished_width,
-  NULL AS ef_duration,
-  pcbgb_npas AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --177 ROWS 28s 
-  
-  
---ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
-
-SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
-
-WITH the_join AS (
-SELECT ob_id, rsa.operation.* FROM 
- france.dbeel_electrofishing_rsa 
- JOIN rsa.operation ON  (operation.op_id, operation.op_zone) = 
- (dbeel_electrofishing_rsa.op_id, dbeel_electrofishing_rsa.op_zone)
- )
-UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
-WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
-AND  operation.ope_dbeel_ob_id IS NULL; --3927
-
--- TODO STOP HERE 08/07/02022 Adapt script for the rest
-
-SELECT * FROM france.dbeel_electrofishing_rsa WHERE ope_dbeel_ob_id IS NULL;
+ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
+UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
+UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
+ france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --31919
  
- --  SELECT  * FROM france.dbeel_electrofishing_rsa WHERE dbeel_electrofishing_rsa.ope_id=operation.ope_id
+ 
+ SELECT  * FROM france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id
 	
 -- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
 -- IL N'en reste que 24 après jointure.... on oublie....
 /*	
 	
-SELECT * FROM   france.dbeel_station_rsa sta WHERE sta_id IS NULL; --0
-SELECT *  FROM france.point_prelevement_rsa
-SELECT count(*)  FROM france.point_prelevement_rsa;--115323
-SELECT count(*) FROM  france.operation ope WHERE ope.sta_id IS NULL; --10394
+SELECT * FROM   france.dbeel_station_aspe sta WHERE sta_id IS NULL; --0
+SELECT *  FROM france.point_prelevement_aspe
+SELECT count(*)  FROM france.point_prelevement_aspe;--115323
+SELECT count(*) FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; --10394
 
 
-SELECT * FROM  france.operation ope WHERE ope.sta_id IS NULL; 
+SELECT * FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; 
 
-SELECT *  FROM france.point_prelevement_rsa pop
-JOIN  france.operation ope ON ope.pop_id=pop.pop_id
+SELECT *  FROM france.point_prelevement_aspe pop
+JOIN  france.operation_aspe ope ON ope.pop_id=pop.pop_id
 WHERE ope.sta_id IS NULL; --10394 => 24
 
-SELECT * FROM france.point_prelevement_rsa WHERE pop_id=100971
+SELECT * FROM france.point_prelevement_aspe WHERE pop_id=100971
 */
 
 -- Some verifs
 	
 /*	
-SELECT * FROM france.dbeel_electrofishing_rsa LIMIT 10;
+SELECT * FROM france.dbeel_electrofishing_aspe LIMIT 10;
 
 -- no duplicate for operations
 WITH count_ope AS (
-SELECT ROW_NUMBER()  OVER (PARTITION BY ope_id) nb FROM france.dbeel_electrofishing_rsa
+SELECT ROW_NUMBER()  OVER (PARTITION BY ope_id) nb FROM france.dbeel_electrofishing_aspe
 )
 SELECT * FROM count_ope WHERE nb > 1
 ;--0 lines
 
-SELECT op_typ, count(*) FROM france.dbeel_electrofishing_rsa GROUP BY op_typ;
+SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ;
 /*
 op_typ  count
 Peche partielle par points (grand milieu) 8759
@@ -676,8 +318,8 @@ Peche partielle sur berge 3033
 Peche complete à un ou plusieurs passages 18189
 Indice Abondance Anguille 1088
 */
-SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_rsa GROUP BY mom_libelle;
-SELECT op_typ, count(*) FROM france.dbeel_electrofishing_rsa GROUP BY op_typ
+SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY mom_libelle;
+SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ
 /*
  FEG 1700 381
 FEG 8000  2613
@@ -699,10 +341,10 @@ FEG 3000S 263
 AIGRETTE  129
  */
 
-select count(*) from france.dbeel_electrofishing_rsa where ob_starting_date is null; --0
+select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --0
 
 
-SELECT ef_no_fishingmethod, no_name, count(*) FROM france.dbeel_electrofishing_rsa
+SELECT ef_no_fishingmethod, no_name, count(*) FROM france.dbeel_electrofishing_aspe
 JOIN dbeel_nomenclature.scientific_observation_method sc ON sc.no_id=ef_no_fishingmethod
 GROUP BY ef_no_fishingmethod, no_name;
 /*
@@ -714,7 +356,7 @@ GROUP BY ef_no_fishingmethod, no_name;
 |301                |Deep habitat      |10991|
 |62                 |Whole             |18166|
 */
-select * from france.dbeel_electrofishing_rsa  where ope_id=85705
+select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 */
 	
 
@@ -727,14 +369,14 @@ select * from france.dbeel_electrofishing_rsa  where ope_id=85705
 
 -- Drop table
 
--- SELECT  * FROM france.batch_rsa 
+-- SELECT  * FROM france.batch_aspe 
 
  
--- DROP TABLE france.dbeel_batch_ope_rsa;
-CREATE TABLE france.dbeel_batch_ope_rsa (
+-- DROP TABLE france.dbeel_batch_ope_aspe;
+CREATE TABLE france.dbeel_batch_ope_aspe (
   ope_id int4 NULL,
   CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
-  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_rsa(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_aspe(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT fk_batch_ope_ba_no_biological_characteristic_type FOREIGN KEY (ba_no_biological_characteristic_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_batch_ope_ba_no_individual_status FOREIGN KEY (ba_no_individual_status) REFERENCES dbeel_nomenclature.individual_status(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_batch_ope_ba_no_species_id FOREIGN KEY (ba_no_species) REFERENCES dbeel_nomenclature.species(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -744,8 +386,8 @@ CREATE TABLE france.dbeel_batch_ope_rsa (
 INHERITS (dbeel.batch);
 
 -- nbeel
-DELETE FROM france.dbeel_batch_ope_rsa;
-INSERT INTO france.dbeel_batch_ope_rsa
+DELETE FROM france.dbeel_batch_ope_aspe;
+INSERT INTO france.dbeel_batch_ope_aspe
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -758,8 +400,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -774,7 +416,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
 
   
 -- number p1
-INSERT INTO france.dbeel_batch_ope_rsa
+INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -787,8 +429,8 @@ SELECT uuid_generate_v4() AS ba_id,
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
 	dbeel_nomenclature.species, 
 	dbeel_nomenclature.stage, 
 	dbeel_nomenclature.biological_characteristic_type,
@@ -803,9 +445,9 @@ SELECT uuid_generate_v4() AS ba_id,
 
 -- number p2
 	
---	SELECT * FROM france.dbeel_electrofishing_rsa
+--	SELECT * FROM france.dbeel_electrofishing_aspe
 	
-INSERT INTO france.dbeel_batch_ope_rsa
+INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -818,8 +460,8 @@ SELECT uuid_generate_v4() AS ba_id,
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -835,7 +477,7 @@ SELECT uuid_generate_v4() AS ba_id,
   
  -- number p3
   
-INSERT INTO france.dbeel_batch_ope_rsa
+INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -848,8 +490,8 @@ SELECT uuid_generate_v4() AS ba_id,
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -865,7 +507,7 @@ SELECT uuid_generate_v4() AS ba_id,
   
  -- number p4   
   
- INSERT INTO france.dbeel_batch_ope_rsa
+ INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -878,8 +520,8 @@ SELECT uuid_generate_v4() AS ba_id,
   cast(NULL as uuid) as ba_ba_id,
   ba.ope_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -900,8 +542,8 @@ SELECT uuid_generate_v4() AS ba_id,
 -- Batch integration, the second level will reference the fish table
 ----------------------------------------------------------------------
   
-DROP TABLE if exists france.dbeel_batch_fish_rsa CASCADE;
-CREATE TABLE france.dbeel_batch_fish_rsa (
+DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
+CREATE TABLE france.dbeel_batch_fish_aspe (
   ope_id INTEGER,
   mei_id INTEGER,
   lop_id INTEGER,
@@ -923,17 +565,17 @@ CREATE TABLE france.dbeel_batch_fish_rsa (
 		REFERENCES dbeel_nomenclature.individual_status(no_id) 
 		ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT c_fk_fi_ob_id FOREIGN KEY (ba_ob_id) 
-		REFERENCES france.dbeel_electrofishing_rsa (ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 		) INHERITS (dbeel.batch);
 
 
-SELECT * FROM france.batch_fish_rsa baf 
+SELECT * FROM france.batch_fish_aspe baf 
 
 -- test il manque des poissons on comprend pas pourquoi 12/04
 /*
-SELECT * FROM france.batch_fish_rsa;--403623
-SELECT  pas_numero, count(*) as N FROM france.batch_fish_rsa group by pas_numero;
+SELECT * FROM france.batch_fish_aspe;--403623
+SELECT  pas_numero, count(*) as N FROM france.batch_fish_aspe group by pas_numero;
 |pas_numero|n     |
 |----------|------|
 |1         |237081|
@@ -942,7 +584,7 @@ SELECT  pas_numero, count(*) as N FROM france.batch_fish_rsa group by pas_numero
 |4         |4     |
 |          |117517|
 WITH dist AS(
-SELECT  distinct on (pas_numero,ope_id) * FROM france.batch_fish_rsa
+SELECT  distinct on (pas_numero,ope_id) * FROM france.batch_fish_aspe
 )
 SELECT count(*) FROM dist
 group by pas_numero;
@@ -956,15 +598,15 @@ group by pas_numero;
 |6409 |
 
 
-SELECT * FROM  france.dbeel_batch_fish_rsa; --319535
-SELECT * FROM france.batch_fish_rsa;--403623
+SELECT * FROM  france.dbeel_batch_fish_aspe; --319535
+SELECT * FROM france.batch_fish_aspe;--403623
 WITH bap1 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p1'  
   ),
 
-  bafp1 AS (SELECT * FROM france.batch_fish_rsa
+  bafp1 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 1 OR pas_numero IS NULL) 
 
   SELECT * 
@@ -975,15 +617,15 @@ WITH bap1 AS (
 -- ceux qui ne sont pas entrés  
   
 WITH bap1 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p1'  
   ),
 
-  bafp1 AS (SELECT * FROM france.batch_fish_rsa
+  bafp1 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 1 OR pas_numero IS NULL) 
           
-  SELECT * FROM france.batch_fish_rsa
+  SELECT * FROM france.batch_fish_aspe
   EXCEPT
   SELECT bafp1.* 
   FROM 
@@ -991,30 +633,30 @@ WITH bap1 AS (
   JOIN bap1 ON (bap1.ope_id=bafp1.ope_id) ;   --118527 non rentrés
   
   
-  SELECT * FROM france.dbeel_batch_ope_rsa ba JOIN
-       france.batch_fish_rsa baf ON (ba.ope_id=baf.ope_id) --754847 weight + size
+  SELECT * FROM france.dbeel_batch_ope_aspe ba JOIN
+       france.batch_fish_aspe baf ON (ba.ope_id=baf.ope_id) --754847 weight + size
   
   
   
-  SELECT * FROM france.dbeel_batch_fish_rsa WHERE ope_id not in 
-  (select distinct ope_id FROM france.dbeel_batch_ope_rsa);--0
+  SELECT * FROM france.dbeel_batch_fish_aspe WHERE ope_id not in 
+  (select distinct ope_id FROM france.dbeel_batch_ope_aspe);--0
   
   
   
   
-SELECT distinct (ope_id) FROM france.dbeel_batch_fish_rsa;--13785
-SELECT distinct (ope_id) FROM france.batch_fish_rsa; --16888
+SELECT distinct (ope_id) FROM france.dbeel_batch_fish_aspe;--13785
+SELECT distinct (ope_id) FROM france.batch_fish_aspe; --16888
 */
 
-INSERT INTO france.dbeel_batch_fish_rsa
+INSERT INTO france.dbeel_batch_fish_aspe
 
   WITH bap1 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p1'  
   ),
 
-  bafp1 AS (SELECT * FROM france.batch_fish_rsa
+  bafp1 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 1 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
         
 	SELECT uuid_generate_v4() AS ba_id,
@@ -1050,8 +692,8 @@ INSERT INTO france.dbeel_batch_fish_rsa
 -- that corresponds to the batch (each line must be different) 
 
 
-DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_rsa CASCADE;
-CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
+DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_aspe CASCADE;
+CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
 	mei_id integer,
 	ope_id integer,
 	CONSTRAINT pk_mensindivbiocho_id PRIMARY KEY (bc_id),
@@ -1060,20 +702,20 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
 		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
 	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
-		REFERENCES france.dbeel_batch_fish_rsa (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
 )INHERITS (dbeel.biological_characteristic); --0
 
-select * from france.batch_fish_rsa limit 10;
+select * from france.batch_fish_aspe limit 10;
 
 
 
-SELECT * FROM   france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id;-- 285096
+SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096
 
 
 -- Insert WEIGHT (gr)
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1096,8 +738,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   baf.mei_id,
   baf.ope_id
 	FROM 
-	france.dbeel_batch_fish_rsa dbaf JOIN
-	france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+	france.dbeel_batch_fish_aspe dbaf JOIN
+	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
 	AND biological_characteristic_type.no_name = 'Weight'; --142654
@@ -1119,18 +761,18 @@ SELECT
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length')
   
   SELECT * FROM test WHERE bc_numvalue IS NULL
-  SELECT * FROM france.dbeel_batch_fish_rsa WHERE mei_id='5527401'
+  SELECT * FROM france.dbeel_batch_fish_aspe WHERE mei_id='5527401'
  */ 	
 	
 	
 	
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1151,8 +793,8 @@ SELECT
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096
 
@@ -1161,15 +803,15 @@ SELECT
 -- SECOND PASS
 
 
-INSERT INTO france.dbeel_batch_fish_rsa
+INSERT INTO france.dbeel_batch_fish_aspe
 
   WITH bap2 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p2'  
   ),
 
-  bafp2 AS (SELECT * FROM france.batch_fish_rsa
+  bafp2 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 2 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
         
   SELECT uuid_generate_v4() AS ba_id,
@@ -1203,7 +845,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
 
 
 -- Insert WEIGHT (gr)
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1226,8 +868,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=2
@@ -1236,7 +878,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 -- Insert LENGTH (mm)
   
   
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1257,8 +899,8 @@ SELECT
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=2; -- 34 292
@@ -1266,15 +908,15 @@ SELECT
 -- THIRD PASS
 
 
-INSERT INTO france.dbeel_batch_fish_rsa
+INSERT INTO france.dbeel_batch_fish_aspe
 
   WITH bap3 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p3'  
   ),
 
-  bafp3 AS (SELECT * FROM france.batch_fish_rsa
+  bafp3 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 3 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
         
   SELECT uuid_generate_v4() AS ba_id,
@@ -1308,7 +950,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
 
 
 -- Insert WEIGHT (gr)
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1331,8 +973,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=3
@@ -1341,7 +983,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 -- Insert LENGTH (mm)
   
   
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1362,8 +1004,8 @@ SELECT
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=3; -- 143
@@ -1372,15 +1014,15 @@ SELECT
 -- FOURTH PASS
 
 
-INSERT INTO france.dbeel_batch_fish_rsa
+INSERT INTO france.dbeel_batch_fish_aspe
 
   WITH bap4 AS (
-    SELECT * FROM france.dbeel_batch_ope_rsa boa 
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p4'  
   ),
 
-  bafp4 AS (SELECT * FROM france.batch_fish_rsa
+  bafp4 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 4 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
         
   SELECT uuid_generate_v4() AS ba_id,
@@ -1414,7 +1056,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
 
 
 -- Insert WEIGHT (gr)
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1437,8 +1079,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=4
@@ -1447,7 +1089,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 -- Insert LENGTH (mm)
   
   
-INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
@@ -1468,8 +1110,8 @@ SELECT
   baf.mei_id,
   baf.ope_id
   FROM 
-  france.dbeel_batch_fish_rsa dbaf JOIN
-  france.batch_fish_rsa baf ON baf.mei_id=dbaf.mei_id, 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=4; -- 4  
@@ -1482,17 +1124,17 @@ SELECT
 /*----------------------
  * SILVERING DATA 12/04/2022
  * Imported from Laurent's treatment and further explorted in eda2.3 chunk silvering_analysis line 8409 in EDA_build.rnw
- * Currently not available in the database rsa (only size and weight)
- * The import to db is done in rsa_import.R line 323
+ * Currently not available in the database ASPE (only size and weight)
+ * The import to db is done in aspe_import.R line 323
  * The table copied is  batch_silver_wama with column ope_dbeel_ob_id corresponding to current ob_id 
  * ----------------------- */
 
  WITH bc_size AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
  bc_weight AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =42
 ),
 bc AS (
@@ -1500,7 +1142,7 @@ SELECT bc_size.*, weight FROM bc_size LEFT JOIN bc_weight ON bc_size.bc_ba_id=bc
 
 bcop AS (        
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
-JOIN france.dbeel_batch_fish_rsa dboa ON dboa.ba_id=bc.bc_ba_id)
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
 /*
 SELECT * FROM bcop
 FULL OUTER JOIN france.batch_silver_wama wam
@@ -1520,11 +1162,11 @@ c4991ed3-714c-4f74-9619-0d873efb8783  79990004133 449.0 3 - [300-450[ 120.0 OK
 
 
 WITH bc_size AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
  bc_weight AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =42
 ),
 bc AS (
@@ -1532,7 +1174,7 @@ SELECT bc_size.*, weight FROM bc_size LEFT JOIN bc_weight ON bc_size.bc_ba_id=bc
 
 bcop AS (        
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
-JOIN france.dbeel_batch_fish_rsa dboa ON dboa.ba_id=bc.bc_ba_id)
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
 SELECT * FROM bcop  WHERE bcop.ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
  
 c4991ed3-714c-4f74-9619-0d873efb8783  a73d83da-f339-4c61-af4b-8a18d9dbc262  d24efee6-8dbd-419f-8f8d-6214468e1372  448.0 
@@ -1547,11 +1189,11 @@ bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 325.0 3 - [300-450[ 58.0 OK
 
 
 WITH bc_size AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
  bc_weight AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =42
 ),
 bc AS (
@@ -1559,7 +1201,7 @@ SELECT bc_size.*, weight FROM bc_size LEFT JOIN bc_weight ON bc_size.bc_ba_id=bc
 
 bcop AS (        
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
-JOIN france.dbeel_batch_fish_rsa dboa ON dboa.ba_id=bc.bc_ba_id)
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
 SELECT * FROM bcop  WHERE bcop.ob_id='bdf20f05-0434-4e61-a365-16a42200cb44'
 
 bdf20f05-0434-4e61-a365-16a42200cb44  0afe49b3-9009-40ba-96b3-a0f0157b490f  33e228d1-9d49-4ba7-b595-b1c5eccd755d  331.0 
@@ -1589,11 +1231,11 @@ SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='26290e2d-ee52-42c
 
 
 WITH bc_size AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
  bc_weight AS (
- SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_rsa  bb
+ SELECT bc_id, bc_ba_id, bc_numvalue AS weight FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =42
 ),
 bc AS (
@@ -1601,7 +1243,7 @@ SELECT bc_size.*, weight FROM bc_size LEFT JOIN bc_weight ON bc_size.bc_ba_id=bc
 
 bcop AS (        
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
-JOIN france.dbeel_batch_fish_rsa dboa ON dboa.ba_id=bc.bc_ba_id)
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
 SELECT * FROM bcop  WHERE bcop.ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
 
 26290e2d-ee52-42c7-9787-4573f795bd22  3b966b5c-f8ba-4f1d-b038-774a39eb0e7a  b6799273-a6b6-4bd1-b909-2c37790a88d0  292.0 OK
@@ -1646,6 +1288,6 @@ SELECT * FROM bcop  WHERE bcop.ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
 26290e2d-ee52-42c7-9787-4573f795bd22  cb32705c-6b97-4fab-bf95-1d7c2ac93531  c6788b0b-554a-4d93-b92d-bc3a914bb0fe  422.0 130.0 OK
 
 
-SELECT *  FROM france.dbeel_batch_fish_rsa dboa WHERE ba_ob_id= '26290e2d-ee52-42c7-9787-4573f795bd22'; => ope_id==4609
+SELECT *  FROM france.dbeel_batch_fish_aspe dboa WHERE ba_ob_id= '26290e2d-ee52-42c7-9787-4573f795bd22'; => ope_id==4609
 
 --TODO FINISH DATA INPUT
