@@ -40,9 +40,6 @@ UPDATE rsa.station SET geom = ST_GeomFromText('POINT(' ||sta_x93 || ' ' || sta_y
 WHERE geom IS NULL; --20
 
 
-SELECT DISTINCT  count(*), sta_statut FROM france.station_rsa GROUP BY sta_statut; -- 32727 true
-
-
 SELECT * FROM dbeel.observation_places;
 -- Create the stationdbeel table from dbeel
 DROP TABLE if exists france.dbeel_station_rsa CASCADE;
@@ -153,8 +150,8 @@ REFERENCES rsa.producteurs_prod(prod_id)
 ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
-COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges en bateau';
-COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges à pied';
+COMMENT ON table rsa.op_iaa IS 'Pêche continue des deux berges en bateau';
+COMMENT ON table rsa.op_iaa IS 'Pêche continue des deux berges à pied';
 */
 
 /*
@@ -196,12 +193,12 @@ SELECT DISTINCT op_typ FROM rsa.operation;
 /*
 |op_typ|
 |------|
-|epap  |
+|epab  |
 |inv   |
-|pcbgb |
-|pcbgb |
+|iaa |
+|iaa |
 |iaa   |
-|pcbgb  |
+|iaa  |
 */
 
 -- 1 insersion de inv
@@ -235,13 +232,13 @@ SELECT
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
 	CASE WHEN op_typ = 'inv' THEN 62
-	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+	     WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
 	     WHEN op_typ LIKE '%epa%' THEN 306
 	     WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303	
 	END AS ef_no_fishingmethod,
-	CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
-	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72	    
+	CASE WHEN op_typ IN ('inv','iaa','epab', 'iaa')  THEN 71  -- a pied
+	     WHEN op_typ IN ('iaa', 'iaa') THEN 72	    
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
 	op_inv.inv_long * op_inv.inv_larg AS ef_wetted_area, 
@@ -303,13 +300,13 @@ SELECT
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
   CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
        WHEN op_typ LIKE '%epa%' THEN 306
        WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303  
   END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+  CASE WHEN op_typ IN ('inv','iaa','epab', 'iaa')  THEN 71  -- a pied
+       WHEN op_typ IN ('iaa', 'iaa') THEN 72     
        ELSE 70 -- unknown
   END AS ef_no_electrofishing_mean, 
   op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
@@ -354,7 +351,7 @@ WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
 AND  operation.ope_dbeel_ob_id IS NULL; --3449
 
 
- --3 insersion de epap
+ --3 insersion de epab
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
   ob_no_origin,
@@ -385,16 +382,16 @@ SELECT
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
   CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
        WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%epap%' THEN 303 
+       WHEN op_typ LIKE '%epab%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303  
   END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','epap','epap', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+  CASE WHEN op_typ IN ('inv','epab','epab', 'iaa')  THEN 71  -- a pied
+       WHEN op_typ IN ('iaa', 'iaa') THEN 72     
        ELSE 70 -- unknown
   END AS ef_no_electrofishing_mean, 
-  op_epap.epap_npnt * 12.5 AS ef_wetted_area, 
+  op_epab.epab_npnt * 12.5 AS ef_wetted_area, 
   NULL AS ef_fished_length,
   NULL AS ef_fished_width,
   NULL AS ef_duration,
@@ -409,7 +406,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -419,7 +416,7 @@ SELECT
   AND period_type.no_name='Daily' 
   ; --132 ROWS 28s
 
- --4 insersion de pcbgb
+ --4 insersion de iaa
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
   ob_no_origin,
@@ -450,16 +447,16 @@ SELECT
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
   CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
        WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303  
   END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+  CASE WHEN op_typ IN ('inv','iaa','iaa', 'iaa')  THEN 71  -- a pied
+       WHEN op_typ IN ('iaa', 'iaa') THEN 72     
        ELSE 70 -- unknown
   END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_npnt * 12.5 AS ef_wetted_area, 
+  op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
   NULL AS ef_fished_length,
   NULL AS ef_fished_width,
   NULL AS ef_duration,
@@ -474,7 +471,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -485,7 +482,7 @@ SELECT
   ; --152 ROWS 28s
   
 
-  --5 insersion de pcbgb
+  --5 insersion de iaa
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
   ob_no_origin,
@@ -516,20 +513,20 @@ SELECT
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
   CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
        WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303  
   END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+  CASE WHEN op_typ IN ('inv','iaa','iaa', 'iaa')  THEN 71  -- a pied
+       WHEN op_typ IN ('iaa', 'iaa') THEN 72     
        ELSE 70 -- unknown
   END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
-  pcbgb_long AS ef_fished_length,
-  pcbgb_larg AS ef_fished_width,
+  op_iaa.iaa_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
+  iaa_long AS ef_fished_length,
+  iaa_larg AS ef_fished_width,
   NULL AS ef_duration,
-  pcbgb_npas AS ef_nbpas,       
+  iaa_npas AS ef_nbpas,       
   sta.op_id as ob_op_id,
   ope.op_id,
   ope.op_zone,
@@ -540,7 +537,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -550,7 +547,7 @@ SELECT
   AND period_type.no_name='Daily' 
   ; --17 ROWS 28s
   
-   --6 insersion de pcbgb
+   --6 insersion de iaa
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
   ob_no_origin,
@@ -581,20 +578,20 @@ SELECT
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
   CASE WHEN op_typ = 'inv' THEN 62
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ IN ('iaa', 'iaa') THEN 302 -- pêche CONTINUE des berges
        WHEN op_typ LIKE '%epa%' THEN 306
-       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303  
   END AS ef_no_fishingmethod,
-  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
-       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+  CASE WHEN op_typ IN ('inv','iaa','iaa', 'iaa')  THEN 71  -- a pied
+       WHEN op_typ IN ('iaa', 'iaa') THEN 72     
        ELSE 70 -- unknown
   END AS ef_no_electrofishing_mean, 
-  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
-  pcbgb_long AS ef_fished_length,
-  pcbgb_larg AS ef_fished_width,
+  op_iaa.iaa_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
+  iaa_long AS ef_fished_length,
+  iaa_larg AS ef_fished_width,
   NULL AS ef_duration,
-  pcbgb_npas AS ef_nbpas,       
+  iaa_npas AS ef_nbpas,       
   sta.op_id as ob_op_id,
   ope.op_id,
   ope.op_zone,
@@ -605,7 +602,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -645,31 +642,6 @@ SELECT * FROM france.dbeel_electrofishing_rsa WHERE ope_dbeel_ob_id IS NULL;
 /*	
 SELECT * FROM france.dbeel_electrofishing_rsa LIMIT 10;
 
--- no duplicate for operations
-WITH count_ope AS (
-SELECT ROW_NUMBER()  OVER (PARTITION BY ope_id) nb FROM france.dbeel_electrofishing_rsa
-)
-SELECT * FROM count_ope WHERE nb > 1
-;--0 lines
-
-
-
-select count(*) from france.dbeel_electrofishing_rsa where ob_starting_date is null; --0
-
-
-SELECT ef_no_fishingmethod, no_name, count(*) FROM france.dbeel_electrofishing_rsa
-JOIN dbeel_nomenclature.scientific_observation_method sc ON sc.no_id=ef_no_fishingmethod
-GROUP BY ef_no_fishingmethod, no_name;
-/*
-|ef_no_fishingmethod|no_name           |count|
-|-------------------|------------------|-----|
-|302                |Whole eel         |23   |
-|63                 |Partial1bank      |3033 |
-|303                |Point sampling eel|1088 |
-|301                |Deep habitat      |10991|
-|62                 |Whole             |18166|
-*/
-select * from france.dbeel_electrofishing_rsa  where ope_id=85705
 */
 	
 
@@ -687,168 +659,591 @@ select * from france.dbeel_electrofishing_rsa  where ope_id=85705
  
 -- DROP TABLE france.dbeel_batch_ope_rsa;
 CREATE TABLE france.dbeel_batch_ope_rsa (
-  ope_id int4 NULL,
-  CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
-  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_rsa(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_batch_ope_ba_no_biological_characteristic_type FOREIGN KEY (ba_no_biological_characteristic_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_batch_ope_ba_no_individual_status FOREIGN KEY (ba_no_individual_status) REFERENCES dbeel_nomenclature.individual_status(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_batch_ope_ba_no_species_id FOREIGN KEY (ba_no_species) REFERENCES dbeel_nomenclature.species(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_batch_ope_ba_no_stage_id FOREIGN KEY (ba_no_stage) REFERENCES dbeel_nomenclature.stage(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_batch_ope_ba_value_type FOREIGN KEY (ba_no_value_type) REFERENCES dbeel_nomenclature.value_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE
+  op_id int4 NULL,
+  CONSTRAINT pk_batch_rsa_ba_id PRIMARY KEY (ba_id),
+  CONSTRAINT c_fk_rsa_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_rsa(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_rsa_ba_no_biological_characteristic_type FOREIGN KEY (ba_no_biological_characteristic_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_rsa_ba_no_individual_status FOREIGN KEY (ba_no_individual_status) REFERENCES dbeel_nomenclature.individual_status(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_rsa_ba_no_species_id FOREIGN KEY (ba_no_species) REFERENCES dbeel_nomenclature.species(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_rsa_ba_no_stage_id FOREIGN KEY (ba_no_stage) REFERENCES dbeel_nomenclature.stage(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_rsa_ba_value_type FOREIGN KEY (ba_no_value_type) REFERENCES dbeel_nomenclature.value_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE
 )
 INHERITS (dbeel.batch);
 
--- nbeel
+-- nbeel inv
 DELETE FROM france.dbeel_batch_ope_rsa;
+
+INSERT INTO france.dbeel_batch_ope_rsa
+WITH correct_moins_9 AS (
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  CASE WHEN inv_p1 =-9 THEN NULL::numeric END AS inv_p1,
+  CASE WHEN inv_p2 =-9 THEN NULL::numeric END AS inv_p2,
+  CASE WHEN inv_p3 =-9 THEN NULL::numeric END AS inv_p3,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  )
+  
+SELECT 
+ ba_id,
+  ba_no_species,
+  ba_no_stage,
+  ba_no_value_type,
+  ba_no_biological_characteristic_type,
+  COALESCE(inv_p1,0)+ 
+  COALESCE(inv_p2,0) + 
+  COALESCE(inv_p3,0) AS   ba_quantity,  
+  ba_no_individual_status,
+  ba_batch_level,
+  ba_ob_id, 
+  ba_ba_id,
+  op_id
+  FROM correct_moins_9; --950
+  
+  
+-- nbeel iaa  
 INSERT INTO france.dbeel_batch_ope_rsa
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.nb_eel AS ba_quantity,
+  COALESCE(iaa_p1,0)+ 
+  COALESCE(iaa_p2,0) + 
+  COALESCE(iaa_p3,0) AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ba.ope_id
+  ope.op_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone),
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
+  WHERE species.no_name='Anguilla anguilla'
   AND stage.no_name='Yellow eel' -- we actually don't know that...
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 31919 rows
-
+  ; --177
   
--- number p1
+-- nbeel pcbgp  
 INSERT INTO france.dbeel_batch_ope_rsa
-SELECT uuid_generate_v4() AS ba_id,
+  SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.pas_1 AS ba_quantity,
+  COALESCE(pcbgp_p1,0)+ 
+  COALESCE(pcbgp_p2,0) + 
+  COALESCE(pcbgp_p3,0) AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ba.ope_id
+  ope.op_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
-	dbeel_nomenclature.species, 
-	dbeel_nomenclature.stage, 
-	dbeel_nomenclature.biological_characteristic_type,
-	dbeel_nomenclature.value_type,
-	dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
-	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number p1' 
-	AND individual_status.no_name='Alive' 
-	AND value_type.no_name='Raw data or Individual data'
-	; -- 31919 ROWS
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --17
+  
+-- nbeel pcbgb  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  pcbgb_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --2499  
+  
+ -- nbeel epab  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epab_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --132   
 
+   -- nbeel epap  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epab_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --152   
+  
+  
+
+
+  
+  
+  
+-- number p1
+  
+-- number p1 inv
+
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  inv_p1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --950
+  
+  
+-- nbeel iaa  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  iaa_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1'
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --2499
+  
+-- number p1 pcbgp  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  pcbgp_p1  AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --17
+  
+-- number p1 op_pcbgb  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  pcbgb_p1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1'
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --177
+  
+ -- number p1 epab  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epab_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --152   
+
+   -- number p1 epap  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epap_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --132    
+  
+  
+  
 -- number p2
 	
 --	SELECT * FROM france.dbeel_electrofishing_rsa
-	
+  
+  
+  -- number p2 inv
+
 INSERT INTO france.dbeel_batch_ope_rsa
-SELECT uuid_generate_v4() AS ba_id,
+  SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.pas_2 AS ba_quantity,
+  inv_p2 AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ba.ope_id
+  ope.op_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone),
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas > 1 
-  ; -- 8745 ROWS
+  ; --950
   
- -- number p3
-  
+  -- number p2 pcbgp  
 INSERT INTO france.dbeel_batch_ope_rsa
-SELECT uuid_generate_v4() AS ba_id,
+  SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.pas_3 AS ba_quantity,
+  pcbgp_p2  AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ba.ope_id
+  ope.op_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone),
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p2' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --17
+  
+-- number p2 op_pcbgb  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  pcbgb_p2 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p2'
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --177
+   -- number p3
+
+-- correction de Clarisse
+update rsa.op_inv set inv_p3=NULL where inv_npas=2 and inv_p3 is not NULL;
+
+-- inv p3  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  inv_p3 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
   AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas > 2
-  ; -- 154 ROWS => 150 WITH nbpas = 3
+  AND inv_npas=3
+  ; --59
   
- -- number p4   
-  
- INSERT INTO france.dbeel_batch_ope_rsa
-SELECT uuid_generate_v4() AS ba_id,
+  -- number p3 pcbgp  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  ba.pas_4 AS ba_quantity,
+  pcbgp_p3  AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ba.ope_id
+  ope.op_id
   FROM 
-  france.dbeel_electrofishing_rsa ee JOIN
-  france.batch_rsa ba ON ba.ope_id=ee.ope_id,
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone),
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number p4' 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas > 3
-  ; -- 4 ROWS
-    
+  AND pcbgp_npas=3
+  ; --0
   
+-- number p3 op_pcbgb  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  pcbgb_p3 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p3'
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+   AND pcbgb_npas=3
+  ; --0  
+  
+SELECT * FROM france.dbeel_batch_ope_rsa WHERE ba_no_biological_characteristic_type=233; --59  
   
   
 ----------------------------------------------------------------------
@@ -857,10 +1252,12 @@ SELECT uuid_generate_v4() AS ba_id,
   
 DROP TABLE if exists france.dbeel_batch_fish_rsa CASCADE;
 CREATE TABLE france.dbeel_batch_fish_rsa (
-  ope_id INTEGER,
-  mei_id INTEGER,
-  lop_id INTEGER,
-  tyl_libelle TEXT, 
+  ang_id INTEGER,
+  ang_op_id INTEGER,
+  ang_lot INTEGER,
+  ang_nlot INTEGER, 
+  ang_zone TEXT,
+  ang_cod TEXT,
 	CONSTRAINT pk_fish_fi_id PRIMARY KEY (ba_id),
 	CONSTRAINT fk_fish_fi_ba_no_species_id FOREIGN KEY (ba_no_species) 
 		REFERENCES dbeel_nomenclature.species (no_id) 
