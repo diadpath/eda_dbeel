@@ -671,6 +671,11 @@ INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_ty
 SELECT 304,'TE','Scientific_observation_type','TEF','Electro-fishing','Timed electrofishing, 10 min in Ireland';--1
 
 
+-- about 300 operations in RSA, can be either with boat or foot ,currently mixed
+INSERT INTO dbeel_nomenclature.scientific_observation_method(no_id,no_code,no_type,no_name,sc_observation_category,sc_definition) 
+SELECT 306,'EP','Scientific_observation_type','EPA','Electro-fishing','Partial point sampling with density current, protocol Feunteun, Rigaud';--1
+
+
 
 
 
