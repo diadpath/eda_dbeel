@@ -635,11 +635,8 @@ AND  operation.ope_dbeel_ob_id IS NULL; --3927
 
 SELECT * FROM france.dbeel_electrofishing_rsa WHERE ope_dbeel_ob_id IS NULL;
  
- --  SELECT  * FROM france.dbeel_electrofishing_rsa WHERE dbeel_electrofishing_rsa.ope_id=operation.ope_id
-	
--- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
--- IL N'en reste que 24 après jointure.... on oublie....
-/*	
+
+
 	
 
 
