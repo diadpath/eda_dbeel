@@ -118,6 +118,7 @@ CREATE TABLE france.dbeel_electrofishing_rsa(
  op_id INTEGER,
  op_zone TEXT,
  op_typ TEXT,
+ op_sta_id INTEGER,
 	CONSTRAINT pk_rsa_ob_id PRIMARY KEY (ob_id),
 	CONSTRAINT fk_rsa_op_id FOREIGN KEY (ob_op_id)	
 		REFERENCES france.dbeel_station_rsa (op_id) MATCH SIMPLE
@@ -152,7 +153,7 @@ ON UPDATE CASCADE ON DELETE RESTRICT;
 
 
 COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges en bateau';
-COMMENT ON table rsa.op_pcbgp IS 'Pêche continue des deux berges à pied';
+COMMENT ON table rsa.op_pcbgb IS 'Pêche continue des deux berges à pied';
 */
 
 /*
@@ -187,7 +188,8 @@ no_id no_code no_type no_name sc_observation_category sc_definition
 301 DH  Scientific_observation_type Deep habitat  Electro-fishing Normalized method for deep habitat (Belliard et al.,2018)
 302 WE  Scientific_observation_type Whole eel Electro-fishing Electrofishing, whole eel specific
 303 PE  Scientific_observation_type Point sampling eel  Electro-fishing Electrofishing, eel specific point sampling (Germis, 2009)
-*/
+306 EP  Scientific_observation_type EPA Electro-fishing Partial point sampling with density current, protocol Feunteun, Rigaud
+**/
 
 SELECT DISTINCT op_typ FROM rsa.operation;
 /*
@@ -195,13 +197,13 @@ SELECT DISTINCT op_typ FROM rsa.operation;
 |------|
 |epap  |
 |inv   |
-|pcbgp |
+|pcbgb |
 |pcbgb |
 |iaa   |
-|epab  |
+|pcbgb  |
 */
 
-
+-- 1 insersion de inv
 INSERT INTO france.dbeel_electrofishing_rsa (
 	ob_id,
 	ob_no_origin,
@@ -218,67 +220,421 @@ INSERT INTO france.dbeel_electrofishing_rsa (
 	ef_duration,
 	ef_nbpas,
 	ob_op_id,
-	 op_id ,
+	op_id ,
  op_zone,
- op_typ 
+ op_typ ,
+  op_sta_id
 	)
 SELECT 
 	uuid_generate_v4() AS ob_id ,
 	observation_origin.no_id AS ob_no_origin,
 	observation_type.no_id AS ob_no_type, 
 	period_type.no_id AS ob_no_period,
-	ope.ope_date::date AS ob_starting_date,
+	ope.op_date::date AS ob_starting_date,
 	CAST(NULL AS date) as ob_ending_date,
 	data_provider.dp_id AS ob_dp_id, 
 	CASE WHEN op_typ = 'inv' THEN 62
-	     WHEN op_typ IN ('pcbgp', 'pcbgb') THEN 302
-	     WHEN op_typ LIKE '%epa%' THEN 303
+	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+	     WHEN op_typ LIKE '%epa%' THEN 306
 	     WHEN op_typ LIKE '%iaa%' THEN 303 
        WHEN op_typ ILIKE '%anguille%' THEN 303	
-       ELSE 61 -- si y a des des 61 se m�fier
 	END AS ef_no_fishingmethod,
-	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
-	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
-	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
+	CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
+	     WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72	    
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	ope.ope_surface_calculee AS ef_wetted_area, 
-	odp_longueur AS ef_fished_length,
-	odp_largeur_lame_eau AS ef_fished_width,
-	odp_duree_peche AS ef_duration,
-	CASE WHEN nb_pas IS NULL THEN 1 ELSE nb_pas END AS ef_nbpas,	     
+	op_inv.inv_long * op_inv.inv_larg AS ef_wetted_area, 
+	op_inv.inv_long AS ef_fished_length,
+	op_inv.inv_larg AS ef_fished_width,
+	NULL AS ef_duration,
+	op_inv.inv_npas AS ef_nbpas,	     
 	sta.op_id as ob_op_id,
-	op_id,
-  op_zone,
-  op_typ 
-  SELECT *
+	ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
 	FROM 	
-        france.dbeel_station_rsa sta
-   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle
-   -- nomenclatures 	 
-
-	
+  JOIN rsa.op_inv  ON (op_inv.inv_op_id, op_inv.inv_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
 	 dbeel_nomenclature.observation_origin,
 	dbeel_nomenclature.observation_type,
-	 dbeel_nomenclature.period_type,
-	 dbeel.data_provider  			
+	 dbeel_nomenclature.period_type 			
 	WHERE observation_origin.no_name='Raw data' 
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
-	AND data_provider.dp_name='Pascal Irz'
-	; --31919 ROWS 28s
+	; --950 ROWS 28s
 	
 
-ALTER TABLE france.operation ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE france.operation SET ope_dbeel_ob_id = NULL; --43695
-UPDATE france.operation SET ope_dbeel_ob_id = ob_id FROM
- france.dbeel_electrofishing_rsa WHERE dbeel_electrofishing_rsa.ope_id=operation.ope_id; --31919
+
+
+ -- 2 insersion de iaa
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  CASE WHEN op_typ = 'inv' THEN 62
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ LIKE '%epa%' THEN 306
+       WHEN op_typ LIKE '%iaa%' THEN 303 
+       WHEN op_typ ILIKE '%anguille%' THEN 303  
+  END AS ef_no_fishingmethod,
+  CASE WHEN op_typ IN ('inv','iaa','epap', 'pcbgb')  THEN 71  -- a pied
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+       ELSE 70 -- unknown
+  END AS ef_no_electrofishing_mean, 
+  op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
+  NULL AS ef_fished_length,
+  NULL AS ef_fished_width,
+  NULL AS ef_duration,
+  1 AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --2499 ROWS 28s
+  
+
+--ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
+UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
+
+SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
+
+WITH the_join AS (
+SELECT ob_id, rsa.operation.* FROM 
+ france.dbeel_electrofishing_rsa 
+ JOIN rsa.operation ON  (operation.op_id, operation.op_zone) = 
+ (dbeel_electrofishing_rsa.op_id, dbeel_electrofishing_rsa.op_zone)
+ )
+UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
+WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
+AND  operation.ope_dbeel_ob_id IS NULL; --3449
+
+
+ --3 insersion de epap
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  CASE WHEN op_typ = 'inv' THEN 62
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ LIKE '%epa%' THEN 306
+       WHEN op_typ LIKE '%epap%' THEN 303 
+       WHEN op_typ ILIKE '%anguille%' THEN 303  
+  END AS ef_no_fishingmethod,
+  CASE WHEN op_typ IN ('inv','epap','epap', 'pcbgb')  THEN 71  -- a pied
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+       ELSE 70 -- unknown
+  END AS ef_no_electrofishing_mean, 
+  op_epap.epap_npnt * 12.5 AS ef_wetted_area, 
+  NULL AS ef_fished_length,
+  NULL AS ef_fished_width,
+  NULL AS ef_duration,
+  1 AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --132 ROWS 28s
+
+ --4 insersion de pcbgb
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  CASE WHEN op_typ = 'inv' THEN 62
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ LIKE '%epa%' THEN 306
+       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ ILIKE '%anguille%' THEN 303  
+  END AS ef_no_fishingmethod,
+  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+       ELSE 70 -- unknown
+  END AS ef_no_electrofishing_mean, 
+  op_pcbgb.pcbgb_npnt * 12.5 AS ef_wetted_area, 
+  NULL AS ef_fished_length,
+  NULL AS ef_fished_width,
+  NULL AS ef_duration,
+  1 AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --152 ROWS 28s
+  
+
+  --5 insersion de pcbgb
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  CASE WHEN op_typ = 'inv' THEN 62
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ LIKE '%epa%' THEN 306
+       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ ILIKE '%anguille%' THEN 303  
+  END AS ef_no_fishingmethod,
+  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+       ELSE 70 -- unknown
+  END AS ef_no_electrofishing_mean, 
+  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
+  pcbgb_long AS ef_fished_length,
+  pcbgb_larg AS ef_fished_width,
+  NULL AS ef_duration,
+  pcbgb_npas AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --17 ROWS 28s
+  
+   --6 insersion de pcbgb
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  CASE WHEN op_typ = 'inv' THEN 62
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 302 -- pêche CONTINUE des berges
+       WHEN op_typ LIKE '%epa%' THEN 306
+       WHEN op_typ LIKE '%pcbgb%' THEN 303 
+       WHEN op_typ ILIKE '%anguille%' THEN 303  
+  END AS ef_no_fishingmethod,
+  CASE WHEN op_typ IN ('inv','pcbgb','pcbgb', 'pcbgb')  THEN 71  -- a pied
+       WHEN op_typ IN ('pcbgb', 'pcbgb') THEN 72     
+       ELSE 70 -- unknown
+  END AS ef_no_electrofishing_mean, 
+  op_pcbgb.pcbgb_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
+  pcbgb_long AS ef_fished_length,
+  pcbgb_larg AS ef_fished_width,
+  NULL AS ef_duration,
+  pcbgb_npas AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)  -- JOIN donc les operations sans sta_id sont gardées
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_pcbgb  ON (op_pcbgb.pcbgb_op_id, op_pcbgb.pcbgb_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --177 ROWS 28s 
+  
+  
+--ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
+UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
+
+SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
+
+WITH the_join AS (
+SELECT ob_id, rsa.operation.* FROM 
+ france.dbeel_electrofishing_rsa 
+ JOIN rsa.operation ON  (operation.op_id, operation.op_zone) = 
+ (dbeel_electrofishing_rsa.op_id, dbeel_electrofishing_rsa.op_zone)
+ )
+UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
+WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
+AND  operation.ope_dbeel_ob_id IS NULL; --3927
+
+-- TODO STOP HERE 08/07/02022 Adapt script for the rest
+
+SELECT * FROM france.dbeel_electrofishing_rsa WHERE ope_dbeel_ob_id IS NULL;
  
- 
- SELECT  * FROM france.dbeel_electrofishing_rsa WHERE dbeel_electrofishing_rsa.ope_id=operation.ope_id
+ --  SELECT  * FROM france.dbeel_electrofishing_rsa WHERE dbeel_electrofishing_rsa.ope_id=operation.ope_id
 	
 -- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
 -- IL N'en reste que 24 après jointure.... on oublie....
