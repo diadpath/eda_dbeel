@@ -1819,20 +1819,23 @@ UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=233 WHERE ba_b
 WITH faulty_p1 AS (
 SELECT * FROM ireland.batch_ope
 JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
-WHERE bct.no_name='Number p2')
-UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p2); --907
+WHERE bct.no_name='Number p1'
+AND ba_quantity<>op_nb)
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p1); --907 -- 0 SECOND RUN 2022
 
 WITH faulty_p2 AS (
 SELECT * FROM ireland.batch_ope
 JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
-WHERE bct.no_name='Number p2')
-UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p2); --907
+WHERE bct.no_name='Number p2'
+AND ba_quantity<>op_nb)
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p2); --907 --0
 
 WITH faulty_p3 AS (
 SELECT * FROM ireland.batch_ope
 JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
-WHERE bct.no_name='Number p3')
-UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p3); --1260
+WHERE bct.no_name='Number p3'
+AND ba_quantity<>op_nb)
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p3); --171
 
 ALTER TABLE ireland.batch_ope ADD COLUMN datasource TEXT;
 
