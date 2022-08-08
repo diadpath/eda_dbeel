@@ -929,7 +929,7 @@ INSERT INTO ireland.batch_ope(
 		stage.no_id AS ba_no_stage,
 		value_type.no_id AS ba_no_value_type,
 		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-		"Totaleel" AS ba_quantity,
+		"Totaleel" AS ba_quantity, -- HERE THIS IS WRONG SHOUD BE n WILL BE CORRECTED LATER
 		individual_status.no_id AS ba_no_individual_status,
 		1 AS ba_batch_level,
 		ob_id as ba_ob_id,  
@@ -979,7 +979,7 @@ INSERT INTO ireland.batch_ope(
 		stage.no_id AS ba_no_stage,
 		value_type.no_id AS ba_no_value_type,
 		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-		"Totaleel" AS ba_quantity,
+		"Totaleel" AS ba_quantity, -- HERE THIS IS WRONG SHOUD BE n WILL BE CORRECTED LATER
 		individual_status.no_id AS ba_no_individual_status,
 		2 AS ba_batch_level,
 		ob_id as ba_ob_id,  
@@ -1034,14 +1034,14 @@ INSERT INTO ireland.batch_ope(
 		stage.no_id AS ba_no_stage,
 		value_type.no_id AS ba_no_value_type,
 		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-		"Totaleel" AS ba_quantity,
+		"Totaleel" AS ba_quantity, -- HERE THIS IS WRONG SHOUD BE n WILL BE CORRECTED LATER
 		individual_status.no_id AS ba_no_individual_status,
 		3 AS ba_batch_level,
 		ob_id as ba_ob_id,  
 		cast(NULL as uuid) as ba_ba_id, 
 		"SiteCode" as op_locationcode,
 		id::integer as op_surveyid,	
-		n as op_nb,
+		n as op_nb, 
 		 cast(NULL as integer) as pa_numero,	
 		 "Samplingcode" AS samplingcode	
 	FROM 
@@ -1215,6 +1215,7 @@ SELECT pa_numero, count(*) FROM ireland.batch_ope
 /*
  * ba_quantity = "Totaleel" value in eel_ifi_survey
  * ba_batch_level = 0
+ *  SELECT * FROM ireland.eel_ifi_survey
  */
  
 INSERT INTO ireland.batch_ope(
@@ -1291,7 +1292,7 @@ INSERT INTO ireland.batch_ope(
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	"Totaleel" AS ba_quantity,
+	"Totaleel" AS ba_quantity, -- wrong should be "Fishing1" will be corrected later
 	individual_status.no_id AS ba_no_individual_status,
 	1 AS ba_batch_level,
 	ob_id as ba_ob_id,  
@@ -1334,13 +1335,12 @@ INSERT INTO ireland.batch_ope(
 			samplingcode	
 )
 		SELECT 
-		--wfd_count.*,
 		uuid_generate_v4() AS ba_id,
 		species.no_id AS ba_no_species,
 		stage.no_id AS ba_no_stage,
 		value_type.no_id AS ba_no_value_type,
 		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-		"Totaleel" AS ba_quantity,
+		"Totaleel" AS ba_quantity, -- wrong should be "Fishing2" will be corrected later
 		individual_status.no_id AS ba_no_individual_status,
 		2 AS ba_batch_level,
 		ob_id as ba_ob_id,  
@@ -1382,13 +1382,12 @@ INSERT INTO ireland.batch_ope(
 			samplingcode	
 )
 		SELECT 
-		--wfd_count.*,
 		uuid_generate_v4() AS ba_id,
 		species.no_id AS ba_no_species,
 		stage.no_id AS ba_no_stage,
 		value_type.no_id AS ba_no_value_type,
 		biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-		"Totaleel" AS ba_quantity,
+		"Totaleel" AS ba_quantity,  -- wrong should be "Fishing3" will be corrected later
 		individual_status.no_id AS ba_no_individual_status,
 		3 AS ba_batch_level,
 		ob_id as ba_ob_id,  
@@ -1643,13 +1642,12 @@ INSERT INTO ireland.batch_ope(
 		samplingcode	
 )
 	SELECT 
-	--wfd_count.*,
 	uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	"Totaleel" AS ba_quantity,
+	"Totaleel" AS ba_quantity,  -- wrong should be "Fishing1" will be corrected later
 	individual_status.no_id AS ba_no_individual_status,
 	1 AS ba_batch_level,
 	ob_id as ba_ob_id,  
@@ -1699,7 +1697,7 @@ INSERT INTO ireland.batch_ope(
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	"Totaleel" AS ba_quantity,
+	"Totaleel" AS ba_quantity,  -- wrong should be "Fishing2" will be corrected later
 	individual_status.no_id AS ba_no_individual_status,
 	2 AS ba_batch_level,
 	ob_id as ba_ob_id,  
@@ -1748,7 +1746,7 @@ INSERT INTO ireland.batch_ope(
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
 	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-	"Totaleel" AS ba_quantity,
+	"Totaleel" AS ba_quantity,  -- wrong should be "Fishing3" will be corrected later
 	individual_status.no_id AS ba_no_individual_status,
 	3 AS ba_batch_level,
 	ob_id as ba_ob_id,  
@@ -1804,7 +1802,8 @@ JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_bi
 WHERE bct.no_name='Number p1')
 UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p1); --2217
 
-/*|no_id|no_code|no_type                       |no_name  |bc_label                 |bc_unit      |bc_data_type|
+/*
+|no_id|no_code|no_type                       |no_name  |bc_label                 |bc_unit      |bc_data_type|
 |-----|-------|------------------------------|---------|-------------------------|-------------|------------|
 |232  |       |Biological characteristic type|Number p2|Number in the second pass|Dimensionless|Integer     |
 |231  |       |Biological characteristic type|Number p1|Number in the first pass |Dimensionless|Integer     |
@@ -1816,6 +1815,12 @@ UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=232 WHERE ba_b
 --SELECT count(*) FROM ireland.batch_ope WHERE ba_batch_level=3 AND ba_no_biological_characteristic_type =231; --246 
 UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=233 WHERE ba_batch_level=3 AND ba_no_biological_characteristic_type =231; --246
 
+
+WITH faulty_p1 AS (
+SELECT * FROM ireland.batch_ope
+JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
+WHERE bct.no_name='Number p2')
+UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p2); --907
 
 WITH faulty_p2 AS (
 SELECT * FROM ireland.batch_ope
