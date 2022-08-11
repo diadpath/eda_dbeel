@@ -28,3 +28,4 @@ con = dbConnect(Postgres(),
 		user=baseODBCrios[2], 
 		password=baseODBCrios[3])
 
+# TODO work with samples see ticket https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/issues/5

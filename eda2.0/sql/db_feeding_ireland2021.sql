@@ -1816,6 +1816,8 @@ UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=232 WHERE ba_b
 UPDATE ireland.batch_ope SET ba_no_biological_characteristic_type=233 WHERE ba_batch_level=3 AND ba_no_biological_characteristic_type =231; --246
 
 
+-- COLM 2022 re-run there -------------------------------------
+
 WITH faulty_p1 AS (
 SELECT * FROM ireland.batch_ope
 JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_biological_characteristic_type
@@ -1836,6 +1838,9 @@ JOIN dbeel_nomenclature.biological_characteristic_type bct ON bct.no_id=ba_no_bi
 WHERE bct.no_name='Number p3'
 AND ba_quantity<>op_nb)
 UPDATE ireland.batch_ope SET ba_quantity=op_nb WHERE ba_id IN (SELECT ba_id FROM faulty_p3); --171
+
+
+-- COLM 2022 re-run there end-------------------------------------
 
 ALTER TABLE ireland.batch_ope ADD COLUMN datasource TEXT;
 

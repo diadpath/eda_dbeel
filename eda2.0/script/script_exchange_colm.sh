@@ -50,4 +50,7 @@ pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelwfdlength_colm.b
 pg_restore -U postgres -d eda2.0 -h 185.135.126.250  ireland_eelwfdsurvey_colm.backup
 
 
-
+pg_dump -U postgres -h 185.135.126.250 -f "ireland110822.sql" --schema ireland eda2.0
+# to be run by Colm
+psql -U postgres -c "drop schema ireland CASCADE" eda2.0
+psql -U postgres -f "ireland110822" eda2.0
