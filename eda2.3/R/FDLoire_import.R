@@ -33,9 +33,15 @@ stations_FD <- readr::read_csv(str_c(datawd,"/loire/data/stations_FD_EDALoire.cs
 ## Peches ----
 
 peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv")) %>% 
-		left_join(stations_FD %>% select(sta_id, sta_source), by = c("op_sta_id" = "sta_id")) %>% 
-		filter(!op_typ %in% c("IA_Borchet", "Indice d'abondance truite (IAT)",
-						"IA BRO 0+", "Transfert")) # remove pike and trout related operations
+  left_join(stations_FD %>% select(sta_id, sta_source), by = c("op_sta_id" = "sta_id")) %>% 
+	filter(!op_typ %in% c("IA_Borchet", "Indice d'abondance truite (IAT)",
+					"IA BRO 0+", "IAT", # remove pike and trout related operations
+					"Transfert",# remove post introduction sampling
+					"Sondage presence-absence")) %>% 
+  filter(!is.na(op_typ)) %>% 
+  mutate(moyenprospection = "A pied") %>% # missing
+  rename(op_nbpas = op_nbpass) # to allow row_bind with operationsWama
+
 
 ## Biometry
 
