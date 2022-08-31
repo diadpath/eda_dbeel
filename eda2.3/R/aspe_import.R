@@ -79,7 +79,7 @@ france_polygone <- rnaturalearth::ne_countries(type = "countries",
 		select(name_sort) %>% # import only france on remove all col except name
 		st_transform(3035) # reproject in the same crs as stations
 
-station_aspe_france <- st_intersection( # filter stations in France
+station_aspe_france <- sf::st_intersection( # filter stations in France
 				station_aspe_sf, france_polygone) %>% 
 		select(-name_sort) # remove extra column from france polygone 31734
 
