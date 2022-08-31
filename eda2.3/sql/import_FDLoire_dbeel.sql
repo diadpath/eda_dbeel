@@ -180,4 +180,4 @@ SELECT
 ALTER TABLE france.operation_fdloire  ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = NULL; --2511
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = ob_id FROM
- france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=operation_fdloire.ope_id; --31919
+france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=france.operation_fdloire.op_id ; --2275
