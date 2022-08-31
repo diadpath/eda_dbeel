@@ -128,7 +128,8 @@ ef_no_electrofishing_mean,
 --ef_wetted_area,
 ef_fished_length,
 ef_fished_width,
-ef_duration,
+--ef_duration,
+ef_nbpas,
 nb_point,
 op_typ,
 ope_id,
@@ -140,6 +141,7 @@ SELECT
 	75 AS ob_no_period,
 	op_dat::date AS ob_starting_date,
 	CAST(NULL AS date) as ob_ending_date,
+	dsf.op_id as ob_op_id,
 	CASE WHEN sta_source LIKE 'FD72' THEN 32
 		 WHEN sta_source LIKE 'FD49' THEN 31
 		 WHEN sta_source LIKE 'EPLoire' THEN 33
@@ -148,14 +150,13 @@ SELECT
 		 WHEN sta_source LIKE 'FD43' THEN 36
 		 WHEN sta_source LIKE 'FD45' THEN 37
 	END AS ob_dp_id, 
-	CASE WHEN (op_typ ILIKE '%compl%') AND objectif ILIKE '%anguilles%' THEN 302
-	     WHEN op_typ ILIKE '%artielle sur berge%' THEN 302
-	     WHEN (op_typ ILIKE '%compl%' OR op_type ILIKE 'Sauvetage' OR op_type ILIKE '%passage%') THEN 62
-	     WHEN (op_typ ILIKE '%partielle%' OR op_typ ILIKE 'Par points' OR op_typ ILIKE 'Echantillonnage ponctuel d''abondance' OR op_type ILIKE ) THEN 301
-	     WHEN (op_typ ILIKE '%mbiance%' OR op_type ILIKE 'Stratifiée%' OR op_type ILIKE 'EPA') THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	CASE WHEN op_typ ILIKE '%artielle sur berge%' THEN 302
+	     WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE 'Sauvetage' OR op_typ ILIKE '%passage%') THEN 62
+	     WHEN (op_typ ILIKE '%partielle%' OR op_typ ILIKE 'Par points' OR op_typ ILIKE 'Echantillonnage ponctuel d''abondance') THEN 301
+	     WHEN (op_typ ILIKE '%mbiance%' OR op_typ ILIKE 'Stratifiée%' OR op_typ ILIKE 'EPA') THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
-         WHEN (op_typ ILIKE '%anguille%' OR op_typ ILIKE '%IAA%' OR op_type ILIKE 'EPA ANG') THEN 303
-         WHEN op_type ILIKE 'peche_pied_barrage' THEN 303 
+         WHEN (op_typ ILIKE '%anguille%' OR op_typ ILIKE '%IAA%' OR op_typ ILIKE 'EPA ANG') THEN 303
+         WHEN op_typ ILIKE 'peche_pied_barrage' THEN 303 
        ELSE 61 -- si y a des des 61 se m�fier
 	END AS ef_no_fishingmethod,
 	CASE WHEN moyenprospection ILIKE '%pied%'  THEN 71
@@ -167,17 +168,16 @@ SELECT
 	op_length AS ef_fished_length,
 	op_width AS ef_fished_width,
 	--odp_duree_peche AS ef_duration,
-	CASE WHEN op_nbpas IS NULL THEN 1 ELSE op_nbpas END AS ef_nbpas,	     
-	op_sta_id as ob_op_id,
-	n_EPA AS nb_point,
+	CASE WHEN op_nbpas IS NULL THEN 1 ELSE op_nbpas END AS ef_nbpas,
+	"n_EPA" AS nb_point,
     op_typ,
-    op_id,
-  	op_cod,
-  	op_sta_id,
-  FROM 	france.operation_fdloire; --31919 ROWS 28s
+    of2.op_id,
+  	op_sta_id
+  FROM france.dbeel_station_fdloire dsf 
+  JOIN france.operation_fdloire of2 ON dsf.sta_id = of2.op_sta_id; --2275
 	
 
-ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
-UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
- france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --31919
+ALTER TABLE france.operation_fdloire  ADD COLUMN ope_dbeel_ob_id UUID;
+UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = NULL; --2511
+UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = ob_id FROM
+ france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=operation_fdloire.ope_id; --31919
