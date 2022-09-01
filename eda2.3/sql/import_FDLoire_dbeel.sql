@@ -20,7 +20,7 @@ ALTER TABLE france.station_fdloire ADD COLUMN dbeel_op_id uuid;
 -- add establishment
 -- select * from dbeel.establishment
 INSERT INTO dbeel.establishment(et_establishment_name)
-SELECT DISTINCT sf.sta_source from france.station_fdloire sf ; --7
+SELECT DISTINCT sf.sta_source from france.station_fdloire sf ; --8
 
 -- add data provider
 INSERT INTO dbeel.data_provider(dp_name, dp_et_id)
@@ -61,10 +61,10 @@ INSERT INTO france.dbeel_station_fdloire
 	sta_lib AS op_placename,
 	10 AS op_no_observationplacetype, -- Sampling station
 	NULL AS  op_op_id,
-	geom  as the_geom, -- already 3035
+	geom  as the_geom, 
    sta_id,
    'FR' AS country 
-	FROM france.station_fdloire ;  --2550
+	FROM france.station_fdloire ;  --2714
 
 ------------------------------
 --Add uuid to original table
@@ -73,7 +73,7 @@ INSERT INTO france.dbeel_station_fdloire
 	
 	ALTER TABLE france.station_fdloire  ADD COLUMN sta_dbeel_op_id UUID;
 	UPDATE france.station_fdloire SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_fdloire WHERE dbeel_station_fdloire.sta_id=station_fdloire.sta_id; --2550
+ france.dbeel_station_fdloire WHERE dbeel_station_fdloire.sta_id=station_fdloire.sta_id; --2714
  
  
  
@@ -149,6 +149,7 @@ SELECT
 		 WHEN sta_source LIKE 'FD86' THEN 35
 		 WHEN sta_source LIKE 'FD43' THEN 36
 		 WHEN sta_source LIKE 'FD45' THEN 37
+		 WHEN sta_source LIKE 'FD37' THEN 40
 	END AS ob_dp_id, 
 	CASE WHEN op_typ ILIKE '%artielle sur berge%' THEN 302
 	     WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE 'Sauvetage' OR op_typ ILIKE '%passage%') THEN 62
@@ -174,10 +175,109 @@ SELECT
     of2.op_id,
   	op_sta_id
   FROM france.dbeel_station_fdloire dsf 
-  JOIN france.operation_fdloire of2 ON dsf.sta_id = of2.op_sta_id; --2275
+  JOIN france.operation_fdloire of2 ON dsf.sta_id = of2.op_sta_id; --2511
 	
 
 ALTER TABLE france.operation_fdloire  ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = NULL; --2511
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = ob_id FROM
-france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=france.operation_fdloire.op_id ; --2275
+france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=france.operation_fdloire.op_id ; --2511
+
+-- DROP TABLE france.dbeel_batch_ope_fdloire;
+CREATE TABLE france.dbeel_batch_ope_fdloire (
+  ope_id int4 NULL,
+  CONSTRAINT pk_batch_ba_id_fdloire PRIMARY KEY (ba_id),
+  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_fdloire(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_biological_characteristic_type FOREIGN KEY (ba_no_biological_characteristic_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_individual_status FOREIGN KEY (ba_no_individual_status) REFERENCES dbeel_nomenclature.individual_status(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_species_id FOREIGN KEY (ba_no_species) REFERENCES dbeel_nomenclature.species(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_stage_id FOREIGN KEY (ba_no_stage) REFERENCES dbeel_nomenclature.stage(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_value_type FOREIGN KEY (ba_no_value_type) REFERENCES dbeel_nomenclature.value_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE
+)
+INHERITS (dbeel.batch);
+
+-- nbeel
+DELETE FROM france.dbeel_batch_ope_fdloire;
+INSERT INTO france.dbeel_batch_ope_fdloire
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  of2.op_nbeel AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  eef.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  of2.op_id
+  FROM france.dbeel_electrofishing_fdloire eef JOIN
+  france.operation_fdloire of2  ON of2.op_id  = eef.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; -- 2523 rows
+
+  
+-- number p1
+INSERT INTO france.dbeel_batch_ope_fdloire
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  of2.op_p1  AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  eef.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  of2.op_id
+  FROM france.dbeel_electrofishing_fdloire eef JOIN
+  france.operation_fdloire of2  ON of2.op_id  = eef.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; -- 2523 rows
+
+-- number p2
+	
+INSERT INTO france.dbeel_batch_ope_fdloire
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  of2.op_p2  AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  eef.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  of2.op_id
+  FROM france.dbeel_electrofishing_fdloire eef JOIN
+  france.operation_fdloire of2  ON of2.op_id  = eef.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p2' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 1 
+  ; -- 335 rows
+  
