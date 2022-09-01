@@ -86,10 +86,11 @@ DBI::dbExecute(con, "ALTER TABLE operation_fdloire set schema france")
 
 ## Biometry
 load(file=str_c(datawd,"/loire/data/biometry_WAMA.Rdata"))
-biometry_FD1 <- bind_rows(biometry_FD, biometry_WAMA)
 biometry_FD$ang_pds <- as.numeric(biometry_FD$ang_pds)
+biometry_FD1 <- bind_rows(biometry_FD, biometry_WAMA)
+
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_fdloire;")
-DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD) # written in public scheme
+DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD1) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_fish_fdloire set schema france")
 
