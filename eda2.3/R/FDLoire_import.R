@@ -86,6 +86,13 @@ DBI::dbExecute(con, "ALTER TABLE operation_fdloire set schema france")
 
 ## Biometry
 load(file=str_c(datawd,"/loire/data/biometry_WAMA.Rdata"))
+
+biometry_WAMA <- biometry_WAMA %>% 
+  left_join(operationsWAMA %>% select(op_id, op_cod), 
+            by = c('ang_op_id' = 'op_cod')) %>%  # the ang_op_id is the op_cod !
+  mutate(ang_op_id = op_id) %>% # replace ang_op_id by actual op_id
+  select(-op_id) #remove extra op_id
+
 biometry_FD$ang_pds <- as.numeric(biometry_FD$ang_pds)
 biometry_FD1 <- bind_rows(biometry_FD, biometry_WAMA)
 
