@@ -347,6 +347,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
 DROP TABLE if exists france.dbeel_batch_fish_fdloire CASCADE;
 CREATE TABLE france.dbeel_batch_fish_fdloire (
   ope_id INTEGER,
+  ang_id INTEGER,
 	CONSTRAINT pk_fish_fi_id_fdloire PRIMARY KEY (ba_id),
 	CONSTRAINT fk_fish_fi_ba_no_species_id FOREIGN KEY (ba_no_species) 
 		REFERENCES dbeel_nomenclature.species (no_id) 
@@ -373,8 +374,12 @@ WITH bafd1 AS (
     SELECT * FROM france.dbeel_batch_ope_fdloire dbof 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id= dbof.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p1'  
-  )
-	SELECT uuid_generate_v4() AS ba_id,
+  ),
+     baff1 AS (
+     	SELECT * FROM france.batch_fish_fdloire bff
+     	WHERE ang_pas = 1 OR ang_pas IS NULL
+     	) -- AS we entered ALL fish AS p1 even IF they ARE point sample
+SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
@@ -384,8 +389,9 @@ WITH bafd1 AS (
 	2 AS ba_batch_level,
 	ba_ob_id as ba_ob_id, 
 	ba_id as ba_ba_id,
-	bff.ang_op_id AS ope_id 
-	FROM france.batch_fish_fdloire bff  
+	baff1.ang_op_id AS ope_id,
+	baff1.ang_id AS ang_id
+	FROM baff1  
     JOIN bafd1 ON ang_op_id = ope_id,
 	dbeel_nomenclature.species, 
 	dbeel_nomenclature.stage, 
@@ -394,8 +400,58 @@ WITH bafd1 AS (
 	dbeel_nomenclature.individual_status 
 	WHERE species.no_name='Anguilla anguilla' 
 	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number' 
+	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 6088
+	; -- 4517
   
+	
+	-- To integrate length and weight of fish, we need the "ba_id" 
+-- that corresponds to the batch (each line must be different) 
+
+
+DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_fdloire CASCADE;
+CREATE TABLE france.dbeel_mensurationindiv_biol_charac_fdloire (
+	ope_id INTEGER,
+	ang_id INTEGER,
+	CONSTRAINT pk_mensindivbiocho_id_fd PRIMARY KEY (bc_id),
+	CONSTRAINT fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
+		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
+		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
+		REFERENCES france.dbeel_batch_fish_fdloire (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+
+)INHERITS (dbeel.biological_characteristic); --0
+
+select * from france.batch_fish_fdloire bff  limit 10;
+
+
+-- Insert WEIGHT (gr)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  ope_id,
+  ang_id)
+	SELECT 
+	uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type,	
+   CASE WHEN (ang_pds = 0 OR ang_pds IS NULL) THEN 54 -- Unkown
+       WHEN ang_pds > 0 THEN 55 --'Raw data or Individual data'
+  END AS bc_no_value_type,
+	CASE WHEN (ang_pds = 0 OR ang_pds IS NULL) THEN NULL 
+	     WHEN ang_pds > 0 THEN ang_pds
+	ELSE NULL END AS bc_numvalue,	
+  dbff.ope_id,
+  bff.ang_id 
+	FROM 
+	france.dbeel_batch_fish_fdloire dbff JOIN
+	france.batch_fish_fdloire bff ON dbff.ang_id = bff.ang_id, 
+	dbeel_nomenclature.biological_characteristic_type
+	WHERE biological_characteristic_type.no_name = 'Weight'; --4517
+	
+	
