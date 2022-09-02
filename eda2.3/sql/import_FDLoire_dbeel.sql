@@ -280,4 +280,122 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 1 
   ; -- 335 rows
+ 
+  
+-- number p3
+  
+ INSERT INTO france.dbeel_batch_ope_fdloire
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  of2.op_p2  AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  eef.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  of2.op_id
+  FROM france.dbeel_electrofishing_fdloire eef JOIN
+  france.operation_fdloire of2  ON of2.op_id  = eef.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p3' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 2 
+  ; -- 2 ROWS
+  
+  -- number p4
+  
+ INSERT INTO france.dbeel_batch_ope_fdloire
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  of2.op_p2  AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  eef.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  of2.op_id
+  FROM france.dbeel_electrofishing_fdloire eef JOIN
+  france.operation_fdloire of2  ON of2.op_id  = eef.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number p4' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 3 
+  ; -- 1 rows
+
+  ----------------------------------------------------------------------
+-- Batch integration, the second level will reference the fish table
+----------------------------------------------------------------------
+  
+DROP TABLE if exists france.dbeel_batch_fish_fdloire CASCADE;
+CREATE TABLE france.dbeel_batch_fish_fdloire (
+  ope_id INTEGER,
+	CONSTRAINT pk_fish_fi_id_fdloire PRIMARY KEY (ba_id),
+	CONSTRAINT fk_fish_fi_ba_no_species_id FOREIGN KEY (ba_no_species) 
+		REFERENCES dbeel_nomenclature.species (no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_fish_fi_ba_no_stage_id FOREIGN KEY (ba_no_stage) 
+		REFERENCES dbeel_nomenclature.stage (no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,	
+	CONSTRAINT fk_fish_fi_ba_value_type FOREIGN KEY (ba_no_value_type)
+		REFERENCES dbeel_nomenclature.value_type (no_id)
+		ON DELETE RESTRICT ON UPDATE CASCADE,	
+	CONSTRAINT fk_fish_fi_ba_no_biological_characteristic_type 	FOREIGN KEY (ba_no_biological_characteristic_type)
+		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id)
+		ON DELETE RESTRICT ON UPDATE CASCADE,			
+	CONSTRAINT fk_fish_fi_ba_no_individual_status FOREIGN KEY (ba_no_individual_status)
+		REFERENCES dbeel_nomenclature.individual_status(no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT c_fk_fi_ob_id FOREIGN KEY (ba_ob_id) 
+		REFERENCES france.dbeel_electrofishing_fdloire (ob_id) 
+		ON DELETE CASCADE ON UPDATE CASCADE
+		) INHERITS (dbeel.batch);
+	
+INSERT INTO france.dbeel_batch_fish_fdloire
+WITH bafd1 AS (
+    SELECT * FROM france.dbeel_batch_ope_fdloire dbof 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id= dbof.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p1'  
+  )
+	SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	1 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	2 AS ba_batch_level,
+	ba_ob_id as ba_ob_id, 
+	ba_id as ba_ba_id,
+	bff.ang_op_id AS ope_id 
+	FROM france.batch_fish_fdloire bff  
+    JOIN bafd1 ON ang_op_id = ope_id,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 6088
   
