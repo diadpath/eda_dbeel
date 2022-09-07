@@ -83,6 +83,25 @@ station_aspe_france <- sf::st_intersection( # filter stations in France
 				station_aspe_sf, france_polygone) %>% 
 		select(-name_sort) # remove extra column from france polygone 31734
 
+# some biometry data are wrong for Brittany. We identify station located in the region
+
+passerelle <- aspe::mef_creer_passerelle()
+
+url_gadm <- "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_FRA_1_sf.rds"
+download.file(url_gadm, "/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds")
+reg_france <- readRDS("/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds") %>% 
+  st_transform(3035) # reproject in the same crs as stations
+
+station_aspe_bretagne <- sf::st_intersection(
+  # select stations in Britanny
+  station_aspe_sf, reg_france %>% filter(NAME_1 == "Bretagne")) %>% 
+  select(sta_id)
+
+passerelle_aspe_bretagne <- passerelle %>% 
+  filter(sta_id %in% station_aspe_bretagne$sta_id)
+  
+ope_bretagne <- unique(passerelle_aspe_bretagne$ope_id)
+  
 # Just checking that everything works fine
 mapview::mapview(station_aspe_france, color = "green")
 
@@ -280,6 +299,12 @@ data_ang <- data %>%
 		filter(esp_code_alternatif == "ANG" & mei_taille > 49) # remove unlikely sizes
 rm(data)
 
+# Remove wrong measurements (systematic 350mm) in Brittany
+
+test <- data_ang %>% 
+  filter(ope_id %in% ope_bretagne & mei_taille == 350)
+
+# TODO : finish cleaning
 
 # count sample mesures to use the function only when the sample is large enough
 # TRIAL => recalculation of size structure, does not really work. ... generates missing values
