@@ -95,6 +95,10 @@ CREATE OR REPLACE VIEW bdoe.export_ouvrage AS
   WHERE ouv.ouv_gelee <> true OR ouv.ouv_gelee IS NULL
   ORDER BY ouv.ouv_id;
 
+
+
+
+
   
 DROP VIEW bdoe.ouvrage_bdoe;
 
