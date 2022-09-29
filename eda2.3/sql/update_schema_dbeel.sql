@@ -758,6 +758,8 @@ CREATE INDEX sudoang_dbeel_batch_fish_ba_ob_id
 ON sudoang.dbeel_batch_fish  
 USING btree(ba_ob_id);
 
-
+CREATE INDEX sudoang_dbeel_obstruction_place_country
+ON sudoang.dbeel_obstruction_place 
+USING btree(country);
 
 

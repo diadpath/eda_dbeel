@@ -28,9 +28,14 @@ psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS tablefunc;" geobs
 
 
 psql -U postgres -f "d:/eda/base/eda2.3/old_roe.backup" geobs
-# error ignored le schema geobs n'existe pas
+# The schema postgis is not in a standared location (public)... changed here
 psql -U postgres -d geobs -c "CREATE SCHEMA IF NOT EXISTS postgis;UPDATE pg_extension SET extrelocatable = TRUE WHERE extname = 'postgis';ALTER EXTENSION postgis SET SCHEMA postgis;"  
 
 # -c clean -j jobs -1 (begin commit single transaction) -e exit on error ATTENTION j incompatible avec -e
 pg_restore -U postgres -c -d  geobs geobs_export_20220704.backup 1> "restorelog.log" 2>&1
 # 731 errors of foreign keys and postgis
+
+pg_dump  -U postgres --schema roe --schema ice --schema bdoe --schema geobs geobs > "D:/eda/base/eda2.3/sauv_geobs_to_eda_2022.sql"
+# OPEN FILE IN notepad ++ replace all postgis. by public.
+psql -U postgres -c "drop schema roe cascade; drop schema ice cascade; drop schema bdoe cascade; drop schema geobs cascade;" eda2.3
+psql -U postgres  -f "D:/eda/base/eda2.3/sauv_geobs_to_eda_2022.sql"  eda2.3
