@@ -6,7 +6,9 @@
 -- 11/07/2019
 -- Utilisation du dump Nettoyage des tables
 -- 14/08/2020 test sur nouvelle version envoyée par Karl
-/* 
+-- 29/09/2022  Import nouvelle version geobs du 03/07/2022 voir script script/script_restore_geobs.sh
+-- NOTE j'ai eu un pb de commit les nb affichés ne sont pas les bons !!!
+/*
 suppression des infos propriétaires
 
 ALTER TABLE ice.obstacle_operation_ice DROP CONSTRAINT fk_obstacle_operation_ice_proprietaire;
@@ -96,10 +98,6 @@ CREATE OR REPLACE VIEW bdoe.export_ouvrage AS
   ORDER BY ouv.ouv_id;
 
 
-
-
-
-  
 DROP VIEW bdoe.ouvrage_bdoe;
 
 CREATE OR REPLACE VIEW bdoe.ouvrage_bdoe AS 
@@ -207,17 +205,8 @@ STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 
 --------------------------------------
 
-psql -U postgres -c "drop schema public" geobs072020
 
--- forced to do that in two steps (pipes are restricted to linux)
---pg_dump -Fc -U postgres -f "geobs072020" geobs072020 
--- so AS NOT TO break anything first a dump
 
---pg_dump  -U postgres --schema roe --schema ice --schema bdoe --schema geobs geobs072020 > "F:/eda/base/eda2.3/sauv_geobs_to_eda.sql"
--- replace all postgis. by nothing change search_path to public 
---RENAME ALL CALL TO postgis....
---psql -U postgres -c "drop schema roe cascade; drop schema ice cascade; drop schema bdoe cascade; drop schema geobs cascade;" eda2.3
---psql -U postgres  -f "F:/eda/base/eda2.3/sauv_geobs_to_eda_cor.sql"  eda2.3
 
 
 
@@ -226,20 +215,20 @@ psql -U postgres -c "drop schema public" geobs072020
 
 
 -- SELECT * FROM sudoang.dbeel_obstruction_place WHERE country='FR';
-
+-- SELECT count(*) FROM roe.roesudo
 DROP TABLE IF EXISTS roe.roesudo;
-CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415
+CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415 =>117340
 
 SELECT UpdateGeometrySRID('roe','roesudo','ref_position_carthage',3035);
 update roe.roesudo set ref_position_carthage= ST_Transform(ST_SetSRID(ref_position_carthage,4326),3035);
 reindex TABLE roe.roesudo;
 -- SELECT * FROM roe.roesudo WHERE ref_position_carthage is NULL;
---SELECT count(*) FROM roe.roesudo WHERE ref_position_carthage IS NULL; --10493
+--SELECT count(*) FROM roe.roesudo WHERE ref_position_carthage IS NULL; 
 -- projection des données ROE ICE sur le réseau RHT (couche france.rn)
 
 SELECT addgeometrycolumn('roe','roesudo','geom_reproj',3035,'POINT',2);
 
--- SELECT count (*) FROM roe.roesudo WHERE ref_position_carthage is not null; -- 102922
+-- SELECT count (*) FROM roe.roesudo WHERE ref_position_carthage is not null;
 update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
 SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
 SELECT roe.ref_id, 
@@ -249,7 +238,7 @@ FROM roe.roesudo roe  join
 france.rn r on st_dwithin(r.geom,roe.ref_position_carthage,300) 
 ORDER BY ref_id, distance
 )sub )sub2
-WHERE sub2.ref_id= roesudo.ref_id; -- 92034
+WHERE sub2.ref_id= roesudo.ref_id; 
 
 /* For those missing adding the geom from ref_position not ref_position_carthage
 */
@@ -263,12 +252,13 @@ france.rn r on st_dwithin(r.geom,st_transform(roe.ref_position,3035),300)
 WHERE ref_position_carthage is NULL  -- là ou le ref_postition_carthage est null
 ORDER BY ref_id, distance
 )sub )sub2
-WHERE sub2.ref_id= roesudo.ref_id; -- 4875
+WHERE sub2.ref_id= roesudo.ref_id; -
 
 
---SELECT count(*) FROM roe.roesudo --112934 
+--SELECT count(*) FROM roe.roesudo --117340 
 -- TODO quand usage hydroelectricité corriger usage plan de grille
-SELECT * FROM roe.roesudo 
+
+/*SELECT * FROM roe.roesudo 
 JOIN roe.type ON ref_typ_id=typ_id
 WHERE ref_id_national = 'ROE43938';
 -- LACAZE
@@ -297,7 +287,7 @@ JOIN roe.type ON ref_typ_id=typ_id
 WHERE ref_id_national = 'ROE40573';
 
 SELECT * FROM sudoang.dbeel_obstruction_place WHERE id_original = 'ROE43938'
-
+*/
 CREATE INDEX 
   ON roe.roesudo
   USING gist
@@ -316,7 +306,7 @@ http://id.eaufrance.fr/ddd/ETH/2002-1/IdTronconHydrograElt
  
  
 
-DELETE  FROM sudoang.dbeel_obstruction_place WHERE country='FR'; --80324 => 84272 rows affected, 11:44 minutes  
+DELETE  FROM sudoang.dbeel_obstruction_place WHERE country='FR';  
 
 INSERT INTO sudoang.dbeel_obstruction_place
 	SELECT uuid_generate_v4() AS op_id, 
