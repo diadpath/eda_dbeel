@@ -33,9 +33,15 @@ stations_FD <- readr::read_csv(str_c(datawd,"/loire/data/stations_FD_EDALoire.cs
 ## Peches ----
 
 peches_FD <-readr::read_csv(str_c(datawd,"/loire/data/peches_FD_EDALoire.csv")) %>% 
-		left_join(stations_FD %>% select(sta_id, sta_source), by = c("op_sta_id" = "sta_id")) %>% 
-		filter(!op_typ %in% c("IA_Borchet", "Indice d'abondance truite (IAT)",
-						"IA BRO 0+", "Transfert")) # remove pike and trout related operations
+  left_join(stations_FD %>% select(sta_id, sta_source), by = c("op_sta_id" = "sta_id")) %>% 
+	filter(!op_typ %in% c("IA_Borchet", "Indice d'abondance truite (IAT)",
+					"IA BRO 0+", "IAT", # remove pike and trout related operations
+					"Transfert",# remove post introduction sampling
+					"Sondage presence-absence")) %>% 
+  filter(!is.na(op_typ)) %>% 
+  mutate(moyenprospection = "A pied") %>% # missing
+  rename(op_nbpas = op_nbpass) # to allow row_bind with operationsWama
+
 
 ## Biometry
 
@@ -80,10 +86,18 @@ DBI::dbExecute(con, "ALTER TABLE operation_fdloire set schema france")
 
 ## Biometry
 load(file=str_c(datawd,"/loire/data/biometry_WAMA.Rdata"))
-biometry_FD1 <- bind_rows(biometry_FD, biometry_WAMA)
+
+biometry_WAMA <- biometry_WAMA %>% 
+  left_join(operationsWAMA %>% select(op_id, op_cod), 
+            by = c('ang_op_id' = 'op_cod')) %>%  # the ang_op_id is the op_cod !
+  mutate(ang_op_id = op_id) %>% # replace ang_op_id by actual op_id
+  select(-op_id) #remove extra op_id
+
 biometry_FD$ang_pds <- as.numeric(biometry_FD$ang_pds)
+biometry_FD1 <- bind_rows(biometry_FD, biometry_WAMA)
+
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_fdloire;")
-DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD) # written in public scheme
+DBI::dbWriteTable(con, "batch_fish_fdloire", biometry_FD1) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_fish_fdloire set schema france")
 

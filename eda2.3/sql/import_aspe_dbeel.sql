@@ -30,7 +30,7 @@ select * from dbeel.observation_places limit 10;
 
 -- select * from france.station_aspe limit 10;
 
-SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 32727 true
+SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 31734 true
 
 -- Create the stationdbeel table from dbeel
 DROP TABLE if exists france.dbeel_station_aspe CASCADE;
@@ -46,9 +46,9 @@ CREATE TABLE france.dbeel_station_aspe (
 
 --select * from france.dbeel_station_aspe limit 10;
 
-DELETE FROM france.dbeel_batch_ope_aspe; --75666
-DELETE FROM france.dbeel_electrofishing_aspe; --33300
-DELETE FROM france.dbeel_station_aspe; -- 2 min 32720
+--DELETE FROM france.dbeel_batch_ope_aspe; --75666
+--DELETE FROM france.dbeel_electrofishing_aspe; --33300
+--DELETE FROM france.dbeel_station_aspe; -- 2 min 32720
 
 
 -- SELECT * FROM france.station_aspe
@@ -257,10 +257,8 @@ SELECT
         france.dbeel_station_aspe sta
    JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  -- JOIN donc les operations sans sta_id sont gardées
    -- nomenclatures 	 
-
-	
 	 dbeel_nomenclature.observation_origin,
-	dbeel_nomenclature.observation_type,
+	 dbeel_nomenclature.observation_type,
 	 dbeel_nomenclature.period_type,
 	 dbeel.data_provider  			
 	WHERE observation_origin.no_name='Raw data' 
@@ -649,17 +647,14 @@ SELECT distinct (ope_id) FROM france.batch_fish_aspe; --16888
 */
 
 INSERT INTO france.dbeel_batch_fish_aspe
-
   WITH bap1 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p1'  
-  ),
-
-  bafp1 AS (SELECT * FROM france.batch_fish_aspe
+    ),
+    bafp1 AS (SELECT * FROM france.batch_fish_aspe
           WHERE pas_numero = 1 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
-        
-	SELECT uuid_generate_v4() AS ba_id,
+    SELECT uuid_generate_v4() AS ba_id,
 	species.no_id AS ba_no_species,
 	stage.no_id AS ba_no_stage,
 	value_type.no_id AS ba_no_value_type,
@@ -670,9 +665,9 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	bap1.ba_ob_id as ba_ob_id, 
 	ba_id as ba_ba_id,
 	bap1.ope_id ,
-  bafp1.mei_id ,
-  bafp1.lop_id ,
-  bafp1.tyl_libelle
+    bafp1.mei_id ,
+    bafp1.lop_id ,
+    bafp1.tyl_libelle
 	FROM 
 	bafp1
 	JOIN bap1 ON (bap1.ope_id=bafp1.ope_id),
@@ -683,10 +678,10 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	dbeel_nomenclature.individual_status 
 	WHERE species.no_name='Anguilla anguilla' 
 	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number' 
+	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 285 096 poissons mesurés au premier passage 
+	; -- 285 096 poissons mesurés au premier passage -> 284812
 
 -- To integrate length and weight of fish, we need the "ba_id" 
 -- that corresponds to the batch (each line must be different) 
@@ -711,7 +706,7 @@ select * from france.batch_fish_aspe limit 10;
 
 
 SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
-  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812
 
 
 -- Insert WEIGHT (gr)
@@ -779,9 +774,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_no_value_type,
   bc_numvalue,
   mei_id,
-  ope_id)
-  
-SELECT 
+  ope_id)  
+  SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
@@ -796,7 +790,7 @@ SELECT
   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096
+  WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096 -> 284812
 
 
 
@@ -804,16 +798,13 @@ SELECT
 
 
 INSERT INTO france.dbeel_batch_fish_aspe
-
   WITH bap2 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p2'  
   ),
-
   bafp2 AS (SELECT * FROM france.batch_fish_aspe
-          WHERE pas_numero = 2 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
-        
+          WHERE pas_numero = 2 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -838,10 +829,10 @@ INSERT INTO france.dbeel_batch_fish_aspe
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' 
+  AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 34 292 p2
+  ; -- 34 292 p2 -> 34241
 
 
 -- Insert WEIGHT (gr)
@@ -885,9 +876,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_no_value_type,
   bc_numvalue,
   mei_id,
-  ope_id)
-  
-SELECT 
+  ope_id)  
+  SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
@@ -903,22 +893,19 @@ SELECT
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=2; -- 34 292
+    AND baf.pas_numero=2; -- 34 292 -> 34241
 
 -- THIRD PASS
 
 
 INSERT INTO france.dbeel_batch_fish_aspe
-
   WITH bap3 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p3'  
   ),
-
   bafp3 AS (SELECT * FROM france.batch_fish_aspe
-          WHERE pas_numero = 3 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
-        
+          WHERE pas_numero = 3 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -943,10 +930,10 @@ INSERT INTO france.dbeel_batch_fish_aspe
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' 
+  AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 143 fish measured with infinite delicacy on the third pass
+  ; -- 143 fish measured with infinite delicacy on the third pass -> 284
 
 
 -- Insert WEIGHT (gr)
@@ -978,7 +965,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=3
-  AND biological_characteristic_type.no_name = 'Weight'; --35
+  AND biological_characteristic_type.no_name = 'Weight'; --35 -> 68
 
 -- Insert LENGTH (mm)
   
@@ -990,9 +977,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_no_value_type,
   bc_numvalue,
   mei_id,
-  ope_id)
-  
-SELECT 
+  ope_id)  
+  SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
@@ -1008,23 +994,20 @@ SELECT
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=3; -- 143
+    AND baf.pas_numero=3; -- 143 -> 284
     
     
 -- FOURTH PASS
 
 
 INSERT INTO france.dbeel_batch_fish_aspe
-
   WITH bap4 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
     JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
     WHERE bc.no_name='Number p4'  
   ),
-
   bafp4 AS (SELECT * FROM france.batch_fish_aspe
-          WHERE pas_numero = 4 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
-        
+          WHERE pas_numero = 4 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
@@ -1049,7 +1032,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' 
+  AND biological_characteristic_type.no_name='Number p4' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; -- 4 fish measured WITH a lot OF effort IN fourth pass
@@ -1096,9 +1079,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_no_value_type,
   bc_numvalue,
   mei_id,
-  ope_id)
-  
-SELECT 
+  ope_id)  
+  SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
