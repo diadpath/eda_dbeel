@@ -99,6 +99,7 @@ Après avoir restauré le schéma de cette base sur le serveur local (dans la db
 
 * [ ] refaire tourner  ASPE #8
 * [ ] dédoublonner les données ASPE et logrami #4
+* [ ] créer un rapport markdown stations operations lots des données intégrées depuis ASPE et RSA et fédé.
 * [ ] dans ASPE ré-échantillonner #5 
 * [ ] integrer les paramètres d'argenture historique en faisant un lien et renvoyer table au niveau national #6
 * [ ] Importer les données RSA logrami #9
