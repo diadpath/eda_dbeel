@@ -98,6 +98,9 @@ Après avoir restauré le schéma de cette base sur le serveur local (dans la db
 ## A faire
 
 * [ ] refaire tourner  ASPE #8
+* [ ] dédoublonner les données ASPE et logrami #4
+* [ ] dans ASPE ré-échantillonner #5 
+* [ ] integrer les paramètres d'argenture historique en faisant un lien et renvoyer table au niveau national #6
 * [ ] Importer les données RSA logrami #9
 _ note : les nombres totaux d'anguille correspondent aux anguilles vues et capturées._
 * [ ] Refaire tourner les scripts ouvrages pour import dbeel et génération des Rdata #12
