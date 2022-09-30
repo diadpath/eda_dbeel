@@ -94,3 +94,12 @@ L'OFB maintient une base de donnée avec les suivis anguilles sur les rivières 
 export a été transmis par C. Boulenger et est stocké dans "D:\eda\data\eda2.3\RSA" (chez Cédric).
 
 Après avoir restauré le schéma de cette base sur le serveur local (dans la dbeel), un [script SQL](https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/sql/import_rsa_dbeel.sql) permet l'import des données.
+
+## A faire
+
+* [ ] refaire tourner  ASPE #8
+* [ ] Importer les données RSA logrami #9
+_ note : les nombres totaux d'anguille correspondent aux anguilles vues et capturées._
+* [ ] Refaire tourner les scripts ouvrages pour import dbeel et génération des Rdata #12
+* [ ] Refaire tourner EDA2.3 avec les nouvelles données eda_model#12
+* [ ] Refaire tourner le modèle seulement sur la Loire eda_model#13
