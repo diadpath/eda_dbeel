@@ -29,8 +29,8 @@ con = dbConnect(Postgres(),
 # Load Rdata tables sent by OFB (Pascal Irz),
 # Remember to ask if/when data set will be integrated in hub'eau API 
 
-load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_01_13_14_22_07.RData")) # all data except biometry
-load(str_c(datawd,"/loire/data/mei_2022_01_13_14_22_07.RData")) # biometry
+load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_09_07_09_38_09.RData")) # all data except biometry
+load(str_c(datawd,"/loire/data/mei_2022_09_07_09_38_09.RData")) # biometry
 
 
 
