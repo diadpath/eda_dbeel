@@ -14,6 +14,9 @@ un schéma fils seront rapatriées dans le schéma père lors des requêtes
 sur ce dernier. Cela permet de conserver des champs supplémentaires dans
 les schémas fils qui ne seront pas présents dans le schéma père.
 
+Les évolutions dans sudoang du schema dbeel sont dans le [script](https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/sql/update_schema_dbeel.sql)
+
+
 # Mise à jour des données
 
 Les données de pêche électriques sont stockées dans la base de données
@@ -22,8 +25,8 @@ serveur en local.
 
 Afin d'être en mesure de réaliser annuellement les mises à jour des
 scripts dédiés ont été développés par C. Briand, D. Lafage et C.
-Boulenger sur le gitlab de l'OFB. Les données à importer doivent être
-copier dans le dossier local EDA_data
+Boulenger sur le gitlab de l'OFB. Les données à importer sont principalement
+copiées dans le dossier local EDA_data ou dans le dossier d'import d'EDA.
 
 # Principe d'import
 
@@ -34,21 +37,21 @@ L'import de données se fait en 3 grandes phases:
    - une table "opérations" : une pêche électrique 1 jour à une station (la table comprend notamment le nombre d'anguilles total et par passage)
    - une table de données biométrique
  - Écriture des données dans la base (sous R grâce à {DBI} dans le schéma France (qui hérite du schéma dbeel)
- - Création et import des tables correspondantes en SQL (elles auront toutes le préfix "dbeel_")
+ - Création et import des tables correspondantes en SQL (elles auront toutes le préfix "dbeel_"), elles héritent de la table de base crée dans la dbeel.
 
 
 
- - Les données de nombre d'anguilles total et par passage sont stockées en format long : une colonne (ba_no_biological_characteristic_type) indique de quelle variable on parle (Number, Number p1...) et une colonne (ba_quantity) indique la valeur associée. Ces données dans leur ensemble constituent un "batch" de niveau 1.
- -  Les données de biométrie sont, elles aussi, stockées en format long : une colonne (bc_no_characteristic_type) indique de quelle variable on parle (longueur, poids...) et une colonne (bc_numvalue) indique la valeur associée. Ces données dans leur ensemble constituent un "batch" de niveau 2.
+ - Les données de nombre d'anguilles total et par passage sont stockées en format long : une colonne (`ba_no_biological_characteristic_type`) indique de quelle variable on parle (Number, Number p1...) et une colonne (ba_quantity) indique la valeur associée. Ces données dans leur ensemble constituent un "batch" de niveau 1.
+ -  Les données de biométrie sont, elles aussi, stockées en format long : une colonne (`bc_no_characteristic_type`) indique de quelle variable on parle (longueur, poids...) et une colonne (bc_numvalue) indique la valeur associée. Ces données dans leur ensemble constituent un "batch" de niveau 2.
 
 
-   - la table station est importée dans france.dbeel_station_source (remplacer source par ASPE ou autre)
+   - la table station est importée dans `france.dbeel_station_source` (remplacer source par ASPE ou autre)
    - la table opération est importée
-     - dans france.dbeel_electrofishing_source pour ce qui concerne la description de l'opération en elle-même
-     - dans france.dbeel_batch_ope_source pour le nombre total et le nombre par passage.
+     - dans `france.dbeel_electrofishing_source` pour ce qui concerne la description de l'opération en elle-même
+     - dans `france.dbeel_batch_ope_source` pour le nombre total et le nombre par passage.
    - la table de biométrie nécessite plusieurs étapes :
-     - on référence chaque poisson (1 import par passage) dans france.batch_fish_source
-     - on importe les données biométriques correspondantes dans france.dbeel_mensurationindiv_biol_charac_source (1 import par type (longueur, poids...) et par passage)
+     - on référence chaque poisson (1 import par passage) dans `france.batch_fish_source`
+     - on importe les données biométriques correspondantes dans `france.dbeel_mensurationindiv_biol_charac_source` (1 import par type (longueur, poids...) et par passage)
 
 # Détail de l'import par source 
 
