@@ -2,12 +2,10 @@
 
 Les données de pêche électriques utilisées par EDA sont stockées dans la
 base de données dbeel. La base a été créée dans le cadre du projet POSE.
-Un dictionnaire de données est disponible
-[ici](https://drive.logrami.fr/drive/index.php/f/9547680).
+
 
 La base de données est organisée sous forme de schémas. De nombreux
-schémas
-[héritent](https://docs.postgresql.fr/9.6/ddl-inherit.html)
+schémas [héritent](https://docs.postgresql.fr/9.6/ddl-inherit.html)
 d'un schéma père. Ainsi, tous les schémas "géographiques" (e.g.
 france) héritent du schéma dbeel. Donc toutes les données saisies dans
 un schéma fils seront rapatriées dans le schéma père lors des requêtes
