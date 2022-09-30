@@ -90,6 +90,6 @@ L'import se déroule en deux phases:
 
 # Données RSA
 L'OFB maintient une base de donnée avec les suivis anguilles sur les rivières index et les réseaux externes (dont celui de LOGRAMI). Un
-export a été transmis par C. Boulenger et est stocké dans EDA_data/
+export a été transmis par C. Boulenger et est stocké dans "D:\eda\data\eda2.3\RSA" (chez Cédric).
 
 Après avoir restauré le schéma de cette base sur le serveur local (dans la dbeel), un [script SQL](https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/sql/import_rsa_dbeel.sql) permet l'import des données.
