@@ -941,3 +941,11 @@ pg_dump -U postgres --schema sudoang -Fc -f "sudoang.backup" eda2.3
 
 
 
+F:\eda\base\eda2.3>pg_dump -U postgres -f "portugalrne.backup" --table portugal.rne --verbose -Fc eda2.3
+pg_restore -U postgres -d eda2.3 portugalrne.backup
+
+
+cd C:\Users\cedric.briand\OneDrive - EPTB Vilaine\partage\EDA
+pg_dump -U postgres -f "portugalrne.backup" --table portugal.rne --verbose -Fc eda2.3
+pg_dump -U postgres -f "francerne.backup" --table france.rne --verbose -Fc eda2.3
+pg_dump -U postgres -f "spainrne.backup" --table spain.rne --verbose -Fc eda2.3
