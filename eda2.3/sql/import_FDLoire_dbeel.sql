@@ -175,13 +175,13 @@ SELECT
     of2.op_id,
   	op_sta_id
   FROM france.dbeel_station_fdloire dsf 
-  JOIN france.operation_fdloire of2 ON dsf.sta_id = of2.op_sta_id; --2511
+  JOIN france.operation_fdloire of2 ON dsf.sta_id = of2.op_sta_id; --2804
 	
 
 ALTER TABLE france.operation_fdloire  ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = NULL; --2511
 UPDATE france.operation_fdloire  SET ope_dbeel_ob_id = ob_id FROM
-france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=france.operation_fdloire.op_id ; --2511
+france.dbeel_electrofishing_fdloire  WHERE dbeel_electrofishing_fdloire.ope_id=france.operation_fdloire.op_id ; --5608
 
 -- DROP TABLE france.dbeel_batch_ope_fdloire;
 CREATE TABLE france.dbeel_batch_ope_fdloire (
@@ -222,7 +222,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 2523 rows
+  ; -- 2816 rows
 
   
 -- number p1
@@ -250,7 +250,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND biological_characteristic_type.no_name='Number p1' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 2523 rows
+  ; -- 2816 rows
 
 -- number p2
 	
@@ -279,7 +279,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 1 
-  ; -- 335 rows
+  ; -- 111 rows
  
   
 -- number p3
@@ -309,7 +309,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 2 
-  ; -- 2 ROWS
+  ; -- 0 ROWS
   
   -- number p4
   
@@ -338,7 +338,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 3 
-  ; -- 1 rows
+  ; -- 0 rows
 
   ----------------------------------------------------------------------
 -- Batch integration, the second level will reference the fish table
@@ -405,7 +405,49 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 4517
+	; -- 4549
+
+	--second pass 
+	
+	
+	INSERT INTO france.dbeel_batch_fish_fdloire
+WITH bafd1 AS (
+    SELECT * FROM france.dbeel_batch_ope_fdloire dbof 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id= dbof.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p2'  
+  ),
+     baff1 AS (
+      SELECT * FROM france.batch_fish_fdloire bff
+      WHERE ang_pas = 2 OR ang_pas IS NULL
+      )
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  ba_ob_id as ba_ob_id, 
+  ba_id as ba_ba_id,
+  baff1.ang_op_id AS ope_id,
+  baff1.ang_id AS ang_id
+  FROM baff1  
+    JOIN bafd1 ON ang_op_id = ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla' 
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p1' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; -- 0
+  
+ 
+  
   
 	
 	-- To integrate length and weight of fish, we need the "ba_id" 
@@ -428,6 +470,16 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_fdloire (
 
 select * from france.batch_fish_fdloire bff  limit 10;
 
+/* corrections table non numeric , cedric and marion 03/01/2023
+SELECT REPLACE(ang_pds,',','.') FROM france.batch_fish_fdloire WHERE ang_pds ~ ','
+
+UPDATE france.batch_fish_fdloire SET ang_pds = REPLACE(ang_pds,',','.') 
+WHERE ang_pds ~ ','; --8
+
+ALTER TABLE france.batch_fish_fdloire 
+ALTER COLUMN ang_pds TYPE NUMERIC 
+USING ang_pds::numeric;
+*/
 
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
@@ -454,8 +506,10 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
 	france.dbeel_batch_fish_fdloire dbff JOIN
 	france.batch_fish_fdloire bff ON dbff.ang_id = bff.ang_id, 
 	dbeel_nomenclature.biological_characteristic_type
-	WHERE biological_characteristic_type.no_name = 'Weight'; --4517
-	
+	WHERE biological_characteristic_type.no_name = 'Weight'; --4613
+
+-- TODO deal with duplicates in ang_id	 the number of rows inserted above was
+--	4549
 -- Insert length	
 
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
@@ -482,7 +536,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
 	france.dbeel_batch_fish_fdloire dbff JOIN
 	france.batch_fish_fdloire bff ON dbff.ang_id = bff.ang_id, 
 	dbeel_nomenclature.biological_characteristic_type
-	WHERE biological_characteristic_type.no_name = 'Length'; --4517
+	WHERE biological_characteristic_type.no_name = 'Length'; --4613
 	
 	
 -- SECOND PASS
