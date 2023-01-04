@@ -167,18 +167,69 @@ WITH projection_aspe as (
  -- à la fois avec ASPE et avec RSA      
 -------------------------------------------------------------       
        
+ CREATE TABLE france.join_loire_rn AS (     
+       WITH projection_aspe as (  
+       SELECT r.idsegment, 
+       op_id,                          
+       the_geom,
+       emu,
+       st_distance(r.geom,s.the_geom) as distance 
+       FROM france.rn r
+       JOIN france.rna ON r.idsegment = rna.idsegment
+       JOIN  france.dbeel_station_aspe s
+       ON st_dwithin(r.geom, s.the_geom, 500)
+       order by idsegment, distance desc),
        
+       projection_aspe2 AS(
+       SELECT distinct on (op_id) op_id, idsegment, the_geom from projection_aspe
+       WHERE emu='FR_Loir' ),
+       
+              projection_rsa as (  
+       SELECT r.idsegment, 
+       op_id,                          
+       the_geom,
+       emu,
+       st_distance(r.geom,s.the_geom) as distance 
+       FROM france.rn r
+       JOIN france.rna ON r.idsegment = rna.idsegment
+       JOIN  france.dbeel_station_rsa s
+       ON st_dwithin(r.geom, s.the_geom, 500)
+       order by idsegment, distance desc),
+       
+       projection_rsa2 AS(
+       SELECT distinct on (op_id) op_id, idsegment, the_geom from projection_rsa
+       WHERE emu='FR_Loir' 
+       ),
+       
+       projection_fdloire as (  
+       SELECT r.idsegment, 
+       op_id,                          
+       the_geom,
+       emu,
+       st_distance(r.geom,s.the_geom) as distance 
+       FROM france.rn r       
+       JOIN france.rna ON r.idsegment = rna.idsegment
+       JOIN  france.dbeel_station_fdloire s
+       ON st_dwithin(r.geom, s.the_geom, 500)
+       order by idsegment, distance desc),
+       
+       projection_fdloire2 AS(
+       SELECT distinct on (op_id) op_id, idsegment, the_geom from projection_fdloire
+       WHERE emu='FR_Loir' ),
+       
+       duplicates_aspe_fdloire AS (       
+       SELECT f.op_id AS aspe_op_id, r.op_id AS fdloire_ope_id, r.the_geom 
+       FROM projection_fdloire2 r
+       JOIN   projection_aspe2 f ON st_dwithin(r.the_geom, f.the_geom, 50)),
        
        the_big_union AS (
        SELECT * FROM projection_rsa2 UNION
-       SELECT * FROM projection_fdloire2 UNION 
-       SELECT * FROM projection_aspe2 )
+       SELECT * FROM projection_aspe2 UNION 
+       SELECT * FROM projection_fdloire2 WHERE op_id NOT IN (
+       SELECT fdloire_ope_id FROM france.dbeel_station_aspe_duplicates_fdloire) AND
+       op_id NOT IN (SELECT dfloire_op_id FROM france.dbeel_station_fdloire_duplicates_rsa)
+      )
        
-       SELECT the_big_union.* FROM the_big_union JOIN 
-       france.rn_rna ON rn_rna.idsegment = the_big_union.idsegment 
-      WHERE  emu='FR_Loir' 
-        
-       
-       
-       );  
+       SELECT the_big_union.* FROM the_big_union 
+        )  ;  --7191
 
