@@ -224,14 +224,4 @@ CREATE INDEX view_electrofishing_frozen_ixthegeom
  
  
  
--------------------------------------
--- Export GT6 stations for the Shiny
--------------------------------------
 
- /* 
-  * Exporting the stations from  
-**/
-
-SELECT * FROM sudoang.dbeel_station where op_gis_layername = 'GT6';
-
--- In dbeaver we can export directly this table as excel!
