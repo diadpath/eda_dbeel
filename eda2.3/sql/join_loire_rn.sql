@@ -73,8 +73,9 @@ WITH
        JOIN   projection_fdloire2 f ON st_dwithin(r.the_geom, f.the_geom, 50))
       
        SELECT * FROM  duplicates_fdloire_rsa       
-       ) --50
+       ) ;--50
        
+DROP TABLE IF EXISTS france.dbeel_station_aspe_duplicates_rsa;       
 CREATE TABLE france.dbeel_station_aspe_duplicates_rsa AS( 
 WITH projection_aspe as (  
        SELECT r.idsegment, 
@@ -115,9 +116,9 @@ WITH projection_aspe as (
        JOIN   projection_aspe2 f ON st_dwithin(r.the_geom, f.the_geom, 50))
       
        SELECT * FROM  duplicates_aspe_rsa       
-       ) --19  
+       ); --19  
        
-       
+DROP TABLE IF EXISTS france.dbeel_station_aspe_duplicates_fdloire;       
 CREATE TABLE france.dbeel_station_aspe_duplicates_fdloire AS( 
 WITH projection_aspe as (  
        SELECT r.idsegment, 
@@ -157,7 +158,7 @@ WITH projection_aspe as (
        JOIN   projection_aspe2 f ON st_dwithin(r.the_geom, f.the_geom, 50))
       
        SELECT * FROM  duplicates_aspe_fdloire       
-       ) --568 
+       ); --568 
        
 -------------------------------------------------------------
  -- On part de RSA, on ajoute ensuite les données ASPE
@@ -166,7 +167,7 @@ WITH projection_aspe as (
  -- par contre on dégage de fd_loire toutes les données dupliquées,
  -- à la fois avec ASPE et avec RSA      
 -------------------------------------------------------------       
-       
+DROP TABLE IF EXISTS  france.join_loire_rn CASCADE;       
  CREATE TABLE france.join_loire_rn AS (     
        WITH projection_aspe as (  
        SELECT r.idsegment, 
@@ -233,3 +234,10 @@ WITH projection_aspe as (
        SELECT the_big_union.* FROM the_big_union 
         )  ;  --7191
 
+        
+        
+UPDATE loire.ers_full set geom=join_loire_rn.the_geom FROM
+        france.join_loire_rn  WHERE join_loire_rn.op_id::text = lower(ers_full.op_id::TEXT);        
+
+SELECT  join_loire_rn.op_id FROM france.join_loire_rn     
+SELECT  ers_full.op_id FROM loire.ers_full       

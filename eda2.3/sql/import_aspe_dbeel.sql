@@ -35,8 +35,10 @@ SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_stat
 -- Create the stationdbeel table from dbeel
 DROP TABLE if exists france.dbeel_station_aspe CASCADE;
 CREATE TABLE france.dbeel_station_aspe (
-	sta_id integer,
-	sta_code_sandre TEXT,
+  pop_id integer,
+	pop_sta_id integer,
+	pop_code_sandre integer,
+	pop_code_wama TEXT,	
   country character varying(2),		
 	CONSTRAINT pk_so_op_id PRIMARY KEY (op_id),
 	CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
@@ -142,14 +144,15 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 /*
 For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
 */
+/*
 select * from france.dbeel_station_aspe limit 10;
 select * from france.operation_aspe limit 10; --43695
 SELECT * FROM  france.dbeel_station_aspe sta
    JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id
-
+*/
 -- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_aspe
 
-DELETE FROM france.dbeel_electrofishing_aspe;
+--DELETE FROM france.dbeel_electrofishing_aspe;
 /*
 electrofishing mean
 70    Electrofishing mean Unknown 
@@ -255,7 +258,7 @@ SELECT
   ope.ope_id_wama
 	FROM 	
         france.dbeel_station_aspe sta
-   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  -- JOIN donc les operations sans sta_id sont gardées
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id, 
    -- nomenclatures 	 
 	 dbeel_nomenclature.observation_origin,
 	 dbeel_nomenclature.observation_type,
@@ -265,16 +268,16 @@ SELECT
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
-	; --31919 ROWS 28s
+	; --141904 ROWS 28s
 	
 
 ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
+--UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
 UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
  france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --31919
  
  
- SELECT  * FROM france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id
+-- SELECT  * FROM france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id
 	
 -- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
 -- IL N'en reste que 24 après jointure.... on oublie....
@@ -370,7 +373,7 @@ select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 -- SELECT  * FROM france.batch_aspe 
 
  
--- DROP TABLE france.dbeel_batch_ope_aspe;
+DROP TABLE france.dbeel_batch_ope_aspe;
 CREATE TABLE france.dbeel_batch_ope_aspe (
   ope_id int4 NULL,
   CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
@@ -384,7 +387,7 @@ CREATE TABLE france.dbeel_batch_ope_aspe (
 INHERITS (dbeel.batch);
 
 -- nbeel
-DELETE FROM france.dbeel_batch_ope_aspe;
+--DELETE FROM france.dbeel_batch_ope_aspe;
 INSERT INTO france.dbeel_batch_ope_aspe
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
@@ -568,7 +571,7 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 		) INHERITS (dbeel.batch);
 
 
-SELECT * FROM france.batch_fish_aspe baf 
+--SELECT * FROM france.batch_fish_aspe baf 
 
 -- test il manque des poissons on comprend pas pourquoi 12/04
 /*
@@ -701,13 +704,13 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
 
 )INHERITS (dbeel.biological_characteristic); --0
 
-select * from france.batch_fish_aspe limit 10;
+--select * from france.batch_fish_aspe limit 10;
 
 
-
+/*
 SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812
-
+*/
 
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1110,7 +1113,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
  * The import to db is done in aspe_import.R line 323
  * The table copied is  batch_silver_wama with column ope_dbeel_ob_id corresponding to current ob_id 
  * ----------------------- */
-
+/*
  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
@@ -1134,15 +1137,15 @@ FULL OUTER JOIN france.batch_silver_wama wam
 SELECT DISTINCT bcop.ob_id FROM bcop
 JOIN france.batch_silver_wama wam
  ON (bcop.ob_id::TEXT)=(wam.ope_dbeel_ob_id) 
-
+*/
  
 -- PREMIERE OPERATION
  
-SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
-c4991ed3-714c-4f74-9619-0d873efb8783 79990004133 448.0 3 - [300-450[ 121.0 OK
-c4991ed3-714c-4f74-9619-0d873efb8783  79990004133 449.0 3 - [300-450[ 120.0 OK
+--SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
+--c4991ed3-714c-4f74-9619-0d873efb8783 79990004133 448.0 3 - [300-450[ 121.0 OK
+--c4991ed3-714c-4f74-9619-0d873efb8783  79990004133 449.0 3 - [300-450[ 120.0 OK
 
-
+/*
 WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
@@ -1158,11 +1161,12 @@ bcop AS (
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
 JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
 SELECT * FROM bcop  WHERE bcop.ob_id='c4991ed3-714c-4f74-9619-0d873efb8783'
- 
-c4991ed3-714c-4f74-9619-0d873efb8783  a73d83da-f339-4c61-af4b-8a18d9dbc262  d24efee6-8dbd-419f-8f8d-6214468e1372  448.0 
-c4991ed3-714c-4f74-9619-0d873efb8783  8ab7cfd0-8f27-415c-a568-958ecf84bef2  eb13402e-cabc-4dfe-836b-ecd116622142  449.0 120.0
+ */
+--c4991ed3-714c-4f74-9619-0d873efb8783  a73d83da-f339-4c61-af4b-8a18d9dbc262  d24efee6-8dbd-419f-8f8d-6214468e1372  448.0 
+--c4991ed3-714c-4f74-9619-0d873efb8783  8ab7cfd0-8f27-415c-a568-958ecf84bef2  eb13402e-cabc-4dfe-836b-ecd116622142  449.0 120.0
 
 -- DEUXIEME OPERATION
+    /*
 SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='bdf20f05-0434-4e61-a365-16a42200cb44'
 bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 609.0 5 - [600-750[ 357.0 OK
 bdf20f05-0434-4e61-a365-16a42200cb44  79990003903 324.0 3 - [300-450[ 66.0 OK
@@ -1271,5 +1275,5 @@ SELECT * FROM bcop  WHERE bcop.ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
 
 
 SELECT *  FROM france.dbeel_batch_fish_aspe dboa WHERE ba_ob_id= '26290e2d-ee52-42c7-9787-4573f795bd22'; => ope_id==4609
-
+*/
 --TODO FINISH DATA INPUT

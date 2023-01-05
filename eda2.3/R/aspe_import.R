@@ -116,8 +116,8 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 # Some sampling locations do not have sta_id : we need to import their coordinates
 # from point_prelevement
 
-point_prelevement[point_prelevement$pop_id==100971,] # 136346
-point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
+#point_prelevement[point_prelevement$pop_id==100971,] # 136346
+#point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
@@ -135,6 +135,8 @@ coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		var_crs_initial = "typ_code_epsg",
 		crs_sortie = 3035) 
 
+
+    
 
 point_prelevement_aspe <- point_prelevement_aspe %>%
 		left_join(y = coords, by= "pop_id") %>%
@@ -162,7 +164,7 @@ point_prelevement_aspe <- point_prelevement_aspe %>%
 				))%>%
 		mutate(typ_code_epsg=3035) 
 
-nrow(point_prelevement_aspe)  #115355
+nrow(point_prelevement_aspe)  #117398
 
 point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),crs=3035)
 
@@ -179,6 +181,8 @@ DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 
 
 # Based on the code from aspe::mef_creer_passerelle() without lots
+# Note : avec Marion, le fait d'ajouter un NA dans le filter filter(ope_pro_id %in% c(1,2,3,4,7)|is.na(ope_pro_id)) 
+# conduit à charger toutes les stations et points de prélèvement, qui ne sont pas des pêches mais des prélèvements d'eau ou autre
 operation_aspe <- 
 		point_prelevement %>%
 		left_join(operation, by=c("pop_id"="ope_pop_id")) %>%
@@ -212,9 +216,10 @@ operation_aspe <-
 						group_by(pre_ope_id) %>%
 						summarize(nb_pas=max(pas_numero)), 
 				by=c("ope_id"="pre_ope_id")) %>%
-		filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # remove IA SAT and vigie truite
+		filter(ope_pro_id %in% c(1,2,3,4,7)|is.na(ope_pro_id)) %>% # remove IA SAT and vigie truite
 		select(-ope_pro_id) %>%
-		rename(op_typ = pro_libelle)
+		rename(op_typ = pro_libelle) # 168157
+
 
 # write operation table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")

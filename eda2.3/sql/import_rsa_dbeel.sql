@@ -108,7 +108,7 @@ INSERT INTO france.dbeel_station_rsa
 	--UPDATE rsa.station SET sta_dbeel_op_id =NULL; --1757
 	-- ALTER TABLE rsa.station ADD COLUMN sta_dbeel_op_id UUID;
 	UPDATE rsa.station SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_rsa WHERE dbeel_station_rsa.sta_code=dbeel_station_rsa.sta_code; --1757
+ france.dbeel_station_rsa WHERE dbeel_station_rsa.sta_code=dbeel_station_rsa.sta_code; --1793
 
 	
 
@@ -169,14 +169,14 @@ COMMENT ON table rsa.op_iaa IS 'Pêche continue des deux berges à pied';
 /*
 For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
 */
-select * from france.dbeel_station_rsa limit 10;
+/*select * from france.dbeel_station_rsa limit 10;
 select * from rsa.operation limit 10; --43695
 SELECT * FROM  france.dbeel_station_rsa sta
    JOIN rsa.operation ope ON (sta.id, sat.sta_zone) = (ope.sta_id, op_zone)
-
+*/
 -- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_rsa
 
-DELETE FROM france.dbeel_electrofishing_rsa;
+--DELETE FROM france.dbeel_electrofishing_rsa;
 /*
 electrofishing mean
 70    Electrofishing mean Unknown 
@@ -201,7 +201,7 @@ no_id no_code no_type no_name sc_observation_category sc_definition
 306 EP  Scientific_observation_type EPA Electro-fishing Partial point sampling with density current, protocol Feunteun, Rigaud
 **/
 
-SELECT DISTINCT op_typ FROM rsa.operation;
+--SELECT DISTINCT op_typ FROM rsa.operation;
 /*
 |op_typ|
 |------|
@@ -214,7 +214,14 @@ SELECT DISTINCT op_typ FROM rsa.operation;
 
 */
 
+-- TODO inserer le ope_prod_id dans la table rsa.operation + le lien vers les ob_id
+
+/*
+SELECT * FROM rsa.producteurs_prod AS pp JOIN 
+dbeel.data_provider ON dp_name= prod_libelle
 -- 1 insersion de inv
+DELETE FROM france.dbeel_electrofishing_rsa; -- très long
+*/
 INSERT INTO france.dbeel_electrofishing_rsa (
 	ob_id,
 	ob_no_origin,
@@ -615,7 +622,7 @@ SELECT
 --ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
 
-SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
+SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3649
 
 WITH the_join AS (
 SELECT ob_id, rsa.operation.* FROM 
@@ -625,13 +632,7 @@ SELECT ob_id, rsa.operation.* FROM
  )
 UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
 WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
-AND  operation.ope_dbeel_ob_id IS NULL; --3632+17
-
--- 
-
-
- 
-
+AND  operation.ope_dbeel_ob_id IS NULL; --3649
 
 	
 
@@ -656,7 +657,7 @@ SELECT * FROM france.dbeel_electrofishing_rsa LIMIT 10;
 -- SELECT  * FROM france.batch_rsa 
 
  
--- DROP TABLE france.dbeel_batch_ope_rsa;
+DROP TABLE france.dbeel_batch_ope_rsa;
 CREATE TABLE france.dbeel_batch_ope_rsa (
   op_id int4 NULL,
   op_zone TEXT,
@@ -671,7 +672,7 @@ CREATE TABLE france.dbeel_batch_ope_rsa (
 INHERITS (dbeel.batch);
 
 -- nbeel inv
-DELETE FROM france.dbeel_batch_ope_rsa;
+--DELETE FROM france.dbeel_batch_ope_rsa;
 
 INSERT INTO france.dbeel_batch_ope_rsa
 WITH correct_moins_9 AS (
@@ -1278,7 +1279,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
    AND pcbgb_npas=3
   ; --0  
   
-SELECT * FROM france.dbeel_batch_ope_rsa WHERE ba_no_biological_characteristic_type=233; --59  
+--SELECT * FROM france.dbeel_batch_ope_rsa WHERE ba_no_biological_characteristic_type=233; --59  
   
   
 ----------------------------------------------------------------------
@@ -1355,7 +1356,7 @@ CREATE TABLE france.dbeel_batch_fish_rsa (
   SELECT ope.* FROM rsa.operation ope JOIN france.dbeel_batch_ope_rsa bor ON bor.op_id=ope.op_id  
   */
   
-DELETE FROM  france.dbeel_batch_fish_rsa;
+--DELETE FROM  france.dbeel_batch_fish_rsa;
 
 -- SELECT count (*), ang_pas FROM rsa.anguille_ang group by ang_pas
           
@@ -1499,20 +1500,20 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 		REFERENCES france.dbeel_batch_fish_rsa (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
 )INHERITS (dbeel.biological_characteristic); --0
-
+/*
 select * from france.batch_fish_rsa limit 10;
+*/
 
-
-
+/*
 SELECT count(*) FROM   france.dbeel_batch_fish_rsa dbaf JOIN
   rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id;-- 627221
 
 SELECT count(*), ang_lot FROM rsa.anguille_ang  GROUP BY ang_lot;
-  
+*/  
 -- Lots N
 -- Insert WEIGHT (gr)
   
-DELETE FROM france.dbeel_mensurationindiv_biol_charac_rsa;  
+--DELETE FROM france.dbeel_mensurationindiv_biol_charac_rsa;  
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   bc_id,
   bc_ba_id,
