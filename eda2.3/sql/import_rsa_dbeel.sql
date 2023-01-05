@@ -10,7 +10,7 @@ dbeel.data_provider
 --TODO Pour l'instant les diamètres occulaires ne sont pas là !
 ---------------------------------------------
 
-
+/*
 -- Correction clarisse
 
 update rsa.anguille_ang set ang_pas=1 
@@ -50,6 +50,9 @@ WHERE geom IS NULL; --20
 
 
 SELECT * FROM dbeel.observation_places;
+
+*/
+
 -- Create the stationdbeel table from dbeel
 
 
@@ -108,7 +111,7 @@ INSERT INTO france.dbeel_station_rsa
 	--UPDATE rsa.station SET sta_dbeel_op_id =NULL; --1757
 	-- ALTER TABLE rsa.station ADD COLUMN sta_dbeel_op_id UUID;
 	UPDATE rsa.station SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_rsa WHERE dbeel_station_rsa.sta_code=dbeel_station_rsa.sta_code; --1757
+ france.dbeel_station_rsa WHERE dbeel_station_rsa.sta_code=dbeel_station_rsa.sta_code; --1793
 
 	
 
@@ -176,7 +179,7 @@ SELECT * FROM  france.dbeel_station_rsa sta
 
 -- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_rsa
 
-DELETE FROM france.dbeel_electrofishing_rsa;
+--DELETE FROM france.dbeel_electrofishing_rsa;
 /*
 electrofishing mean
 70    Electrofishing mean Unknown 
@@ -613,9 +616,9 @@ SELECT
   ; --132 ROWS 28s
    
 --ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
+UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --4540
 
-SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3449
+SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3649
 
 WITH the_join AS (
 SELECT ob_id, rsa.operation.* FROM 
@@ -671,7 +674,7 @@ CREATE TABLE france.dbeel_batch_ope_rsa (
 INHERITS (dbeel.batch);
 
 -- nbeel inv
-DELETE FROM france.dbeel_batch_ope_rsa;
+--DELETE FROM france.dbeel_batch_ope_rsa;
 
 INSERT INTO france.dbeel_batch_ope_rsa
 WITH correct_moins_9 AS (
@@ -1278,7 +1281,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
    AND pcbgb_npas=3
   ; --0  
   
-SELECT * FROM france.dbeel_batch_ope_rsa WHERE ba_no_biological_characteristic_type=233; --59  
+--SELECT * FROM france.dbeel_batch_ope_rsa WHERE ba_no_biological_characteristic_type=233; --59  
   
   
 ----------------------------------------------------------------------
@@ -1292,15 +1295,6 @@ L Lot L : Nombre total d'individus et poids total du lot
 S & L Lot S : Sous échantillon de 30 individus mesurés individuellement
 
  */
-
-
-
-
-
-
-
-
-
 
 DROP TABLE if exists france.dbeel_batch_fish_rsa CASCADE;
 CREATE TABLE france.dbeel_batch_fish_rsa (
@@ -1355,7 +1349,7 @@ CREATE TABLE france.dbeel_batch_fish_rsa (
   SELECT ope.* FROM rsa.operation ope JOIN france.dbeel_batch_ope_rsa bor ON bor.op_id=ope.op_id  
   */
   
-DELETE FROM  france.dbeel_batch_fish_rsa;
+--DELETE FROM  france.dbeel_batch_fish_rsa;
 
 -- SELECT count (*), ang_pas FROM rsa.anguille_ang group by ang_pas
           
@@ -1498,9 +1492,10 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 	CONSTRAINT rsa_fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
 		REFERENCES france.dbeel_batch_fish_rsa (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
-)INHERITS (dbeel.biological_characteristic); --0
+)INHERITS (dbeel.biological_characteristic);
 
-select * from france.batch_fish_rsa limit 10;
+/*
+--select * from france.batch_fish_rsa limit 10;
 
 
 
@@ -1508,7 +1503,7 @@ SELECT count(*) FROM   france.dbeel_batch_fish_rsa dbaf JOIN
   rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id;-- 627221
 
 SELECT count(*), ang_lot FROM rsa.anguille_ang  GROUP BY ang_lot;
-  
+*/ 
 -- Lots N
 -- Insert WEIGHT (gr)
   
@@ -1556,5 +1551,5 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE biological_characteristic_type.no_name = 'Length'
-  AND baf.ang_lot='N'; -- 627221
+  AND baf.ang_lot='N'; -- 677871
 

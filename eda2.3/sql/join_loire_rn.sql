@@ -8,6 +8,7 @@ france.station_aspe
 
 --processed data
 
+/*
 SELECT * FROM france.dbeel_station_aspe
 SELECT * FROM france.dbeel_station_fdloire
 SELECT * FROM france.dbeel_station_rsa
@@ -31,6 +32,7 @@ SELECT count(*), sta_zone FROM rsa.station GROUP by sta_zone;
 
 SELECT * FROM france.rn_rna WHERE emu='FR_Loir' 
 
+*/
 
 DROP TABLE IF EXISTS france.dbeel_station_fdloire_duplicates_rsa;  
 CREATE TABLE france.dbeel_station_fdloire_duplicates_rsa AS( 
@@ -157,7 +159,7 @@ WITH projection_aspe as (
        JOIN   projection_aspe2 f ON st_dwithin(r.the_geom, f.the_geom, 50))
       
        SELECT * FROM  duplicates_aspe_fdloire       
-       ) --568 
+       ) --511
        
 -------------------------------------------------------------
  -- On part de RSA, on ajoute ensuite les données ASPE
@@ -231,5 +233,5 @@ WITH projection_aspe as (
       )
        
        SELECT the_big_union.* FROM the_big_union 
-        )  ;  --7191
+        )  ;  --7191 chez Cédric --> 7085 chez Marion
 
