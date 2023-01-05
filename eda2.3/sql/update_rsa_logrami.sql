@@ -81,7 +81,7 @@ SELECT inv_id, inv_op_id, inv_long, inv_larg, inv_npas, inv_p1, inv_p2, inv_p3,
 CURRENT_DATE AS inv_last_update
 FROM rsa_loire.op_inv
 WHERE inv_zone='lcv'
-;
+; --0
 
 
 /*

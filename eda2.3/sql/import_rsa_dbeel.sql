@@ -10,7 +10,7 @@ dbeel.data_provider
 --TODO Pour l'instant les diamètres occulaires ne sont pas là !
 ---------------------------------------------
 
-
+/*
 -- Correction clarisse
 
 update rsa.anguille_ang set ang_pas=1 
@@ -50,6 +50,9 @@ WHERE geom IS NULL; --20
 
 
 SELECT * FROM dbeel.observation_places;
+
+*/
+
 -- Create the stationdbeel table from dbeel
 
 
@@ -620,7 +623,7 @@ SELECT
   ; --132 ROWS 28s
    
 --ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
-UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --3928
+UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --4540
 
 SELECT count(*) FROM france.dbeel_electrofishing_rsa;--3649
 
@@ -1294,15 +1297,6 @@ S & L Lot S : Sous échantillon de 30 individus mesurés individuellement
 
  */
 
-
-
-
-
-
-
-
-
-
 DROP TABLE if exists france.dbeel_batch_fish_rsa CASCADE;
 CREATE TABLE france.dbeel_batch_fish_rsa (
   ang_id INTEGER,
@@ -1499,9 +1493,10 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 	CONSTRAINT rsa_fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
 		REFERENCES france.dbeel_batch_fish_rsa (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
-)INHERITS (dbeel.biological_characteristic); --0
+)INHERITS (dbeel.biological_characteristic);
 /*
-select * from france.batch_fish_rsa limit 10;
+/*
+--select * from france.batch_fish_rsa limit 10;
 */
 
 /*
@@ -1557,5 +1552,5 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE biological_characteristic_type.no_name = 'Length'
-  AND baf.ang_lot='N'; -- 627221
+  AND baf.ang_lot='N'; -- 677871
 
