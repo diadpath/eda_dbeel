@@ -237,9 +237,4 @@ DROP TABLE IF EXISTS  france.join_loire_rn CASCADE;
         )  ;  --7191 chez Cédric --> 7085 chez Marion
 
         
-        
-UPDATE loire.ers_full set geom=join_loire_rn.the_geom FROM
-        france.join_loire_rn  WHERE join_loire_rn.op_id::text = lower(ers_full.op_id::TEXT);        
-
-SELECT  join_loire_rn.op_id FROM france.join_loire_rn     
-SELECT  ers_full.op_id FROM loire.ers_full       
+    
