@@ -245,7 +245,7 @@ INSERT INTO france.dbeel_batch_ope_fdloire
   dbeel_nomenclature.biological_characteristic_type,
   dbeel_nomenclature.value_type,
   dbeel_nomenclature.individual_status 
-        WHERE species.no_name='Anguilla anguilla'
+  WHERE species.no_name='Anguilla anguilla'
   AND stage.no_name='Yellow eel' -- we actually don't know that...
   AND biological_characteristic_type.no_name='Number p1' 
   AND individual_status.no_name='Alive' 
@@ -469,6 +469,7 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_fdloire (
 )INHERITS (dbeel.biological_characteristic); --0
 
 select * from france.batch_fish_fdloire bff  limit 10;
+select ang_pas, count(*) from france.batch_fish_fdloire bff group by 1 order by 2 DESC;
 
 /* corrections table non numeric , cedric and marion 03/01/2023
 SELECT REPLACE(ang_pds,',','.') FROM france.batch_fish_fdloire WHERE ang_pds ~ ','
@@ -540,7 +541,6 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
 	
 	
 -- SECOND PASS
-
 INSERT INTO france.dbeel_batch_fish_fdloire
 WITH bafd2 AS (
     SELECT * FROM france.dbeel_batch_ope_fdloire dbof 
@@ -575,7 +575,7 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND biological_characteristic_type.no_name='Number p2' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	;	--764
+	;	--764 --0 Marion
 	
 	
 	-- Insert WEIGHT (gr)
@@ -605,7 +605,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
 	dbeel_nomenclature.biological_characteristic_type
 	WHERE biological_characteristic_type.no_name = 'Weight' 
 	AND bff.ang_pas = 2 
-	; --764
+	; --764 --0 Marion
 	
 -- Insert length	
 
@@ -634,7 +634,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_fdloire (
 	france.batch_fish_fdloire bff ON dbff.ang_id = bff.ang_id, 
 	dbeel_nomenclature.biological_characteristic_type
 	WHERE biological_characteristic_type.no_name = 'Length'
-	AND bff.ang_pas = 2; -- 764
+	AND bff.ang_pas = 2; -- 764 -- 0 Marion
 	
 -- no measurements done for passage 3 and 4
 

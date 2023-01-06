@@ -160,7 +160,7 @@ WITH projection_aspe as (
        JOIN   projection_aspe2 f ON st_dwithin(r.the_geom, f.the_geom, 50))
       
        SELECT * FROM  duplicates_aspe_fdloire       
-       ); --568 (511 marion)
+       ); --568
        
 -------------------------------------------------------------
  -- On part de RSA, on ajoute ensuite les données ASPE
@@ -234,12 +234,6 @@ DROP TABLE IF EXISTS  france.join_loire_rn CASCADE;
       )
        
        SELECT the_big_union.* FROM the_big_union 
-        )  ;  --7191 chez Cédric --> 7085 chez Marion
+        )  ;  --7191
 
-        
-        
-UPDATE loire.ers_full set geom=join_loire_rn.the_geom FROM
-        france.join_loire_rn  WHERE join_loire_rn.op_id::text = lower(ers_full.op_id::TEXT);        
-
-SELECT  join_loire_rn.op_id FROM france.join_loire_rn     
-SELECT  ers_full.op_id FROM loire.ers_full       
+          

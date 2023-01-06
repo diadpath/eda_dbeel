@@ -1,4 +1,5 @@
 # setwd("C:\\workspace\\eda_dbeel")
+# setwd("D:\\Documents\\Workspace_eclipse\\dbeel")
 # memory.limit(size =4000)
 
 #---------------------Libraries---------------------#
@@ -15,7 +16,7 @@ rivernetwork <- "RIOS"
 
 #--------------------- Load data---------------------#
 
-source("common/init.r")
+source("./common/init.r")
 
 # Set up database connection
 
@@ -87,20 +88,20 @@ station_aspe_france <- sf::st_intersection( # filter stations in France
 
 passerelle <- aspe::mef_creer_passerelle()
 
-url_gadm <- "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_FRA_1_sf.rds"
-download.file(url_gadm, "/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds")
-reg_france <- readRDS("/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds") %>% 
-  st_transform(3035) # reproject in the same crs as stations
-
-station_aspe_bretagne <- sf::st_intersection(
-  # select stations in Britanny
-  station_aspe_sf, reg_france %>% filter(NAME_1 == "Bretagne")) %>% 
-  select(sta_id)
-
-passerelle_aspe_bretagne <- passerelle %>% 
-  filter(sta_id %in% station_aspe_bretagne$sta_id)
-  
-ope_bretagne <- unique(passerelle_aspe_bretagne$ope_id)
+# url_gadm <- "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_FRA_1_sf.rds"
+# download.file(url_gadm, "/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds")
+# reg_france <- readRDS("/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds") %>% 
+#   st_transform(3035) # reproject in the same crs as stations
+# 
+# station_aspe_bretagne <- sf::st_intersection(
+#   # select stations in Britanny
+#   station_aspe_sf, reg_france %>% filter(NAME_1 == "Bretagne")) %>% 
+#   select(sta_id)
+# 
+# passerelle_aspe_bretagne <- passerelle %>% 
+#   filter(sta_id %in% station_aspe_bretagne$sta_id)
+#   
+# ope_bretagne <- unique(passerelle_aspe_bretagne$ope_id)
   
 # Just checking that everything works fine
 mapview::mapview(station_aspe_france, color = "green")
