@@ -219,28 +219,36 @@ STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 DROP TABLE IF EXISTS roe.roesudo;
 CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415 =>117340
 
+--Change le référentiel géographique (srid) de la colonne ref_position_carthage
 SELECT UpdateGeometrySRID('roe','roesudo','ref_position_carthage',3035);
 update roe.roesudo set ref_position_carthage= ST_Transform(ST_SetSRID(ref_position_carthage,4326),3035);
 reindex TABLE roe.roesudo;
 -- SELECT * FROM roe.roesudo WHERE ref_position_carthage is NULL;
 --SELECT count(*) FROM roe.roesudo WHERE ref_position_carthage IS NULL; 
--- projection des données ROE ICE sur le réseau RHT (couche france.rn)
 
+-- projection des données ROE ICE sur le réseau RHT (couche france.rn), nécessite de trouver le point sur le tronçon RHT qui est le plus proche de notre ouvrage
 SELECT addgeometrycolumn('roe','roesudo','geom_reproj',3035,'POINT',2);
 
 -- SELECT count (*) FROM roe.roesudo WHERE ref_position_carthage is not null;
-update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
-SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
-SELECT roe.ref_id, 
-ST_ClosestPoint(r.geom,roe.ref_position_carthage) AS geom_reproj ,
-ST_distance(r.geom,roe.ref_position_carthage) AS distance
-FROM roe.roesudo roe  join
-france.rn r on st_dwithin(r.geom,roe.ref_position_carthage,300) 
-ORDER BY ref_id, distance
-)sub )sub2
-WHERE sub2.ref_id= roesudo.ref_id; 
+update roe.roesudo set	geom_reproj = sub2.geom_reproj from(
+	select
+		distinct on
+		(ref_id) ref_id,
+		geom_reproj,
+		distance
+	from(
+		select
+			roe.ref_id,
+			ST_ClosestPoint(r.geom,roe.ref_position_carthage) as geom_reproj ,
+			ST_distance(r.geom,roe.ref_position_carthage) as distance
+		from roe.roesudo roe
+		join france.rn r on st_dwithin(r.geom,roe.ref_position_carthage,300)
+		order by ref_id,distance
+		)sub )sub2
+where sub2.ref_id = roesudo.ref_id;--94288
 
 /* For those missing adding the geom from ref_position not ref_position_carthage
+ * RHT basé sur bd_carthage mais dans ROE lien avec d'autres référentiels cours d'eau, on peut donc essayer avec d'autres géométries pour voir si on récupère d'autres ouvrages
 */
 update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
 SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
@@ -252,7 +260,7 @@ france.rn r on st_dwithin(r.geom,st_transform(roe.ref_position,3035),300)
 WHERE ref_position_carthage is NULL  -- là ou le ref_postition_carthage est null
 ORDER BY ref_id, distance
 )sub )sub2
-WHERE sub2.ref_id= roesudo.ref_id; -
+WHERE sub2.ref_id= roesudo.ref_id; --5360
 
 
 --SELECT count(*) FROM roe.roesudo --117340 
@@ -308,6 +316,7 @@ http://id.eaufrance.fr/ddd/ETH/2002-1/IdTronconHydrograElt
 
 DELETE  FROM sudoang.dbeel_obstruction_place WHERE country='FR';  
 
+--ref_sta_id = statut des ouvrages. On veut garder Validé par échantillonnage (4) et Validé point par point (0)
 INSERT INTO sudoang.dbeel_obstruction_place
 	SELECT uuid_generate_v4() AS op_id, 
 	'AFB' AS op_gis_systemname, 
@@ -320,7 +329,7 @@ INSERT INTO sudoang.dbeel_obstruction_place
 	ref_id_national AS id_original, 
 	'FR' AS country
 	FROM (SELECT * FROM roe.roesudo WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)) unique_obs
-	; --  including pb geom 89717
+	; --  including pb geom 89717 -->92253
 
 --VACUUM FULL ANALYSE sudoang.dbeel_obstruction_place;--7s
 --REINDEX TABLE sudoang.dbeel_obstruction_place; -- 5s
@@ -333,9 +342,6 @@ INSERT INTO sudoang.dbeel_obstruction_place
 -----------------------------------------------
 --  Dans le dictionnaire du sandre il y a un type 6 installation industrielle, ce type n'est pas intégré dans le ROE pourquoi ?
 -------------------------------------------------
--- SELECT count(*), roe."CdTypeOuvr"  FROM roe.roesudo GROUP BY "CdTypeOuvr"
-
-
 
 
 
@@ -354,7 +360,7 @@ SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM sudoang.dbeel_ob
      sudoang.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
 -- on référence le code du père dans la ligne de l'ouvrage fils
 update sudoang.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
-WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s
+WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s --> 6494
 
 
 
@@ -364,7 +370,7 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--113415
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM sudoang.dbeel_obstruction_place 
-WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time.
+WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. -->92253
 
 
 
@@ -375,33 +381,35 @@ Adaptation du script de Soizic pour le choix des ouvrages, merci Soizic !!!
 BEGIN;
 DELETE FROM sudoang.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
 -- On vire les digues
+
+-- Si on veut travailler avec les dates de mise en place/suppression des ouvrages, il faudra sans doute revenir sur ce script pour le modifier
 DELETE FROM sudoang.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM sudoang.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
-	WHERE typ_nom = 'Digue' );--290
+	WHERE typ_nom = 'Digue' );--290 -->294
 	
 DELETE FROM sudoang.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM sudoang.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
-	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture'));--647
+	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture')); --647 -->651
 
 DELETE FROM sudoang.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM sudoang.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
-	WHERE eta_nom In ('Détruit entièrement','En construction','En projet'));--3545 -- ceux qui ne sont pAS physiquement présent
+	WHERE eta_nom In ('Détruit entièrement','En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189
 
 DELETE FROM sudoang.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM sudoang.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN bdoe.ouvrage on 'ROE'||ouv_id=ref_id_national
-	WHERE ouv_derasement);--198 
+	WHERE ouv_derasement); --198 -->554
 COMMIT;
 --ROLLBACK;
 SELECT count(*) FROM sudoang.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression)
