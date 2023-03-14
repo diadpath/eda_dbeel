@@ -412,18 +412,18 @@ DELETE FROM sudoang.dbeel_obstruction_place
 	WHERE ouv_derasement); --198 -->554
 COMMIT;
 --ROLLBACK;
-SELECT count(*) FROM sudoang.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression)
+SELECT count(*) FROM sudoang.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression) -->86563
  
 /*
  * On repasse dessus pour supprimer les liens qui n'existent plus (meme requete que precedement)
  */
-UPDATE roe.roesudo set dbeel_op_id = NULL;--113415
+UPDATE roe.roesudo set dbeel_op_id = NULL;--113415 -->117340
 
 
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM sudoang.dbeel_obstruction_place 
-WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time.
+WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. -->86563
 
 
 
@@ -467,9 +467,7 @@ SELECT DISTINCT doe_mcd_id, mcd_libelle FROM bdoe.devalaison_ouvrage
 |3                        |Turbine ichtyocompatible                                                                            |
 
 REFLEXION INITIALE
-A la montée d'abord BDOE, ensuite ICE , ensuite hauteur terrain, enuite traitement hauteur de chute classe sinon peut être ancienne valeur ROE. 
-La classe est plus récente que la hauteur de chute rentrée initiale, peut être tester en fonction des hauteurs pour les grandes préférer les valeurs réelles pour les petites < 0.5 peut être 	
-
+A la montée d'abord BDOE, ensuite ICE , ensuite hauteur terrain du ROE.
 
 CE QU'ON A FAIT AU FINAL (PRESQUE PAREIL SAUF QU'ON IGNORE LES CLASSES ROE)
 (1)Pour hauteur chute ICE, on va chercher la valeur de chute min de toutes les turbines => stockée dans tuh_hauteur_chute
@@ -485,11 +483,13 @@ CE QU'ON A FAIT AU FINAL (PRESQUE PAREIL SAUF QU'ON IGNORE LES CLASSES ROE)
 			7 passe (6)
 			8 voie reptation (8)
 (2)Pour hauteur chute ROE on a soit un LbHautChut qui correpond à un CdHautChut, soit une valeur HautChutEt
-(3) Pour la BDOE on a une valeur qui peut correpondre à ROE, qui peut aussi avoir été rentrée à la main. Dans ce dernier cAS,
+(3) Pour la BDOE on a une valeur qui peut correspondre à ROE, qui peut aussi avoir été rentrée à la main. Dans ce dernier cAS,
 il peut y avoir plusieurs mesures pour le même ouvrage, sans indication de quelle hauteur de chute serait la meilleure à prendre en 
 compte dans le cAS de l'anguille. Au final prendre la moyenne semble un bon choix
+TODO :
+Une alternative serait de prendre la hauteur de chute avec la date la plus récente (permet de prendre en compte des modifications de hauteur de seuil qui seraient intervenues)
 
- Dès qu'on a une seule valeur sur les trois on la prend,
+ Dès qu'on a une seule valeur sur les trois (BDOE,ICE,ROE) on la prend,
  Si on a rien de rien on vire la ligne,
  Si on a pAS de valeur et quelque chose dans la classe du ROE on prend la classe (10883 lignes)
  CASE WHEN "CdHautChut"=1 THEN 0.25 --<0.5
@@ -570,7 +570,7 @@ count;fishway_type;po_presence_eel_pass
 478;278;t
 1713;271;t
 */
-
+*/
 
 /*
  * 
@@ -579,6 +579,8 @@ count;fishway_type;po_presence_eel_pass
  */
 
 /*
+ * 
+ */
 BEGIN;
 DELETE FROM sudoang.dbeel_physical_obstruction WHERE ob_op_id in (
 SELECT op_id FROM sudoang.dbeel_obstruction_place WHERE country ='FR');--84272
@@ -594,7 +596,7 @@ WITH
 hauteur_chute_bdoe_nlignes AS (
 	
 	SELECT hco_hauteur AS h_chute_bdoe, hco_ouv_id::integer AS ouv_id FROM  bdoe.hauteur_chute 
-	),--58380
+	),--58380 -->61978
 hauteur_chute_bdoe AS (	
 	SELECT avg(h_chute_bdoe) h_chute_bdoe,ouv_id FROM  hauteur_chute_bdoe_nlignes GROUP BY ouv_id
 	),
