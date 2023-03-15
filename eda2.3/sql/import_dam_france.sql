@@ -467,7 +467,9 @@ SELECT DISTINCT doe_mcd_id, mcd_libelle FROM bdoe.devalaison_ouvrage
 |3                        |Turbine ichtyocompatible                                                                            |
 
 REFLEXION INITIALE
-A la montée d'abord BDOE, ensuite ICE , ensuite hauteur terrain du ROE.
+A la montée d'abord ICE puis BDOE , ensuite hauteur terrain du ROE.
+
+TODO changer pour mettre BDOE en premier ?
 
 CE QU'ON A FAIT AU FINAL (PRESQUE PAREIL SAUF QU'ON IGNORE LES CLASSES ROE)
 (1)Pour hauteur chute ICE, on va chercher la valeur de chute min de toutes les turbines => stockée dans tuh_hauteur_chute
@@ -543,7 +545,7 @@ LES TYPES DE DISPOSTIF DU ROE
 
 0;Absence de passe   non
 1;passe à ralentisseurs non
-2;passe à  bASsins successifs oui
+2;passe à  bassins successifs oui
 3;Ecluse à  poisson oui
 4;Exutoire de dévalaison non
 5;passe à Anguille oui
@@ -583,7 +585,7 @@ count;fishway_type;po_presence_eel_pass
  */
 BEGIN;
 DELETE FROM sudoang.dbeel_physical_obstruction WHERE ob_op_id in (
-SELECT op_id FROM sudoang.dbeel_obstruction_place WHERE country ='FR');--84272
+SELECT op_id FROM sudoang.dbeel_obstruction_place WHERE country ='FR');--86563
 COMMIT;
 */
 
@@ -612,9 +614,12 @@ hauteur_chute_pre AS (
 	    
 */    
 /*
-PAS d'INTERET A ALLER CHERCHER DANS STRUCTURE D'OBSTACLE (réunion du 22/08) on a l'info dans opi
-PAS d'accord on fait notre propre choix, car on choisit aussi l'opi la moins limitante
-*/
+Pas d'interet A ALLER CHERCHER DANS STRUCTURE D'OBSTACLE (réunion du 22/08) on a l'info dans opi
+Pas d'accord on fait notre propre choix, car on choisit aussi l'opi la moins limitante
+TODO voir ordre avec voie sur berge pour les anguilles qui ne s'applique pas aux autres 
+poissons migrateurs
+**/
+
 hauteur_chute_sto AS (
 	SELECT   ooi_ref_id AS ouv_id, *
 	FROM ice.obstacle_operation_ice JOIN
@@ -623,7 +628,7 @@ hauteur_chute_sto AS (
 	ice.structure_obstacle on sto_pao_id=pao_id --LEFT JOIN
 	--hauteur_chute_pre on pre_id=sto_id
 	),
-
+-- TODO voir si on garde voie sur berge, si ça à une quelconque conséquence sur la hauteur de chute
 hauteur_chute_reordonne AS (
 	SELECT *,
 	 CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
@@ -638,7 +643,7 @@ hauteur_chute_reordonne AS (
 	 FROM hauteur_chute_sto     
 	 WHERE pao_eco_id in (1,3) -- oui, ou discontinu
 	 ORDER BY order_sto_tso_id),
---SELECT * FROM hauteur_chute_reordonne
+	 
 	 
 -- Au sein d'une opération on prend la première chute parmis l'ordre précédent	 
 hauteur_chute_ice_sto AS (
@@ -647,23 +652,23 @@ hauteur_chute_ice_sto AS (
 	),
 --SELECT * FROM hauteur_chute_ice_sto limit 50
 	
- 
+
 -- si on deux chutes lors d'opérations successives, on prend la plus petite
-hauteur_chute_ice_par_ouvrage As
+hauteur_chute_ice_par_ouvrage AS
 (SELECT ouv_id, 
 	min(sto_hauteur_chute) AS hauteur_chute_ice,
 	max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante	
 	FROM hauteur_chute_ice_sto
 	GROUP BY ouv_id),
--- Nos hauteurs sont en général égales, parfois plus faibles, mais pAS systématiquement ???. 
--- Dans certains cAS on a une hauteur_chute venant de opi alors que pour nous rien ... peut être parce que dans ICE ils traitent mieux les nulls
-
+-- Nos hauteurs sont en général égales, parfois plus faibles, mais pas systématiquement ???. 
+-- Dans certains cas on a une hauteur_chute venant de opi alors que pour nous rien ... 
+-- peut être parce que dans ICE ils traitent mieux les nulls
+-- SELECT * FROM hauteur_chute_ice_par_ouvrage WHERE hauteur_chute_ice_plus_limitante < hauteur_chute_ice
 hauteur_chute_ice AS
 (SELECT ouv_id, 
 	coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) AS h_chute_ice
 	FROM hauteur_chute_ice_par_ouvrage),
-
-
+	
 selectionne_roe AS (	
 	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
 	CASE WHEN ref_typ_id = 0 THEN 291 -- barrage
@@ -686,13 +691,14 @@ selectionne_roe AS (
  	WHERE  geom_reproj IS NOT NULL and
  	ref_sta_id in(0,4) 
  	 ),
--- SELECT count(*) FROM selectionne_roe	--88743
+--SELECT *  FROM selectionne_roe	--88743 --> 92253
 -- change 2020 add ref_chce_id
 hauteur_chute_roe AS (
  	  SELECT ouv_id, dbeel_op_id, ref_hauteur_chute_etiage_classe,  ref_hauteur_chute_etiage AS h_chute_roe, ref_chce_id, obstruction_type_no_id  
  	  FROM selectionne_roe
  	  ),
 --SELECT * FROM hauteur_chute_roe
+-- TODO changer les priorités BDOE / ICES
 height AS (
  	  SELECT  
  	 coalesce(hauteur_chute_bdoe.ouv_id,hauteur_chute_ice.ouv_id,hauteur_chute_roe.ouv_id) AS ouv_id,
@@ -700,7 +706,7 @@ height AS (
  	 obstruction_type_no_id,
  	 round(
  	 CASE 
- 	 WHEN h_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
+   WHEN h_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
  	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN h_chute_bdoe --bdoe ensuite
  	 WHEN h_chute_bdoe is NULL and h_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe::numeric -- ROE ensuite
   	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=1 THEN NULL -- indéterminé
@@ -727,7 +733,7 @@ height AS (
  	 LEFT JOIN hauteur_chute_bdoe On hauteur_chute_bdoe.ouv_id= hauteur_chute_roe.ouv_id
         -- WHERE coalesce(h_chute_roe, h_chute_ice, h_chute_bdoe) IS NOT NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
         ),
---SELECT count(*) FROM  height    --88743
+--SELECT count(*) FROM  height    --88743 -> 92253
 	 
 reception_devalaison_tous AS (
 	SELECT ooi_ref_id AS ouv_id, 
@@ -746,6 +752,7 @@ reception_devalaison AS (SELECT DISTINCT on (ouv_id) * FROM reception_devalaison
 -- si presence d'une passe correspondant à la liste et ouvrage noté infranchissable à une date existante (correspond aux avis récents)
 -- Avis technique global Avis technique à la montaison
 
+-- TODO adapter pour Lamproie, Saumon, Alose
 ice_presence_eel_pass AS(
 -- On récupère la première des passes 
 SELECT  distinct on (ouv_id) 
@@ -770,6 +777,7 @@ SELECT  distinct on (ouv_id)
          JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
         ),
  --SELECT * FROM ice_presence_eel_pass --125
+
 union_roe_pass AS (
           SELECT fty_code::numeric AS cdtypedisp, 
           fpi_ref_id AS ouv_id
@@ -827,9 +835,9 @@ presence_eel_pass_no_gele AS (
 Pour expertise de dévalaison on prend dans l'ordre Tubine Ichtyocompatible, puis Equipement de prise d'eau puis gestion
 On les classe puis on prend un distinct ce qui permet d'appliquer le meme classement aux deux colonnes de manière élégante et raffinée.
 no_id;no_code;no_type;no_name
-282;;downstream mitigation meASure;Water intake
-283;;downstream mitigation meASure;Fish friendly turbine
-284;;downstream mitigation meASure;Fish adapted Management
+282;;downstream mitigation measure;Water intake
+283;;downstream mitigation measure;Fish friendly turbine
+284;;downstream mitigation measure;Fish adapted Management
 */
 -- THE DISTINCT CLAUSE MUST BE IN THE SAME TABLE AS ORDER BY OTHERWISE WON'T WORK       
        
@@ -1015,8 +1023,8 @@ SELECT DISTINCT on (ooi_ref_id) * FROM ice_both_stages), --on prend la moins pé
 ---PAS de données	
 
 --  FRANCHISSABILITES DANS BDOE
----PAS de données	
--- SELECTion finale, je prends comme pour ICE la note la moins pénalisante (et tant pis pour la date il n'y avait que 15 doublons)
+---Pas de données	
+-- selection finale, je prends comme pour ICE la note la moins pénalisante (et tant pis pour la date il n'y avait que 15 doublons)
 -- On choisira de rendre franchissable les ouvrages ayant zero et 1
 orderedbdoe AS (
 SELECT exm_ouv_id, exm_not_id,  
@@ -1095,8 +1103,8 @@ SELECT * FROM dbeel_nomenclature.obstruction_impact
 no_id;no_code;no_type;no_name
 208;;Obstruction impact;Unknown
 209;;Obstruction impact;Unobtrusive and/or no barrier
-210;;Obstruction impact;PASsable without apparent difficulty
-211;;Obstruction impact;PASsable with some risk of delay
+210;;Obstruction impact;Passable without apparent difficulty
+211;;Obstruction impact;Passable with some risk of delay
 212;;Obstruction impact;Difficult to pass
 213;;Obstruction impact;Very difficult to pass
 214;;Obstruction impact;Impassable
@@ -1176,10 +1184,10 @@ FROM
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
   AND  obstruction_type_no_id IS NOT NULL -- this clause ensures removal of sta_id (4,0) AS those will not have been selected in height and selected in roe with clause
  
-  ; -- 85035 =>  2:14
+  ; -- 85035 =>  1:37 --86563
 
 
-
+S
 
 
 
@@ -1232,7 +1240,7 @@ BEGIN;
 ALTER TABLE dbeel.hpp add COLUMN hpp_orientation_bar_rack numeric;
 COMMENT ON COLUMN dbeel.hpp.hpp_orientation_bar_rack is 'Orientation of the bar rack, angle in degree between the bank and the bar rack';
 COMMENT ON COLUMN dbeel.hpp.hpp_inclination_bar_rack IS 'Inclination of the bar rack, angle in degree between the bottom and the bar rack';
-ALTER TABLE dbeel.hpp RENAME COLUMN hpp_flow_trAShrack TO hpp_flow_trAShrack_bypass;
+ALTER TABLE dbeel.hpp RENAME COLUMN hpp_flow_trAShrack TO hpp_flow_trashrack_bypass;
 ALTER TABLE dbeel.hpp ADD COLUMN hpp_id_original text;
 ALTER TABLE dbeel.hpp ADD COLUMN hpp_source text;
 COMMIT;
@@ -1371,16 +1379,18 @@ SELECT
   pre_lpg*pre_ltg AS hpp_surface_bar_rack,
   pre_b AS hpp_inclination_bar_rack,
   pre_a AS hpp_orientation_bar_rack, 
-  pre_existence_exutoire AS hpp_presence_bypass_trAShrack,
-  pre_nombre_exutoire AS hpp_nb_trAShrack_bypass,
+  pre_existence_exutoire AS hpp_presence_bypass_trashrack,
+  pre_nombre_exutoire AS hpp_nb_trashrack_bypass,
   choix_bdoe_ice.pre_debit_maximum_final AS hpp_turb_max_flow,
   choix_bdoe_ice.pre_derivation_debit_final AS hpp_reserved_flow, -- oui c'est pAS une erreur voir explication plus bAS
-  choix_bdoe_ice.pre_debit_devalaison_final AS hpp_flow_trAShrack_bypass,
+  choix_bdoe_ice.pre_debit_devalaison_final AS hpp_flow_trashrack_bypass,
   choix_bdoe_ice.pre_puissance_amenagement AS hpp_max_power,
   'ROE'||pre_id AS hpp_id_original,
   'ICE' AS hpp_source
   FROM choix_bdoe_ice 
   FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
+  SELECT * FROM final_insert;
+  
 INSERT INTO sudoang.dbeel_hpp
   (hpp_id ,
   hpp_ob_id ,
@@ -1402,8 +1412,15 @@ INSERT INTO sudoang.dbeel_hpp
   hpp_max_power, 
   hpp_id_original,
   hpp_source) SELECT * FROM final_insert; --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
+-- 859 
+
+SELECT count (*)  FROM sudoang.dbeel_hpp; --1502
+SELECT count (*)  FROM sudoang.dbeel_hpp WHERE hpp_source ='ICE'; --859
+-- SELECT * FROM  sudoang.dbeel_hpp ;
 
 
+  
+  
 /*
  * CETTE TABLE CORRESPOND AUX OUVRAGES AYANT UN USAGE HYDROELECTRIQUE
  * QUI NE SONT PAS AUSSI OBSOLETE DANS L'USAGE
@@ -1430,7 +1447,7 @@ roe_sudoang AS (
 	JOIN roe_usage_hydro on ref_id_national=roe_usage_hydro.ouv_id
          )
 
-SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_sudoang  ) ; --4723  
+SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_sudoang  ) ; --4723  --> 4900
 
 /*
  * CETTE TABLE FAIT LA LISTE DES OUVRAGES QUI ONT UN USAGE HYDROELECTRICITE
@@ -1463,7 +1480,7 @@ CREATE TABLE france.ouvrages_missing_hpp AS (
   --696
 
   SELECT * FROM roe_filtered WHERE ouv_id IN (SELECT ouv_id FROM missing_dams)
-  ); --711
+  ); --711 --> 682
  /*
   * 
   * VUE DES OUVRAGES INSERES A PARTIR D'ICE (et qui ont une description de la prise d'eau
@@ -1483,12 +1500,12 @@ SELECT count(*) FROM sudoang.view_dbeel_hpp;
 * 
 * INSERTION DES OUVRAGES MANQUANTS
 * il faut qu'ils aient un usage hydroélectriques, qui soient entrés dans la TABLE physical_obstruction
-* et qu'ils ne soient pAS déjà insérés
-* et qu'il n'existe pAS dans les déjà insérés d'ouvrages liés.
+* et qu'ils ne soient pas déjà insérés
+* et qu'il n'existe pas dans les déjà insérés d'ouvrages liés.
 * 
 */
 
--- linked dam renvoit une récurisive avec tous les liens 
+-- linked dam renvoit une récursive avec tous les liens 
 -- union ALL n'enlève pAS les enregitrements répétés comme UNION
 -- mais le problème reste car le chemin ne sera jamais le meme
 -- d'arrête dès qu'un gid est déjà dans chemin (id_original=ANY(chemin) =TRUE pour boucle)
@@ -1590,7 +1607,7 @@ SELECT
   NULL AS  hpp_presence_bypass_trAShrack,
   NULL AS  hpp_nb_trAShrack_bypass,
   bdoe_sudoang.ouv_debit_maximal AS hpp_turb_max_flow,
-  bdoe_sudoang.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pAS une erreur voir explication plus bAS
+  bdoe_sudoang.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pas une erreur voir explication plus bas
   bdoe_sudoang.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
   NULL AS hpp_max_power,
   ouv_id_to_insert.ouv_id AS hpp_id_original,
@@ -1600,7 +1617,7 @@ SELECT
   JOIN sudoang.dbeel_physical_obstruction p ON ob_op_id=op_id
   JOIN roe.roesudo r ON ref_id_national=ouv_id_to_insert.ouv_id
   LEFT JOIN bdoe_sudoang ON 'ROE'||bdoe_sudoang.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
-  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329
+  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471
 
 /*
 THIS VIEW MUST BE RELAUNCHED NOW WE HAVE INTEGRATED NEW DATA
@@ -1611,7 +1628,7 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM sudoang.dbeel_obstruc
 	JOIN sudoang.dbeel_physical_obstruction on op_id=ob_op_id 
     JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
-   ); --6687 
+   ); --5973
 
 SELECT * FROM sudoang.view_dbeel_hpp  WHERE hpp_id='9988fd61-2e87-4397-a6dc-8c1b08b4c092'
 --SELECT country,count(*) FROM sudoang.view_dbeel_hpp group by country
@@ -1656,7 +1673,7 @@ tur_id;tur_libelle
 
 no_id;no_code;no_type;no_name
 242;;Turbine type;Horizontal axis Kaplan (bulb)
-243;;Turbine type;Other (pleASe specify)
+243;;Turbine type;Other (please specify)
 244;;Turbine type;Double Francis (spiral case)
 245;;Turbine type;Francis unspecified
 246;;Turbine type;Turbine with fixed blade propeller and vertical axis
@@ -1727,7 +1744,7 @@ SELECT
   tuh_nombre_pale AS turb_nb_blades,
   tuh_debit_max AS turb_max_turbine_flow,
   NULL AS turb_description
-  FROM final_insert; --343 ->647 (2020)
+  FROM final_insert; --343 ->647 (2020) -- 670
 
 With uniques as (SELECT distinct on (turb_hpp_id) turb_hpp_id FROM sudoang.dbeel_turbine)
 SELECT  count(*) from uniques
