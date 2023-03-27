@@ -204,7 +204,7 @@ STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 
 
 --------------------------------------
-
+CREATE SCHEMA montepomi;
 DROP TABLE if exists montepomi.dbeel_obstruction_place CASCADE;
 CREATE TABLE montepomi.dbeel_obstruction_place (
     id_original character varying(10),
@@ -229,7 +229,7 @@ CREATE INDEX
 -- Le choix est fait d'utiliser les TABLEs de SUDOANG
 
 
--- SELECT * FROM sudoang.dbeel_obstruction_place WHERE country='FR';
+-- SELECT * FROM montepomi.dbeel_obstruction_place WHERE country='FR';
 -- SELECT count(*) FROM roe.roesudo
 DROP TABLE IF EXISTS roe.roesudo;
 CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415 =>117340
@@ -309,7 +309,7 @@ SELECT * FROM roe.roesudo
 JOIN roe.type ON ref_typ_id=typ_id
 WHERE ref_id_national = 'ROE40573';
 
-SELECT * FROM sudoang.dbeel_obstruction_place WHERE id_original = 'ROE43938'
+SELECT * FROM montepomi.dbeel_obstruction_place WHERE id_original = 'ROE43938'
 */
 CREATE INDEX 
   ON roe.roesudo
@@ -344,12 +344,12 @@ INSERT INTO montepomi.dbeel_obstruction_place
 	ref_id_national AS id_original, 
 	'FR' AS country
 	FROM (SELECT * FROM roe.roesudo WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)) unique_obs
-	; --  including pb geom 89717 -->92253
+	; --  including pb geom 89717 -->92253 (82s)
 
---VACUUM FULL ANALYSE sudoang.dbeel_obstruction_place;--7s
---REINDEX TABLE sudoang.dbeel_obstruction_place; -- 5s
+--VACUUM FULL ANALYSE montepomi.dbeel_obstruction_place;--7s
+--REINDEX TABLE montepomi.dbeel_obstruction_place; -- 5s
 	--2414 / only the one projected on rivers
--- SELECT * FROM sudoang.dbeel_obstruction_place
+-- SELECT * FROM montepomi.dbeel_obstruction_place
 -- record back the link with dbeel
 
 
@@ -368,13 +368,13 @@ INSERT INTO montepomi.dbeel_obstruction_place
 -- Dans ROE quand la colonne ouvrageLie est remplie on récupére cette information pour l'introduire dans devalpomi
 -- premiere requete récuperatio du lien fils
 WITH recupere_moi_le_code_op_id_pere AS (
-SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM sudoang.dbeel_obstruction_place join
+SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM montepomi.dbeel_obstruction_place join
      roe.liens  on 'ROE'||liens.liens_ref_id=id_original),
      recupere_moi_le_code_op_id_fils AS (
    SELECT op_id_pere, op_id AS op_id_fils, liens_ref_id,liens_ref_id_fils FROM recupere_moi_le_code_op_id_pere join
-     sudoang.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
+     montepomi.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
 -- on référence le code du père dans la ligne de l'ouvrage fils
-update sudoang.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
+update montepomi.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
 WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s --> 6494 --> 6171
 
 
@@ -384,8 +384,10 @@ WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; 
 UPDATE roe.roesudo set dbeel_op_id = NULL;--113340
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
-FROM sudoang.dbeel_obstruction_place 
-WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. -->92253
+FROM montepomi.dbeel_obstruction_place 
+WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. 
+-->92253 
+-->86563 27/03
 
 
 
@@ -394,40 +396,40 @@ Adaptation du script de Soizic pour le choix des ouvrages, merci Soizic !!!
 */
 
 BEGIN;
-DELETE FROM sudoang.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
+DELETE FROM montepomi.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
 -- On vire les digues
 
 -- Si on veut travailler avec les dates de mise en place/suppression des ouvrages, il faudra sans doute revenir sur ce script pour le modifier
-DELETE FROM sudoang.dbeel_obstruction_place 
+DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
-	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
 	WHERE typ_nom = 'Digue' );--290 -->294
 	
-DELETE FROM sudoang.dbeel_obstruction_place 
+DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
-	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
 	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture')); --647 -->651
 
-DELETE FROM sudoang.dbeel_obstruction_place 
+DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
-	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
 	WHERE eta_nom In ('Détruit entièrement','En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189
 
-DELETE FROM sudoang.dbeel_obstruction_place 
+DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
-	SELECT op_id FROM sudoang.dbeel_obstruction_place 
+	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN bdoe.ouvrage on 'ROE'||ouv_id=ref_id_national
 	WHERE ouv_derasement); --198 -->554
 COMMIT;
 --ROLLBACK;
-SELECT count(*) FROM sudoang.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression) -->86563
+SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression) -->86563
  
 /*
  * On repasse dessus pour supprimer les liens qui n'existent plus (meme requete que precedement)
@@ -437,14 +439,14 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--113415 -->117340
 
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
-FROM sudoang.dbeel_obstruction_place 
+FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. -->86563
 
 
 
 
 
---SELECT count(*) FROM sudoang.dbeel_obstruction_place join roe.roesudo on dbeel_op_id = op_id  -- 85035
+--SELECT count(*) FROM montepomi.dbeel_obstruction_place join roe.roesudo on dbeel_op_id = op_id  -- 85035
 	
 ---------------------------------------------------------------
 --Insertion des données de la TABLE dbeel_physical_obstructions
@@ -926,7 +928,7 @@ FROM decision_note),--10879 -- montepomi : 31 482
 SELECT * FROM countme WHERE count>1*/
 obstruction AS (
 SELECT replace(id_original,'ROE','')::integer AS ouv_id, op_id 
-FROM sudoang.dbeel_obstruction_place WHERE id_original like 'ROE%' )--80324
+FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' )--80324
   	
 
 
@@ -1001,10 +1003,10 @@ FROM
 
 
 
---select * from sudoang.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
+--select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
 /*
 with counts as (
-select count(*) as "N", comment_update from sudoang.dbeel_physical_obstruction group by comment_update),
+select count(*) as "N", comment_update from montepomi.dbeel_physical_obstruction group by comment_update),
 counts_france AS (
 select "N", substring(comment_update from position('Height' in comment_update) for 50) as type_height from counts where comment_update like '%initial%' order by "N" desc),
 --select * from counts_france)
@@ -1019,19 +1021,19 @@ SELECT * FROM countme WHERE count>1*/
 
 /*
 with find_duplicates AS (
-SELECT  count (*)  over (partition by op_id),* FROM sudoang.dbeel_physical_obstruction 
-Join  sudoang.dbeel_obstruction_place on ob_op_id=op_id
+SELECT  count (*)  over (partition by op_id),* FROM montepomi.dbeel_physical_obstruction 
+Join  montepomi.dbeel_obstruction_place on ob_op_id=op_id
 join roe.roesudo on dbeel_op_id = op_id )
 SELECT * FROM find_duplicates WHERE count>1
 */
 /*
-SELECT * FROm sudoang.dbeel_physical_obstruction WHERE author_lASt_update = 'Cédric and Mathilde' and date_lASt_update='2019-10-14';
+SELECT * FROm montepomi.dbeel_physical_obstruction WHERE author_lASt_update = 'Cédric and Mathilde' and date_lASt_update='2019-10-14';
 BEGIn;
-DELETE FROM sudoang.dbeel_physical_obstruction WHERE author_lASt_update = 'Cédric and Mathilde' and date_lASt_update='2019-10-14';
+DELETE FROM montepomi.dbeel_physical_obstruction WHERE author_lASt_update = 'Cédric and Mathilde' and date_lASt_update='2019-10-14';
 COMMIT;--80363
 
-SELECT DISTINCT on (ob_op_id) * FROM sudoang.dbeel_physical_obstruction 
-Join  sudoang.dbeel_obstruction_place on ob_op_id=op_id
+SELECT DISTINCT on (ob_op_id) * FROM montepomi.dbeel_physical_obstruction 
+Join  montepomi.dbeel_obstruction_place on ob_op_id=op_id
 join roe.roesudo on dbeel_op_id = op_id ) 
 
 SELECT count(*) FROM uniqueCASE -- 80324
@@ -1062,11 +1064,11 @@ FROM THIS STEP (i.e. physical obstruction is finished)
 BEGIN;
 With hpp_inserted_FROM_france AS(
 SELECT hpp_id 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	Join roe.roesudo on dbeel_op_id = op_id
-	JOIn sudoang.dbeel_physical_obstruction On ob_op_id=op_id
-	JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id)
-DELETE FROM sudoang.dbeel_hpp WHERE hpp_id in (SELECT hpp_id FROM hpp_inserted_FROM_france);--4253
+	JOIn montepomi.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id)
+DELETE FROM montepomi.dbeel_hpp WHERE hpp_id in (SELECT hpp_id FROM hpp_inserted_FROM_france);--4253
 COMMIT;
 */
 
@@ -1105,25 +1107,25 @@ prise_eau_ice_unique AS (
 	
 --SELECT * FROM prise_eau_ice_unique --562
 
-bdoe_ice_sudoang AS (  
+bdoe_ice_montepomi AS (  
 	SELECT * 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id
-	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	JOIN prise_eau_ice_unique on ref_id_national='ROE'||ooi_ref_id
     LEFT JOIN bdoe_usage_hydro on 'ROE'||bdoe_usage_hydro.ouv_id=ref_id_national 
          ),
--- SELECT count(*) FROM bdoe_ice_sudoang WHERE (pre_id is not NULL OR usa_uty_id=5); --4727
--- SELECT count(*) FROM bdoe_ice_sudoang WHERE (pre_id is not NULL ); --505 (après jointure sudoang)
--- SELECT count(*) FROM bdoe_ice_sudoang WHERE usa_uty_id=5;--4462 (source roe après jointure sudoang) 
---SELECT * FROM bdoe_ice_sudoang limit 10;
+-- SELECT count(*) FROM bdoe_ice_montepomi WHERE (pre_id is not NULL OR usa_uty_id=5); --4727
+-- SELECT count(*) FROM bdoe_ice_montepomi WHERE (pre_id is not NULL ); --505 (après jointure montepomi)
+-- SELECT count(*) FROM bdoe_ice_montepomi WHERE usa_uty_id=5;--4462 (source roe après jointure montepomi) 
+--SELECT * FROM bdoe_ice_montepomi limit 10;
 union_roe_pass AS (
           SELECT fty_code::numeric AS cdtypedisp, 
           fpi_ref_id AS ouv_id
           FROM roe.franchissement_piscicole 
           join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
           WHERE fty_code='4'--365
-          and 'ROE'||fpi_ref_id in (SELECT ref_id_national FROM bdoe_ice_sudoang)          
+          and 'ROE'||fpi_ref_id in (SELECT ref_id_national FROM bdoe_ice_montepomi)          
  	  ),
  	  
 roe_presence_bypass AS (
@@ -1139,7 +1141,7 @@ angle_between_0_and_90 AS (
 SELECT CASE WHEN pre_seuil_barrage_angle >90 THEN pre_seuil_barrage_angle - 90 
 else pre_seuil_barrage_angle  end AS pre_seuil_barrage_angle_recode ,
 *
-FROM bdoe_ice_sudoang),
+FROM bdoe_ice_montepomi),
 
 recode_angle AS (
 SELECT 
@@ -1199,7 +1201,7 @@ SELECT
   FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
   SELECT * FROM final_insert;
   
-INSERT INTO sudoang.dbeel_hpp
+INSERT INTO montepomi.dbeel_hpp
   (hpp_id ,
   hpp_ob_id ,
   hpp_name ,
@@ -1222,9 +1224,9 @@ INSERT INTO sudoang.dbeel_hpp
   hpp_source) SELECT * FROM final_insert; --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
 -- 859 
 
-SELECT count (*)  FROM sudoang.dbeel_hpp; --1502
-SELECT count (*)  FROM sudoang.dbeel_hpp WHERE hpp_source ='ICE'; --859
--- SELECT * FROM  sudoang.dbeel_hpp ;
+SELECT count (*)  FROM montepomi.dbeel_hpp; --1502
+SELECT count (*)  FROM montepomi.dbeel_hpp WHERE hpp_source ='ICE'; --859
+-- SELECT * FROM  montepomi.dbeel_hpp ;
 
 
   
@@ -1247,15 +1249,15 @@ WITH roe_usage_hydro AS(
         WHERE usa_uty_id=12 --obsolete
         ),
 --SELECT count(*) FROM roe_usage_hydro --5393
-roe_sudoang AS (  
+roe_montepomi AS (  
 	SELECT * 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	Join roe.roesudo on dbeel_op_id = op_id
-	JOIn sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIn montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	JOIN roe_usage_hydro on ref_id_national=roe_usage_hydro.ouv_id
          )
 
-SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_sudoang  ) ; --4723  --> 4900
+SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_montepomi  ) ; --4723  --> 4900
 
 /*
  * CETTE TABLE FAIT LA LISTE DES OUVRAGES QUI ONT UN USAGE HYDROELECTRICITE
@@ -1294,15 +1296,15 @@ CREATE TABLE france.ouvrages_missing_hpp AS (
   * VUE DES OUVRAGES INSERES A PARTIR D'ICE (et qui ont une description de la prise d'eau
   * et des turbines)
   */
-DROP MATERIALIZED VIEW if EXISTS sudoang.view_dbeel_hpp;
-CREATE MATERIALIZED VIEW sudoang.view_dbeel_hpp AS (
-SELECT row_number() OVER (PARTITION BY true) AS id, * FROM sudoang.dbeel_obstruction_place
-	JOIN sudoang.dbeel_physical_obstruction on op_id=ob_op_id 
-    JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id
+DROP MATERIALIZED VIEW if EXISTS montepomi.view_dbeel_hpp;
+CREATE MATERIALIZED VIEW montepomi.view_dbeel_hpp AS (
+SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstruction_place
+	JOIN montepomi.dbeel_physical_obstruction on op_id=ob_op_id 
+    JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
    ); --1532 => 5901 (AFTER SPAIN INSERTION)  ??? 2358 2020 (first run) 6687 don't forget to run this after the next chunk below
 
-SELECT count(*) FROM sudoang.view_dbeel_hpp;
+SELECT count(*) FROM montepomi.view_dbeel_hpp;
 
 /*
 * 
@@ -1321,7 +1323,7 @@ WITH RECURSIVE linkeddams(op_id,op_op_id,profondeur,chemin,boucle) AS (
     SELECT op_id, op_op_id,1, 
     ARRAY[id_original::TEXT] AS chemin,
     FALSE AS boucle
-    FROM sudoang.dbeel_obstruction_place 
+    FROM montepomi.dbeel_obstruction_place 
     WHERE op_op_id IS NOT NULL
   UNION ALL
     SELECT * FROM (
@@ -1329,13 +1331,13 @@ WITH RECURSIVE linkeddams(op_id,op_op_id,profondeur,chemin,boucle) AS (
     array_append(chemin,id_original::TEXT) AS chemin,
     id_original::TEXT = ANY(chemin) AS boucle
     FROM linkeddams l JOIN
-    sudoang.dbeel_obstruction_place o ON l.op_id=o.op_op_id) sub
+    montepomi.dbeel_obstruction_place o ON l.op_id=o.op_op_id) sub
     WHERE NOT sub.boucle
 ),
 --SELECT * FROM linkeddams WHERE profondeur>1
 dams_already_integrated AS (
 	SELECT ouv_id FROM france.ouvrages_inseres_hpp JOIN
-	sudoang.view_dbeel_hpp ON id_original=ouv_id
+	montepomi.view_dbeel_hpp ON id_original=ouv_id
 ),
 -- SELECT * FROM dams_already_integrated
 dams_with_ancestor AS (
@@ -1355,11 +1357,11 @@ ouv_id_to_insert AS (
 	SELECT ouv_id FROM dams_already_integrated
 )),
 --SELECT count(*) FROM ouv_id_to_insert --3725  --(On enlève depuis 5393 des ouvrages déjà insérés ayant un usage Hydroélectrique)
-bdoe_sudoang AS (  
+bdoe_montepomi AS (  
 	SELECT * 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id
-	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	LEFT JOIN bdoe.ouvrage ON 'ROE'||ouvrage.ouv_id=ref_id_national 
          ),
 union_roe_pass AS (
@@ -1376,7 +1378,7 @@ roe_presence_bypass AS (
 )
 
 
-INSERT INTO sudoang.dbeel_hpp
+INSERT INTO montepomi.dbeel_hpp
   (hpp_id ,
   hpp_ob_id ,
   hpp_name,
@@ -1408,38 +1410,38 @@ SELECT
   NULL AS hpp_total_flow_bypass, 
   NULL AS hpp_orient_flow_no_id,
   NULL AS hpp_presence_of_bar_rack,
-  bdoe_sudoang.ouv_ecartement_grille AS hpp_bar_rack_space ,
+  bdoe_montepomi.ouv_ecartement_grille AS hpp_bar_rack_space ,
   NULL AS  hpp_surface_bar_rack,
   NULL AS  hpp_inclination_bar_rack,
   NULL AS  hpp_orientation_bar_rack, 
   NULL AS  hpp_presence_bypass_trAShrack,
   NULL AS  hpp_nb_trAShrack_bypass,
-  bdoe_sudoang.ouv_debit_maximal AS hpp_turb_max_flow,
-  bdoe_sudoang.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pas une erreur voir explication plus bas
-  bdoe_sudoang.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
+  bdoe_montepomi.ouv_debit_maximal AS hpp_turb_max_flow,
+  bdoe_montepomi.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pas une erreur voir explication plus bas
+  bdoe_montepomi.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
   NULL AS hpp_max_power,
   ouv_id_to_insert.ouv_id AS hpp_id_original,
   'ROE' AS hpp_source
   FROM ouv_id_to_insert
-  JOIN sudoang.dbeel_obstruction_place o ON ouv_id_to_insert.ouv_id=id_original
-  JOIN sudoang.dbeel_physical_obstruction p ON ob_op_id=op_id
+  JOIN montepomi.dbeel_obstruction_place o ON ouv_id_to_insert.ouv_id=id_original
+  JOIN montepomi.dbeel_physical_obstruction p ON ob_op_id=op_id
   JOIN roe.roesudo r ON ref_id_national=ouv_id_to_insert.ouv_id
-  LEFT JOIN bdoe_sudoang ON 'ROE'||bdoe_sudoang.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
+  LEFT JOIN bdoe_montepomi ON 'ROE'||bdoe_montepomi.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
   LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471
 
 /*
 THIS VIEW MUST BE RELAUNCHED NOW WE HAVE INTEGRATED NEW DATA
 */
-DROP MATERIALIZED VIEW if EXISTS sudoang.view_dbeel_hpp;
-CREATE MATERIALIZED VIEW sudoang.view_dbeel_hpp AS (
-SELECT row_number() OVER (PARTITION BY true) AS id, * FROM sudoang.dbeel_obstruction_place
-	JOIN sudoang.dbeel_physical_obstruction on op_id=ob_op_id 
-    JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id
+DROP MATERIALIZED VIEW if EXISTS montepomi.view_dbeel_hpp;
+CREATE MATERIALIZED VIEW montepomi.view_dbeel_hpp AS (
+SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstruction_place
+	JOIN montepomi.dbeel_physical_obstruction on op_id=ob_op_id 
+    JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
    ); --5973
 
-SELECT * FROM sudoang.view_dbeel_hpp  WHERE hpp_id='9988fd61-2e87-4397-a6dc-8c1b08b4c092'
---SELECT country,count(*) FROM sudoang.view_dbeel_hpp group by country
+SELECT * FROM montepomi.view_dbeel_hpp  WHERE hpp_id='9988fd61-2e87-4397-a6dc-8c1b08b4c092'
+--SELECT country,count(*) FROM montepomi.view_dbeel_hpp group by country
 
 -- TDOO INSERER DES PRISES D'EAU AVEC RIEN SI USAGE HYDROELECTRIQUE
 
@@ -1459,9 +1461,9 @@ no_id;no_code;no_type;no_name
 /*
 With count_ice AS (
 SELECT count (*) OVER (partition by ooi_ref_id) AS count, * 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	join roe.roesudo on dbeel_op_id = op_id
-	JOIn sudoang.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIn montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	JOIN ice.obstacle_operation_ice on ref_id_national='ROE'||ooi_ref_id
 	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
 	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
@@ -1503,10 +1505,10 @@ no_id;no_code;no_type;no_name
 */
 /*
 BEGIN;
-ALTER TABLE sudoang.dbeel_turbine DROP  CONSTRAINT c_fk_turb_hpp_id;
-ALTER TABLE sudoang.dbeel_turbine ADD  CONSTRAINT c_fk_turb_hpp_id
+ALTER TABLE montepomi.dbeel_turbine DROP  CONSTRAINT c_fk_turb_hpp_id;
+ALTER TABLE montepomi.dbeel_turbine ADD  CONSTRAINT c_fk_turb_hpp_id
 FOREIGN KEY (turb_hpp_id)
-      REFERENCES sudoang.dbeel_hpp (hpp_id) MATCH SIMPLE
+      REFERENCES montepomi.dbeel_hpp (hpp_id) MATCH SIMPLE
       ON UPDATE CASCADE ON DELETE CASCADE;
 COMMIT;
 
@@ -1515,17 +1517,17 @@ SELECT * FROM ice.turbine_usine_hydrolelectrique; --378
  
 /*
  * BEGIN;
- * DELETE FROM sudoang.dbeel_turbine;
+ * DELETE FROM montepomi.dbeel_turbine;
  * COMMIT;
  */
---SELECT * FROM sudoang.dbeel_turbine;
---SELECT * FROM sudoang.dbeel_hpp
+--SELECT * FROM montepomi.dbeel_turbine;
+--SELECT * FROM montepomi.dbeel_hpp
 WITH hpp_full AS(
 SELECT * 
-	FROM sudoang.dbeel_obstruction_place 
+	FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id
-	JOIN sudoang.dbeel_physical_obstruction On ob_op_id=op_id
-	JOIN sudoang.dbeel_hpp on hpp_ob_id=ob_id),
+	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
+	JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id),
 ice_pre_turbine AS(
 SELECT pre_id, turbine_usine_hydrolelectrique.* FROM ice.prise_eau 	
 JOIN ice.turbine_usine_hydrolelectrique on tuh_pre_id=pre_id),
@@ -1535,7 +1537,7 @@ final_insert AS (
  FROM hpp_full JOIN ice_pre_turbine on hpp_id_original='ROE'||pre_id) --290
 --SELECT * FROM final_insert
 
-INSERT INTO sudoang.dbeel_turbine
+INSERT INTO montepomi.dbeel_turbine
 SELECT
   uuid_generate_v4() AS turb_id ,
   hpp_id AS turb_hpp_id,
@@ -1554,7 +1556,7 @@ SELECT
   NULL AS turb_description
   FROM final_insert; --343 ->647 (2020) -- 670
 
-With uniques as (SELECT distinct on (turb_hpp_id) turb_hpp_id FROM sudoang.dbeel_turbine)
+With uniques as (SELECT distinct on (turb_hpp_id) turb_hpp_id FROM montepomi.dbeel_turbine)
 SELECT  count(*) from uniques
 
 
@@ -1577,43 +1579,43 @@ SELECT  count(*) from uniques
  * TEMPORARY CORRECTIONS THESE HAVE BEEN CORRECTED AT THE SOURCE REMOVE AT NEXT RUN
  **********************/
 --Three obstacles still wrong 
-UPDATE sudoang.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
+UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE', 1.05) FROM (
 SELECT * 
-FROM sudoang.dbeel_obstruction_place 
-JOIN sudoang.dbeel_physical_obstruction ON ob_op_id = op_id 
+FROM montepomi.dbeel_obstruction_place 
+JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id 
 WHERE id_original='ROE45141') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id; --still 53 m Moulin de l'esperance
 
-UPDATE sudoang.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
+UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE', 0.55) FROM (
 SELECT * 
-FROM sudoang.dbeel_obstruction_place 
-JOIN sudoang.dbeel_physical_obstruction ON ob_op_id = op_id 
+FROM montepomi.dbeel_obstruction_place 
+JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id 
 WHERE id_original='ROE89249') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id;  --seuil répartiteur 27.78m
 
-UPDATE sudoang.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
+UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE', 0.95) FROM (
 SELECT * 
-FROM sudoang.dbeel_obstruction_place 
-JOIN sudoang.dbeel_physical_obstruction ON ob_op_id = op_id 
+FROM montepomi.dbeel_obstruction_place 
+JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id 
 WHERE id_original='ROE45139') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id; --47.97 m seuil répartiteur quartier du Grès
 
-UPDATE sudoang.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
+UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE',2.60) FROM (
 SELECT * 
-FROM sudoang.dbeel_obstruction_place 
-JOIN sudoang.dbeel_physical_obstruction ON ob_op_id = op_id 
+FROM montepomi.dbeel_obstruction_place 
+JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id 
 WHERE id_original='ROE44738') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id; -- vannage Croze et Peyron 131 m
 
-UPDATE sudoang.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
+UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE',2.10) FROM (
 SELECT * 
-FROM sudoang.dbeel_obstruction_place 
-JOIN sudoang.dbeel_physical_obstruction ON ob_op_id = op_id 
+FROM montepomi.dbeel_obstruction_place 
+JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id 
 WHERE id_original='ROE45144') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id;
 
@@ -1621,18 +1623,18 @@ WHERE dbeel_physical_obstruction.ob_id=sub.ob_id;
 
 
 -- Iffezheim (corrected now)
-/* UPDATE sudoang.dbeel_physical_obstruction po SET  (po_obstruction_height,  date_last_update, author_last_update,  comment_update)=
+/* UPDATE montepomi.dbeel_physical_obstruction po SET  (po_obstruction_height,  date_last_update, author_last_update,  comment_update)=
 (11.8, current_date, 'Cédric and Maria', COALESCE(po.comment_update||', ','')||'Height NULL in bdoe, correction asked to Pierre') 
-FROM (SELECT * FROM sudoang.dbeel_obstruction_place
-     JOIN sudoang.dbeel_physical_obstruction ON ob_op_id=op_id
+FROM (SELECT * FROM montepomi.dbeel_obstruction_place
+     JOIN montepomi.dbeel_physical_obstruction ON ob_op_id=op_id
       where id_original= 'ROE44609') sub
       where sub.ob_id=po.ob_id;
       */
 --Barrage d'Arzal (corrected now)
- /*UPDATE sudoang.dbeel_physical_obstruction po SET  (po_obstruction_height,  date_last_update, author_last_update,  comment_update)=
+ /*UPDATE montepomi.dbeel_physical_obstruction po SET  (po_obstruction_height,  date_last_update, author_last_update,  comment_update)=
 (2.10, current_date, 'Cédric and Maria', COALESCE(po.comment_update||', ','')||'Height NULL in bdoe, correction asked to Pierre') 
-FROM (SELECT * FROM sudoang.dbeel_obstruction_place
-     JOIN sudoang.dbeel_physical_obstruction ON ob_op_id=op_id
+FROM (SELECT * FROM montepomi.dbeel_obstruction_place
+     JOIN montepomi.dbeel_physical_obstruction ON ob_op_id=op_id
       where id_original= 'ROE58432') sub
       where sub.ob_id=po.ob_id;
 */
