@@ -205,7 +205,22 @@ STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 
 --------------------------------------
 
+DROP TABLE if exists montepomi.dbeel_obstruction_place CASCADE;
+CREATE TABLE montepomi.dbeel_obstruction_place (
+    id_original character varying(10),
+    country character varying(2),
+        CONSTRAINT pk_obs_op_id PRIMARY KEY (op_id),
+        CONSTRAINT c_uk_id_roe UNIQUE (id_original),
+        CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
+                REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
+                MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.observation_places); 
 
+-- Creation index spatial
+CREATE INDEX 
+  ON montepomi.dbeel_obstruction_place
+  USING gist
+  (the_geom);
 
 
 
@@ -314,10 +329,10 @@ http://id.eaufrance.fr/ddd/ETH/2002-1/IdTronconHydrograElt
  
  
 
-DELETE  FROM sudoang.dbeel_obstruction_place WHERE country='FR';  
+DELETE  FROM montepomi.dbeel_obstruction_place WHERE country='FR';  
 
 --ref_sta_id = statut des ouvrages. On veut garder Validé par échantillonnage (4) et Validé point par point (0)
-INSERT INTO sudoang.dbeel_obstruction_place
+INSERT INTO montepomi.dbeel_obstruction_place
 	SELECT uuid_generate_v4() AS op_id, 
 	'AFB' AS op_gis_systemname, 
 	'roe' AS op_gis_layername, 
@@ -350,7 +365,7 @@ INSERT INTO sudoang.dbeel_obstruction_place
 -----------------------------------------------
 --  Ouvrages liés
 -------------------------------------------------
--- Dans ROE quand la colonne ouvrageLie est remplie on récupére cette information pour l'introduire dans SUDOANG
+-- Dans ROE quand la colonne ouvrageLie est remplie on récupére cette information pour l'introduire dans devalpomi
 -- premiere requete récuperatio du lien fils
 WITH recupere_moi_le_code_op_id_pere AS (
 SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM sudoang.dbeel_obstruction_place join
@@ -360,13 +375,13 @@ SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM sudoang.dbeel_ob
      sudoang.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
 -- on référence le code du père dans la ligne de l'ouvrage fils
 update sudoang.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
-WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s --> 6494
+WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s --> 6494 --> 6171
 
 
 
 -- on rajoute une colonne dbeel_op_id dans la TABLE source pour faire le lien
 --ALTER TABLE roe.roesudo ADD COLUMN dbeel_op_id uuid; 
-UPDATE roe.roesudo set dbeel_op_id = NULL;--113415
+UPDATE roe.roesudo set dbeel_op_id = NULL;--113340
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM sudoang.dbeel_obstruction_place 
