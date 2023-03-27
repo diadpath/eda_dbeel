@@ -1202,8 +1202,407 @@ FROM
   ; -- 85035 =>  1:37 --86563
 
 
-S
+-- MONTEPOMI > eda_dbeel > ISSUE #14 : collect dam impact score for ALA/SAT/LPM
+-- copié collé de la requête précente pour l'anguille en ajoutant les notes ICE de franchissabilité des autres espèces
+CREATE SCHEMA montepomi;
+ 
+DROP TABLE if exists montepomi.dbeel_physical_obstruction CASCADE;
+CREATE TABLE montepomi.dbeel_physical_obstruction (
+  fishway_type text,
+  date_last_update date,
+  author_last_update text,
+  comment_update text,
+  esp_id integer, 
+  CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
+  CONSTRAINT fk_dp FOREIGN KEY (ob_dp_id) REFERENCES dbeel.data_provider (dp_id),
+  CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
+  CONSTRAINT fk_ob_period FOREIGN KEY (ob_no_period) REFERENCES dbeel_nomenclature.period_type (no_id) ,
+  CONSTRAINT fk_ob_type FOREIGN KEY (ob_no_type) REFERENCES dbeel_nomenclature.observation_type (no_id) ,
+  CONSTRAINT fk_po_obstruction_passability FOREIGN KEY (po_no_obstruction_passability)REFERENCES dbeel_nomenclature.obstruction_impact (no_id),
+  CONSTRAINT fk_ot_obstruction_type FOREIGN KEY (ot_no_obstruction_type) REFERENCES dbeel_nomenclature.obstruction_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_ot_mortality_type FOREIGN KEY (ot_no_mortality_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS(dbeel.physical_obstruction);
 
+
+  WITH 
+hauteur_chute_bdoe_nlignes AS (
+	
+	SELECT hco_hauteur AS h_chute_bdoe, hco_ouv_id::integer AS ouv_id FROM  bdoe.hauteur_chute 
+	),--58380 -->61978
+hauteur_chute_bdoe AS (	
+	SELECT avg(h_chute_bdoe) h_chute_bdoe,ouv_id FROM  hauteur_chute_bdoe_nlignes GROUP BY ouv_id
+	),
+
+hauteur_chute_sto AS (
+	SELECT   ooi_ref_id AS ouv_id, *
+	FROM ice.obstacle_operation_ice JOIN
+	ice.operation_ice on opi_ooi_id=ooi_id JOIN
+	ice.partie_obstacle ON pao_opi_id=opi_id LEFT JOIN
+	ice.structure_obstacle on sto_pao_id=pao_id --LEFT JOIN
+	--hauteur_chute_pre on pre_id=sto_id
+	),
+-- TODO voir si on garde voie sur berge, si ça à une quelconque conséquence sur la hauteur de chute
+hauteur_chute_reordonne AS (
+	SELECT *,
+	 CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
+	               WHEN sto_tso_id=1 THEN 3 -- seuil
+	               WHEN sto_tso_id=3 THEN 4 -- vannage
+	               WHEN sto_tso_id=2 THEN 5	-- seuil en enrochement	
+	               WHEN sto_tso_id=7 THEN 6 -- prise d'eau 
+	               WHEN sto_tso_id=4 THEN 7 -- ouvrage routier
+	               WHEN sto_tso_id=6 THEN 8	  -- dispositif de franchissement piscicole             
+	               WHEN sto_tso_id=8 THEN 1 --voie sur berge
+	               END AS order_sto_tso_id 
+	 FROM hauteur_chute_sto     
+	 WHERE pao_eco_id in (1,3) -- oui, ou discontinu
+	 ORDER BY order_sto_tso_id),
+	 
+	 
+-- Au sein d'une opération on prend la première chute parmis l'ordre précédent	 
+hauteur_chute_ice_sto AS (
+	SELECT distinct on (ouv_id,opi_id) *
+	 FROM hauteur_chute_reordonne                	               
+	),
+--SELECT * FROM hauteur_chute_ice_sto limit 50
+	
+
+-- si on deux chutes lors d'opérations successives, on prend la plus petite
+hauteur_chute_ice_par_ouvrage AS
+(SELECT ouv_id, 
+	min(sto_hauteur_chute) AS hauteur_chute_ice,
+	max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante	
+	FROM hauteur_chute_ice_sto
+	GROUP BY ouv_id),
+-- Nos hauteurs sont en général égales, parfois plus faibles, mais pas systématiquement ???. 
+-- Dans certains cas on a une hauteur_chute venant de opi alors que pour nous rien ... 
+-- peut être parce que dans ICE ils traitent mieux les nulls
+-- SELECT * FROM hauteur_chute_ice_par_ouvrage WHERE hauteur_chute_ice_plus_limitante < hauteur_chute_ice
+hauteur_chute_ice AS
+(SELECT ouv_id, 
+	coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) AS h_chute_ice
+	FROM hauteur_chute_ice_par_ouvrage),
+	
+selectionne_roe AS (	
+	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
+	CASE WHEN ref_typ_id = 0 THEN 291 -- barrage
+	     WHEN ref_typ_id = 1 AND (ref_sty_id=10 OR ref_sty_id=11) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND (ref_sty_id IS NULL) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND ref_sty_id=12 THEN 293 -- enrochement
+	     WHEN ref_typ_id = 2 THEN 298 -- digue (en vrai va virer car non inclus)
+	     WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=21) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND (ref_sty_id IS NULL) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage à gué
+	     WHEN ref_typ_id = 3 AND ref_sty_id = 18 THEN 294 -- culvert
+	     WHEN ref_sty_id = 9 OR  ref_sty_id = 19 OR ref_sty_id=13 THEN 297 -- other
+	     WHEN ref_typ_id = 5 THEN 299 -- grille de pisciculture (en vrai va virer car non inclus)
+	     ELSE 219 -- Physical unknown
+	     END AS obstruction_type_no_id,
+	roe.roesudo.*,
+	chce_nom AS ref_hauteur_chute_etiage_classe --change 2020 la classe de hauteur de chute est stockée dans un référentiel
+	FROM roe.roesudo
+	LEFT JOIN roe.classe_hauteur_chute_etiage ON classe_hauteur_chute_etiage.chce_id = ref_chce_id -- CHANGE 2020 adapt code to new roe
+ 	WHERE  geom_reproj IS NOT NULL and
+ 	ref_sta_id in(0,4) 
+ 	 ),
+--SELECT *  FROM selectionne_roe	--88743 --> 92253
+-- change 2020 add ref_chce_id
+hauteur_chute_roe AS (
+ 	  SELECT ouv_id, dbeel_op_id, ref_hauteur_chute_etiage_classe,  ref_hauteur_chute_etiage AS h_chute_roe, ref_chce_id, obstruction_type_no_id  
+ 	  FROM selectionne_roe
+ 	  ),
+--SELECT * FROM hauteur_chute_roe
+-- TODO changer les priorités BDOE / ICES
+height AS (
+ 	  SELECT  
+ 	 coalesce(hauteur_chute_bdoe.ouv_id,hauteur_chute_ice.ouv_id,hauteur_chute_roe.ouv_id) AS ouv_id,
+ 	 dbeel_op_id,
+ 	 obstruction_type_no_id,
+ 	 round(
+ 	 CASE 
+   WHEN h_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
+ 	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN h_chute_bdoe --bdoe ensuite
+ 	 WHEN h_chute_bdoe is NULL and h_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe::numeric -- ROE ensuite
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=1 THEN NULL -- indéterminé
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=2 THEN 0.25 --valeurs unique classe <0.5
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=3 THEN 0.75 --De 0.5m à inférieure à 1m
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=4 THEN 1.25 --De 1m à inférieure à 1.5m
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=5 THEN 1.75 -- De 1.5m à inférieure à 2m
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=6 THEN 2.5  --'DE 2m A INFERIEURE A 3m'	   
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=7 THEN 4 --'DE 3m A INFERIEURE A 5m'
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=8 THEN 7.5 --'DE 5m A INFERIEURE A 10m'
+	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=9 THEN 20 --'SUPERIEURE OU EGALE A 10m'
+	 ELSE NULL	
+	 END,2) AS hauteur_chute,	 
+	 CASE 
+	 WHEN h_chute_ice is NOT NULL THEN 'Choix ice (1)' --ice d'abord (parce que sinon on en a aucun)
+ 	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN  'Choix bdoe (2)' --bdoe ensuite
+ 	 WHEN h_chute_bdoe is NULL and h_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN 'Choix roe (3)' -- très rare
+  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id IS NOT NULL 
+  	 AND ref_chce_id!=1 THEN 'Choix classe (4)' --jamais, merci de vous êtres fait c... => les classes de hauteur de chute doivent venir des autres tables
+ 	 ELSE 'Pas de hauteur'	
+	 END  AS commentaire_hauteur_chute  
+ 	 FROM hauteur_chute_roe 
+ 	 LEFT JOIN  hauteur_chute_ice on hauteur_chute_roe.ouv_id=hauteur_chute_ice.ouv_id 
+ 	 LEFT JOIN hauteur_chute_bdoe On hauteur_chute_bdoe.ouv_id= hauteur_chute_roe.ouv_id
+        -- WHERE coalesce(h_chute_roe, h_chute_ice, h_chute_bdoe) IS NOT NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
+        ),
+--SELECT count(*) FROM  height    --88743 -> 92253
+	 
+reception_devalaison_tous AS (
+	SELECT ooi_ref_id AS ouv_id, 
+	TRUE AS po_downs_pb
+	FROM ice.obstacle_operation_ice 
+	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+	JOIN ice.probleme_reception_devalaison_operation_ice ON  prdoi_opi_id=opi_id
+	JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
+	ORDER BY ouv_id, coalesce(opi_date_releve,'1900-01-01') desc
+	),
+	
+reception_devalaison AS (SELECT DISTINCT on (ouv_id) * FROM reception_devalaison_tous),
+	
+--SELECT * FROM reception_devalaison --583 -->543
+
+-- si presence d'une passe correspondant à la liste et ouvrage noté infranchissable à une date existante (correspond aux avis récents)
+-- Avis technique global Avis technique à la montaison
+
+-- TODO adapter pour Lamproie, Saumon, Alose
+ice_presence_eel_pass AS(
+-- On récupère la première des passes 
+SELECT  distinct on (ouv_id) 
+	ouv_id,
+	CASE WHEN dfp_tdfp_id in (1,2,5,6,7,8) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
+	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
+	CASE WHEN dfp_tdfp_id = 2 THEN 278
+		WHEN dfp_tdfp_id = 5 THEN 275
+		WHEN dfp_tdfp_id = 8 THEN 276
+		WHEN dfp_tdfp_id = 1 THEN 271
+		WHEN dfp_tdfp_id = 7 THEN 271 -- pre barrage est identique à pool type fishway
+		WHEN dfp_tdfp_id = 6 THEN 272
+		WHEN dfp_tdfp_id = 3 THEN 274		
+		WHEN dfp_tdfp_id = 4 THEN 273
+		WHEN dfp_tdfp_id = 9 THEN 279 -- de toutes façons on récupère mais on mettra non
+		ELSE NULL END AS fishway_type	
+	FROM ice.obstacle_operation_ice 
+	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+	JOIN ice.structure_obstacle on sto_pao_id=pao_id
+        JOIN ice.dispositif_franchissement_piscicole  on sto_id= dfp_id 
+         JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
+        ),
+ --SELECT * FROM ice_presence_eel_pass --125
+
+union_roe_pass AS (
+          SELECT fty_code::numeric AS cdtypedisp, 
+          fpi_ref_id AS ouv_id
+          FROM roe.franchissement_piscicole 
+          join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+          
+ 	  ),
+roe_presence_eel_pass AS (
+	SELECT DISTINCT on (ouv_id)
+	ouv_id,
+	CASE WHEN cdtypedisp in (2,3,5,7,8,9) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
+	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
+	CASE WHEN cdtypedisp = 9 THEN 278
+		WHEN cdtypedisp = 8 THEN 275
+		WHEN cdtypedisp = 5 THEN 276
+		WHEN cdtypedisp = 2 THEN 271
+		WHEN cdtypedisp = 7 THEN 271 -- pre barrage est identique à pool type fishway
+		WHEN cdtypedisp = 3 THEN 272
+		WHEN cdtypedisp = 6 THEN 274		
+		WHEN cdtypedisp = 1 THEN 273
+		WHEN cdtypedisp in (10,11) THEN 279 -- de toutes façons on récupère mais on mettra non
+		ELSE NULL -- correpond au type 0 absence de passe
+		END AS fishway_type	
+	FROM union_roe_pass 	
+),
+
+presence_eel_pass AS (
+
+	SELECT coalesce(ice.ouv_id,roe.ouv_id) AS ouv_id,
+	CASE WHEN ice.fishway_type is not NULL THEN ice.fishway_type else roe.fishway_type END AS fishway_type,
+	CASE WHEN ice.po_presence_eel_pass is not NULL THEN ice.po_presence_eel_pass else roe.po_presence_eel_pass END AS po_presence_eel_pass  
+       FROM roe_presence_eel_pass roe FULL OUTER JOIN ice_presence_eel_pass ice on roe.ouv_id=ice.ouv_id),
+
+
+--SELECT * FROM presence_eel_pass--58754
+--SELECT DISTINCT on (ouv_id) * FROM presence_eel_pass
+
+-- THE DISTINCT CLAUSE MUST BE IN THE SAME TABLE AS ORDER BY OTHERWISE WON'T WORK       
+       
+expertise_devalaison_tous AS (
+SELECT DISTINCT ON (doe_ouv_id) * FROM bdoe.devalaison_ouvrage dou
+--JOIN	hauteur_chute_roe hh on hh.ouv_id=dou.doe_ouv_id
+ORDER BY doe_ouv_id, CASE WHEN doe_mcd_id=3 THEN 1
+	  WHEN doe_mcd_id=2 THEN 2
+	  WHEN doe_mcd_id=1 THEN 3
+	  END
+	  ), --126
+expertise_devalaison AS (
+SELECT doe_ouv_id AS ouv_id, 
+	CASE WHEN doe_mcd_id =3 THEN 283  -- turbine ichtyocompatible
+	WHEN doe_mcd_id=2 THEN 282 -- equipement de prise d'eau
+	WHEN doe_mcd_id=1 THEN 284  -- Gestion (fish adapted management)
+	END AS mitigationmeasureid
+FROM expertise_devalaison_tous  
+),  
+  
+notes_expertise AS (
+SELECT calcul_ice.*,
+ooi_ref_id,
+CASE WHEN opi_date_releve is NULL THEN opi_date_creation::date 
+else opi_date_releve END AS opi_date_releve,
+ cli_code, 
+ cli_libelle,
+ coalesce(ouv_lineaire_aval,9999) AS ouv_lineaire_aval -- si pAS de valeur on calcule pAS 
+FROM ice.obstacle_operation_ice JOIN ice.operation_ice on opi_ooi_id=ooi_id 
+JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+JOIN ice.structure_obstacle on sto_pao_id=pao_id 
+JOIN ice.calcul_ice ON sto_id=cai_sto_id
+join ice.classe_ice on calcul_ice.cai_cli_id=classe_ice.cli_id 
+LEFT JOIN bdoe.ouvrage on ouvrage.ouv_id=ooi_ref_id
+WHERE cai_gre_id in (1,3,5,19,20) and cli_code NOT IN ('DNA','NC','DA')
+ORDER BY ooi_ref_id,cai_gre_id,opi_date_releve),
+--Select count(ooi_ref_id) OVER( PARTITION BY ooi_ref_id), * FROM notes_expertise ORDER BY count desc, cai_gre_id, cli_code desc) --11221
+ice_all_species AS (
+SELECT DISTINCT on (ooi_ref_id) *,5 as species FROM notes_expertise WHERE cai_gre_id = 20 and ouv_lineaire_aval <50  -- SELECTing notes for glASs eel only WHEN < 50 km
+UNION
+SELECT DISTINCT on (ooi_ref_id) *,5 as species FROM notes_expertise WHERE cai_gre_id = 19
+union 
+SELECT DISTINCT on (ooi_ref_id) *, 45 as species FROM notes_expertise WHERE cai_gre_id = 1 
+union 
+SELECT DISTINCT on (ooi_ref_id) *, 3 as species FROM notes_expertise WHERE cai_gre_id = 3
+union 
+SELECT DISTINCT on (ooi_ref_id) *, 34 as species FROM notes_expertise WHERE cai_gre_id = 5
+ORDER BY ooi_ref_id, species,  cli_code desc),
+-- Si une des deux notes est  franchissable on considère que c'est franchissable
+
+ice_unique AS (
+SELECT DISTINCT on (ooi_ref_id, species) * FROM ice_all_species), --on prend la moins pénalisante
+
+--  FRANCHISSABILITES DANS ROE
+---PAS de données	
+
+--  FRANCHISSABILITES DANS BDOE	
+-- selection finale, je prends comme pour ICE la note la moins pénalisante (et tant pis pour la date il n'y avait que 15 doublons)
+-- On choisira de rendre franchissable les ouvrages ayant zero et 1
+orderedbdoe AS (
+SELECT exm_ouv_id, exm_not_id, exm_esp_id, 
+coalesce (exm_date, '1900-01-01') AS exm_date
+FROM bdoe.expertise_montaison WHERE exm_esp_id in (3,5,34,45) ORDER BY exm_ouv_id, exm_esp_id, exm_not_id asc),
+distinctbdoe AS (
+SELECT distinct on (exm_ouv_id, exm_esp_id) * FROM orderedbdoe),--7645 --montepomi : 10482
+
+decision_note AS (
+	SELECT
+	exm_ouv_id,
+	exm_date, exm_esp_id, species,
+-- En fonction de la date, on prend le plus récent 
+-- quand on a a la fois un ice et un bdoe, et que la date de ice est plus récente que celle de bdoe (ou alors dboe est null et alors on a mis 1900)
+ CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND exm_date < opi_date_releve THEN NULL
+            ELSE exm_not_id END AS exm_not_id,
+       CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND  opi_date_releve< exm_date THEN NULL
+            ELSE cli_code END AS cli_code,            
+            ooi_ref_id,
+            opi_date_releve
+-- alors on efface la note bdoe
+-- A partir de maintenant on a soit l'une soit l'autre dans deux colonnes séparées , donc dans le CASE WHEN qui suit on prendra
+-- toujours soit BDOE soit ICE
+ FROM distinctbdoe FULL OUTER JOIN ice_unique on exm_ouv_id=ooi_ref_id and species = exm_esp_id), --10918
+ 
+ --SELECT * FROM decision_note WHERE exm_ouv_id is not null and ooi_ref_id is NOT NULL 
+final_franch AS( 
+SELECT  COALESCE(exm_ouv_id,ooi_ref_id) AS ouv_id, 
+COALESCE(exm_esp_id,species) AS esp_id,
+CASE	 WHEN exm_not_id=0 THEN 209
+		WHEN exm_not_id=1 THEN 210
+		WHEN exm_not_id=2 THEN 211	
+		WHEN exm_not_id=3 THEN 212		
+		WHEN exm_not_id=4 THEN 213		
+		WHEN exm_not_id=5 THEN 214
+		WHEN cli_code='1' THEN 287
+		WHEN cli_code='0.66' THEN 288
+		WHEN cli_code='0.33' THEN 289
+		WHEN cli_code='0' THEN 290
+		END AS	po_no_obstruction_passability,
+	CASE WHEN coalesce(exm_date,opi_date_releve)  = '1900-01-01' THEN NULL ELSE COALESCE(exm_date,opi_date_releve) END AS exm_date
+FROM decision_note),--10879 -- montepomi : 31 482
+
+/*countme AS (SELECT count (*)  over (partition by ouv_id), * FROM final_franch )
+SELECT * FROM countme WHERE count>1*/
+obstruction AS (
+SELECT replace(id_original,'ROE','')::integer AS ouv_id, op_id 
+FROM sudoang.dbeel_obstruction_place WHERE id_original like 'ROE%' )--80324
+  	
+
+
+
+
+INSERT INTO montepomi.dbeel_physical_obstruction(
+ob_id,
+ob_no_origin,
+ob_no_type,
+ob_no_period,
+ob_starting_date,
+ob_ending_date,
+ob_op_id,
+ob_dp_id,
+ot_no_obstruction_type,
+ot_obstruction_number,
+ot_no_mortality_type,
+ot_no_mortality,
+po_no_obstruction_passability,
+po_obstruction_height,
+po_downs_pb,
+po_downs_water_depth,
+po_presence_eel_pass,
+po_method_perm_ev,
+po_date_presence_eel_pass,
+fishway_type,
+date_last_update,
+author_last_update,
+comment_update,
+mitigation_measure_no_id,
+esp_id)
+
+
+SELECT 
+  uuid_generate_v4() AS ob_id,
+  11 AS ob_no_origin, -- raw data
+  16 AS ob_no_type, -- obstruction
+  74 AS ob_no_period, -- Unknown
+  NULL AS ob_starting_date,
+  NULL AS ob_ending_date,
+  obstruction.op_id AS ob_op_id,
+  dp_id AS ob_dp_id,
+  obstruction_type_no_id AS ot_no_obstruction_type,-- physical
+   1 AS ot_obstruction_number,
+   NULL AS ot_no_mortality_type, 
+   NULL AS ot_no_mortality,
+   po_no_obstruction_passability, 
+  hauteur_chute AS po_obstruction_height, 
+  po_downs_pb, 
+  NULL AS po_downs_water_depth, 
+  po_presence_eel_pass, 
+  CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
+       WHEN po_no_obstruction_passability in (287,288,289,290) THEN 'ICE'
+       ELSE NULL END AS po_method_perm_ev, 
+  NULL AS po_date_presence_eel_pass, -- bullshit
+  fishway_type, 
+  current_date AS date_last_update, 
+  'Cédric and Mathilde' AS author_last_update, 
+  'initial insertion Height:' || coalesce(commentaire_hauteur_chute,'No height') AS comment_update, 
+  mitigationmeasureid AS mitigation_measure_no_id,
+  esp_id
+FROM 
+  obstruction
+  LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
+  LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
+  LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
+  LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
+  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id ,
+  dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
+  AND  obstruction_type_no_id IS NOT NULL 
 
 
 
