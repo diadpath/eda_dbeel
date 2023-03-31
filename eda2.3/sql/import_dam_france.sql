@@ -214,7 +214,8 @@ CREATE TABLE montepomi.dbeel_obstruction_place (
         CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
                 REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
                 MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
-) INHERITS (dbeel.observation_places); 
+) INHERITS (dbeel.observation_places);
+
 
 -- Creation index spatial
 CREATE INDEX 
@@ -375,19 +376,20 @@ SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM montepomi.dbeel_
      montepomi.dbeel_obstruction_place  on 'ROE'||liens_ref_id_fils=id_original)
 -- on référence le code du père dans la ligne de l'ouvrage fils
 update montepomi.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
-WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; --6055 2.2 s --> 6494 --> 6171
+WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; 
+--6055 2.2 s --> 6494 
 
 
 
 -- on rajoute une colonne dbeel_op_id dans la TABLE source pour faire le lien
 --ALTER TABLE roe.roesudo ADD COLUMN dbeel_op_id uuid; 
-UPDATE roe.roesudo set dbeel_op_id = NULL;--113340
+UPDATE roe.roesudo set dbeel_op_id = NULL;--117340
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. 
 -->92253 
--->86563 27/03
+
 
 
 
@@ -414,22 +416,27 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	JOIN roe.type ON ref_typ_id=typ_id
 	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture')); --647 -->651
 
+-- modif 2023 'Détruit entièrement' gardé
 DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
-	WHERE eta_nom In ('Détruit entièrement','En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189
+	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189
 
-DELETE FROM montepomi.dbeel_obstruction_place 
+-- on supprime plus les dérasés
+/*
+	DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN bdoe.ouvrage on 'ROE'||ouv_id=ref_id_national
 	WHERE ouv_derasement); --198 -->554
+*/
 COMMIT;
 --ROLLBACK;
-SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 85035 (après suppression) -->86563
+SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 
+--85035 (après suppression) -->86563
  
 /*
  * On repasse dessus pour supprimer les liens qui n'existent plus (meme requete que precedement)
@@ -440,7 +447,8 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--113415 -->117340
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
-WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. -->86563
+WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. 
+-->86563
 
 
 
@@ -600,11 +608,14 @@ count;fishway_type;po_presence_eel_pass
 
 -- MONTEPOMI > eda_dbeel > ISSUE #14 : collect dam impact score for ALA/SAT/LPM
 -- copié collé de la requête précente pour l'anguille en ajoutant les notes ICE de franchissabilité des autres espèces
-CREATE SCHEMA montepomi;
- 
+
+--ALTER TABLE montepomi.dbeel_physical_obstruction
+--ALTER COLUMN fishway_type TYPE INTEGER USING fishway_type::INTEGER;
+
+
 DROP TABLE if exists montepomi.dbeel_physical_obstruction CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction (
-  fishway_type text,
+  fishway_type INTEGER,
   date_last_update date,
   author_last_update text,
   comment_update text,
@@ -843,6 +854,8 @@ SELECT doe_ouv_id AS ouv_id,
 FROM expertise_devalaison_tous  
 ),  
   
+-- TODO note expertise devalaison
+
 notes_expertise AS (
 SELECT calcul_ice.*,
 ooi_ref_id,
@@ -931,6 +944,26 @@ SELECT replace(id_original,'ROE','')::integer AS ouv_id, op_id
 FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' )--80324
   	
 
+-- ajouter ouv_atg_id de bdoe, ouv_commentaires_bdoe, ouv_commentaires_mesurebdoe, ouv_commentaire_roe
+-- récupérer les différentes dates
+-- ouv_debut_activite
+-- la fin d'un ouvrage est une combinaison de :
+-- ouv_fin_activite
+-- ouv_derasement_date
+-- ouv_arasement_date
+
+/*
+ouv_debut_activité | NULL
+à   > aller chercher les hauteurs de chutes dans cette période
+ouv_arasement ou derasement
+
+ouv_arasement derasement
+à   > pour dérasement systématiquement 0 pour arasement chercher la hauteur de chute
+NULL
+*/
+
+-- pour les ouvrages arasés
+ -- modifier pour aller chercher la hauteur de chute entre le début et la fin de l'activité de l'ouvrage
 
 
 
@@ -998,7 +1031,7 @@ FROM
   LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
   LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id ,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL 
+  AND  obstruction_type_no_id IS NOT NULL; --103309 1 m 54 serveur
 
 
 

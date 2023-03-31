@@ -5,8 +5,8 @@
 
 
 
-DROP MATERIALIZED VIEW IF EXISTS  sudoang.view_obstruction CASCADE;
-CREATE MATERIALIZED VIEW sudoang.view_obstruction AS (
+DROP MATERIALIZED VIEW IF EXISTS  montepomi.view_obstruction CASCADE;
+CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
  SELECT dbeel_obstruction_place.op_id,
     dbeel_obstruction_place.op_gis_systemname,
     dbeel_obstruction_place.op_gis_layername,
@@ -43,28 +43,28 @@ CREATE MATERIALIZED VIEW sudoang.view_obstruction AS (
     fishway_type.no_name AS fishway_type_name,
     downstream_mitigation_measure.no_name AS downstream_mitigation_measure_name,
     'http://maps.google.fr/maps?q='||st_y(st_transform(the_geom,4326))||','||st_x(st_transform(the_geom,4326)) AS googlemapscoods
-   FROM sudoang.dbeel_obstruction_place
-   JOIN sudoang.dbeel_physical_obstruction ON dbeel_physical_obstruction.ob_op_id = dbeel_obstruction_place.op_id
+   FROM montepomi.dbeel_obstruction_place
+   JOIN montepomi.dbeel_physical_obstruction ON dbeel_physical_obstruction.ob_op_id = dbeel_obstruction_place.op_id
    LEFT JOIN dbeel_nomenclature.observation_place_type ON op_no_observationplacetype=observation_place_type.no_id
    LEFT JOIN dbeel_nomenclature.obstruction_type ON obstruction_type.no_id=dbeel_physical_obstruction.ot_no_obstruction_type
    LEFT JOIN dbeel_nomenclature.obstruction_impact ON obstruction_impact.no_id= dbeel_physical_obstruction.po_no_obstruction_passability
    LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
-; --  106406
+; --  103309
 
 
 
 
---SELECT count(*) FROM sudoang.view_obstruction;
+--SELECT count(*) FROM montepomi.view_obstruction;
 
 
 
 
 
 /*
-REINDEX TABLE sudoang.dbeel_obstruction_place;
-VACUUM ANALYSE sudoang.dbeel_obstruction_place;
+REINDEX TABLE montepomi.dbeel_obstruction_place;
+VACUUM ANALYSE montepomi.dbeel_obstruction_place;
 REINDEX TABLE spain.rn ; --46.42
 */
 DROP TABLE IF EXISTS spain.join_obstruction_rn CASCADE;
@@ -78,7 +78,7 @@ CREATE TABLE spain.join_obstruction_rn as(
         1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
 
 		FROM spain.rn r
-		JOIn sudoang.dbeel_obstruction_place  d
+		JOIn montepomi.dbeel_obstruction_place  d
 		ON st_dwithin(r.geom, d.the_geom,0.01)
 		order by idsegment, distance desc)
 SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment  from projection
@@ -99,7 +99,7 @@ CREATE TABLE france.join_obstruction_rn as(
 		  st_distance(r.geom,d.the_geom) as distance,
 		  1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
 		FROM france.rn r
-		JOIN sudoang.dbeel_obstruction_place  d
+		JOIN montepomi.dbeel_obstruction_place  d
 		ON st_dwithin(r.geom, d.the_geom,0.01)
 		order by idsegment, distance desc)
 SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from projection
@@ -109,7 +109,7 @@ create index idx_france_join_obstruction_rn_idsegment ON france.join_obstruction
 --85037 10s
 /*
 select count(*) from france.join_obstruction_rn;--84270
-select count(*) FROM sudoang.dbeel_obstruction_place; --105662
+select count(*) FROM montepomi.dbeel_obstruction_place; --105662
 select count(*) FROM dbeel_rivers.rn --515011
 */
 
@@ -124,7 +124,7 @@ CREATE TABLE portugal.join_obstruction_rn as(
 		  st_distance(r.geom,d.the_geom) as distance,
 		  1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
 		FROM portugal.rn r
-		JOIN sudoang.dbeel_obstruction_place  d
+		JOIN montepomi.dbeel_obstruction_place  d
 		ON st_dwithin(r.geom, d.the_geom,0.01)
 		order by idsegment, distance desc)
 SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from projection
@@ -146,21 +146,21 @@ SELECT count(*) FROM dbeel_rivers.join_obstruction_rn
  this view allows to remove dams from the main streams when they are projected on the border
 */
  
-DROP VIEW IF EXISTS sudoang.downstream_badly_projected;
-create view sudoang.downstream_badly_projected as(
+DROP VIEW IF EXISTS montepomi.downstream_badly_projected;
+create view montepomi.downstream_badly_projected as(
 select  o.*,   
 rn_rna.seaidsegment, 
   rn_rna.basin, 
   rn_rna.riverwidthm, 
   rn_rna.dis_m3_pyr_riveratlas from dbeel_rivers.join_obstruction_rn d
 JOIn dbeel_rivers.rn_rna on rn_rna.idsegment=d.idsegment
-JOIN sudoang.view_obstruction o on o.op_id=d.op_id
+JOIN montepomi.view_obstruction o on o.op_id=d.op_id
 where dis_m3_pyr_riveratlas>150
 and po_obstruction_height is NULL
 and op_op_id is NULL
 order by dis_m3_pyr_riveratlas);--0
 
---select * from sudoang.downstream_badly_projected ;--83
+--select * from montepomi.downstream_badly_projected ;--83
 /*
 SELECT count(*) FROM dbeel_rivers.join_obstruction_rn; --105602
 SELECT count(*) FROM spain.join_obstruction_rn; --20474
@@ -209,7 +209,7 @@ fishway_type_code,
 fishway_type_name
 downstream_mitigation_measure_name,
 googlemapscoods
-from sudoang.view_obstruction o JOIN 
+from montepomi.view_obstruction o JOIN 
 (SELECT * FROM spain.join_obstruction_rn 
 UNION
 SELECT * FROM portugal.join_obstruction_rn 
@@ -346,20 +346,20 @@ pgsql2shp -u postgres -g geom -f "pbdamsimplified.shp" eda2.3 spain.pbdamsimplif
 -- EXPORT INTO CSV FILE TO AMBER:
 -----------------------------------
 
-select count(*), op_gis_layername from sudoang.view_obstruction group by op_gis_layername; -- MISSING 'UP' from Minho river: 8 rows???
+select count(*), op_gis_layername from montepomi.view_obstruction group by op_gis_layername; -- MISSING 'UP' from Minho river: 8 rows???
 
 */
 /* The 8 dams from UP are in dbeel_obstruction_place but not in dbeel_physical_obstruction:
-select * from sudoang.dbeel_obstruction_place where op_gis_layername = 'UP'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = '68c896b4-3583-40c5-8bd4-1a2ef022fc65'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = 'dfbf78d9-39a8-4f6b-9b55-ffee6bcc7742'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = '6c6443c6-3155-4912-9b02-d8e16d89cc2b'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = '6b627d68-05db-49ae-866c-c55f650f8a1b'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = '4498ea2b-5722-4b83-83cd-36d3e3f690c3'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = '97b435e4-1adb-4f49-9080-c8a3c057e8d1'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = 'fba8a283-f706-4927-a880-ff344fb74fa8'
-select * from sudoang.dbeel_physical_obstruction where ob_op_id = 'ee118426-1b4c-47f2-ab88-c9f6061aee48'
-select * from sudoang.minho_obstruction where id = 'MIO_44' or id = 'MIO_21' or id = 'MIO_29' or id = 'MIO_40' or id = 'MIO_34' or id = 'MIO_16' or id = 'MIO_28' or id = 'MIO_2';
+select * from montepomi.dbeel_obstruction_place where op_gis_layername = 'UP'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = '68c896b4-3583-40c5-8bd4-1a2ef022fc65'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = 'dfbf78d9-39a8-4f6b-9b55-ffee6bcc7742'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = '6c6443c6-3155-4912-9b02-d8e16d89cc2b'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = '6b627d68-05db-49ae-866c-c55f650f8a1b'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = '4498ea2b-5722-4b83-83cd-36d3e3f690c3'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = '97b435e4-1adb-4f49-9080-c8a3c057e8d1'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = 'fba8a283-f706-4927-a880-ff344fb74fa8'
+select * from montepomi.dbeel_physical_obstruction where ob_op_id = 'ee118426-1b4c-47f2-ab88-c9f6061aee48'
+select * from montepomi.minho_obstruction where id = 'MIO_44' or id = 'MIO_21' or id = 'MIO_29' or id = 'MIO_40' or id = 'MIO_34' or id = 'MIO_16' or id = 'MIO_28' or id = 'MIO_2';
 
 So, The line 1537 (dbeel_sudonag_obstruction_creation.sql script) is run to insert these information!
 Run again the materialized view!
@@ -371,25 +371,25 @@ Data from The Xunta of Galicia must be deleted because María sent these data to
 Data from spanish gouvernment and basque gouvernment mus be deleted because we are waiting confirmation: (op_gis_layername = 'miteco', 'spain_obstruction_in_spain', 'URA')
 */
 select *, st_x(st_transform(the_geom, 3035)) as x, st_y(st_transform(the_geom,3035)) as y
-	 from sudoang.view_obstruction where op_gis_layername = 'UCO' Or op_gis_layername = 'ACA' Or op_gis_layername = 'FCUL/MARE' or op_gis_layername = 'UP'
+	 from montepomi.view_obstruction where op_gis_layername = 'UCO' Or op_gis_layername = 'ACA' Or op_gis_layername = 'FCUL/MARE' or op_gis_layername = 'UP'
 -- or op_gis_layername = 'URA' or op_gis_layername = 'miteco' or op_gis_layername = 'spain_obstruction_in_spain';
 
 -- To export into csv:
--- COPY sudoang.view_obstruction_table TO 'C:\use\test.csv' DELIMITER ',' CSV HEADER --Permission dennied!!!
+-- COPY montepomi.view_obstruction_table TO 'C:\use\test.csv' DELIMITER ',' CSV HEADER --Permission dennied!!!
 
 
 /*
 Confirmation of the data from spanish gouvernment : (op_gis_layername = 'miteco', 'spain_obstruction_in_spain')
 */
 select *, st_x(st_transform(the_geom, 3035)) as x, st_y(st_transform(the_geom,3035)) as y
-	 from sudoang.view_obstruction where op_gis_layername = 'miteco' or op_gis_layername = 'spain_obstruction_in_spain'; -- 2172 rows
+	 from montepomi.view_obstruction where op_gis_layername = 'miteco' or op_gis_layername = 'spain_obstruction_in_spain'; -- 2172 rows
 
 /*
 Confirmation of the data from URA : (op_gis_layername = 'URA')
 */
 select op_id, op_gis_systemname, the_geom, id_original, country, po_no_obstruction_passability, po_obstruction_height, po_presence_eel_pass,
 	fishway_type, googlemapscoods, st_x(st_transform(the_geom, 3035)) as x, st_y(st_transform(the_geom,3035)) as y, tipologia, rio
-	 from sudoang.view_obstruction join sudoang.bc_obstruction_dams on op_id = dbeel_op_id where op_gis_layername = 'URA'; -- 686 rows
+	 from montepomi.view_obstruction join montepomi.bc_obstruction_dams on op_id = dbeel_op_id where op_gis_layername = 'URA'; -- 686 rows
 
 	 
 /*
