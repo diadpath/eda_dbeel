@@ -202,7 +202,6 @@ ALTER TABLE bdoe.ouvrage DROP COLUMN ouv_auteur_modification;
 ----------------------------------------------------
 STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 
-
 --------------------------------------
 CREATE SCHEMA montepomi;
 DROP TABLE if exists montepomi.dbeel_obstruction_place CASCADE;
@@ -398,7 +397,7 @@ SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM montepomi.dbeel_
 -- on référence le code du père dans la ligne de l'ouvrage fils
 update montepomi.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
 WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; 
---6055 2.2 s --> 6494 
+--6055 2.2 s --> 6494 (Marion, Laetitia, Benjamin 31/03/23)
 
 
 
@@ -409,7 +408,7 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--117340
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. 
--->92253 
+-->92253 (Marion, Laetitia, Benjamin 31/03/23)
 
 
 
@@ -419,6 +418,13 @@ Adaptation du script de Soizic pour le choix des ouvrages, merci Soizic !!!
 */
 
 BEGIN;
+select count(*) from montepomi.dbeel_obstruction_place; --92253
+
+-- Benjamin: faut il supp le seuil du Moulin de Coulonge et la Prise d'eau EDF Cordemais pour montepomi
+-- pour l'instant pas executé
+select *
+from montepomi.dbeel_obstruction_place
+WHERE id_original in ('ROE106058','ROE88566')
 DELETE FROM montepomi.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
 -- On vire les digues
 
@@ -443,7 +449,7 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
-	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189
+	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189 -->120 (Marion, Laetitia, Benjamin 31/03/23 il y en avait bcp en détruit entièrement donc)
 
 -- on supprime plus les dérasés
 /*
@@ -454,10 +460,12 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	JOIN bdoe.ouvrage on 'ROE'||ouv_id=ref_id_national
 	WHERE ouv_derasement); --198 -->554
 */
+	
+SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 
+--85035 (après suppression) -->86563 -->91188 (Marion, Laetitia, Benjamin 31/03/23)
+
 COMMIT;
 --ROLLBACK;
-SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 
---85035 (après suppression) -->86563
  
 /*
  * On repasse dessus pour supprimer les liens qui n'existent plus (meme requete que precedement)
@@ -469,7 +477,7 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--113415 -->117340
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. 
--->86563
+-->86563 -->91188 (Marion, Laetitia, Benjamin 31/03/23)
 
 
 
@@ -641,6 +649,18 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   author_last_update text,
   comment_update text,
   esp_id integer, 
+  ouv_avis_tech_global_id integer,
+  ouv_commentaire_chute_bdoe text,
+  ouv_commentaire_avis_bdoe text,
+  ouv_commentaires_bdoe text,
+  ouv_commentaire_mesures_bdoe text,
+  ref_commentaire_sous_type_roe text,
+  ouv_derasement_date date,
+  ouv_arasement_date date,
+  ouv_debut_activite date,
+  ouv_fin_activite date,
+  haut_chut_avant_abaissement numeric(10,2),
+  haut_chut_apres_abaissement numeric(10,2),
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
   CONSTRAINT fk_dp FOREIGN KEY (ob_dp_id) REFERENCES dbeel.data_provider (dp_id),
   CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
@@ -962,8 +982,37 @@ FROM decision_note),--10879 -- montepomi : 31 482
 SELECT * FROM countme WHERE count>1*/
 obstruction AS (
 SELECT replace(id_original,'ROE','')::integer AS ouv_id, op_id 
-FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' )--80324
-  	
+FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--80324
+
+--TODO : aller chercher les infos suivantes dans les différentes tables
+add_column_bdoe as (
+	select ouv_avis_tech_global_id,
+		ouv_commentaire_chute_bdoe,
+		ouv_commentaire_avis_bdoe,
+		ouv_commentaires_bdoe,
+		ouv_commentaire_mesures_bdoe,
+		ouv_derasement_date,
+		ouv_arasement_date,
+		ouv_debut_activite,
+		ouv_fin_activite
+	from bdoe.ouvrage
+	--trouver comment joindre avec l'uuid
+),
+add_column_roe as (
+	select ref_commentaire_sous_type
+	from roe.obstacle_referentiel
+	--trouver comment joindre avec l'uuid (il faudra faire pareil que pour add_column_bdoe vu que code ROE dans les 2 cas)
+),
+hauteur_chute_date as (
+	--ouv_debut_activité | NULL
+	--à   > aller chercher les hauteurs de chutes dans cette période
+	--ouv_arasement ou derasement
+
+	--ouv_arasement derasement
+	--à   > pour dérasement systématiquement 0 pour arasement chercher la hauteur de chute
+	--NULL
+)
+
 
 -- ajouter ouv_atg_id de bdoe, ouv_commentaires_bdoe, ouv_commentaires_mesurebdoe, ouv_commentaire_roe
 -- récupérer les différentes dates
@@ -1013,8 +1062,21 @@ date_last_update,
 author_last_update,
 comment_update,
 mitigation_measure_no_id,
-esp_id)
-
+esp_id,
+--Champs insérés
+ouv_avis_tech_global_id,
+ouv_commentaire_chute_bdoe,
+ouv_commentaire_avis_bdoe,
+ouv_commentaires_bdoe,
+ouv_commentaire_mesures_bdoe,
+ref_commentaire_sous_type_roe,
+ouv_derasement_date,
+ouv_arasement_date,
+ouv_debut_activite,
+ouv_fin_activite,
+haut_chut_avant_abaissement,
+haut_chut_apres_abaissement
+)
 
 SELECT 
   uuid_generate_v4() AS ob_id,
@@ -1052,7 +1114,9 @@ FROM
   LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
   LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id ,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
+  AND  obstruction_type_no_id IS NOT null
+
+  ; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 
 
 
