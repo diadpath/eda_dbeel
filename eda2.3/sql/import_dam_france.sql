@@ -329,10 +329,12 @@ http://id.eaufrance.fr/ddd/ETH/2002-1/IdTronconHydrograElt
 */
  
  
-
-DELETE  FROM montepomi.dbeel_obstruction_place WHERE country='FR';  
+--Marion : vois pas trop pourquoi on voudrait faire ça...la table montepomi.dbeel_obstruction_place est vide de toute façon à ce stade...
+--DELETE  FROM montepomi.dbeel_obstruction_place WHERE country='FR';  
 
 --ref_sta_id = statut des ouvrages. On veut garder Validé par échantillonnage (4) et Validé point par point (0)
+ --Marion : vieille écriture de sous-requête. Pour Léa, Jules et Benjamin, revient au même que d'utiliser un WITH()
+/*
 INSERT INTO montepomi.dbeel_obstruction_place
 	SELECT uuid_generate_v4() AS op_id, 
 	'AFB' AS op_gis_systemname, 
@@ -346,7 +348,26 @@ INSERT INTO montepomi.dbeel_obstruction_place
 	'FR' AS country
 	FROM (SELECT * FROM roe.roesudo WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)) unique_obs
 	; --  including pb geom 89717 -->92253 (82s)
-
+*/
+	
+with data_import as (
+	SELECT * 
+	FROM roe.roesudo 
+	WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)
+	)
+INSERT INTO montepomi.dbeel_obstruction_place
+	SELECT uuid_generate_v4() AS op_id, 
+		'AFB' AS op_gis_systemname, 
+		'roe' AS op_gis_layername, 
+		3035 AS op_gislocation, 
+		ref_nom AS op_placename, 
+		281 AS op_no_observationplacetype, 
+		NULL op_op_id, 
+		geom_reproj AS the_geom, 
+		ref_id_national AS id_original, 
+		'FR' AS country
+	from data_import; --92253
+	
 --VACUUM FULL ANALYSE montepomi.dbeel_obstruction_place;--7s
 --REINDEX TABLE montepomi.dbeel_obstruction_place; -- 5s
 	--2414 / only the one projected on rivers
@@ -1031,7 +1052,7 @@ FROM
   LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
   LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id ,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL; --103309 1 m 54 serveur
+  AND  obstruction_type_no_id IS NOT NULL; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 
 
 
