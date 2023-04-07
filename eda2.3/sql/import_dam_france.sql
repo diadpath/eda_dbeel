@@ -214,7 +214,7 @@ CREATE TABLE montepomi.dbeel_obstruction_place (
                 REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
                 MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS (dbeel.observation_places);
-
+-- DELETE FROM montepomi.dbeel_obstruction_place CASCADE; --86563
 
 -- Creation index spatial
 CREATE INDEX 
@@ -349,7 +349,7 @@ INSERT INTO montepomi.dbeel_obstruction_place
 	; --  including pb geom 89717 -->92253 (82s)
 */
 	
-with data_import as (
+WITH data_import as (
 	SELECT * 
 	FROM roe.roesudo 
 	WHERE geom_reproj IS NOT NULL and ref_sta_id in (0,4)
@@ -449,7 +449,8 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
-	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189 -->120 (Marion, Laetitia, Benjamin 31/03/23 il y en avait bcp en détruit entièrement donc)
+	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189 
+	-->120 (Marion, Laetitia, Benjamin 31/03/23 il y en avait bcp en détruit entièrement donc)
 
 -- on supprime plus les dérasés
 /*
@@ -671,7 +672,6 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   CONSTRAINT fk_ot_mortality_type FOREIGN KEY (ot_no_mortality_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS(dbeel.physical_obstruction);
 
-
   WITH 
 hauteur_chute_bdoe_nlignes AS (
 	
@@ -691,7 +691,7 @@ hauteur_chute_sto AS (
 	),
 -- TODO voir si on garde voie sur berge, si ça à une quelconque conséquence sur la hauteur de chute
 hauteur_chute_reordonne AS (
-	SELECT *,
+	SELECT *, -- contient opi_date_releve
 	 CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
 	               WHEN sto_tso_id=1 THEN 3 -- seuil
 	               WHEN sto_tso_id=3 THEN 4 -- vannage
