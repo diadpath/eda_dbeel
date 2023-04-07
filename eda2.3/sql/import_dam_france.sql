@@ -662,6 +662,10 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_fin_activite date,
   haut_chut_avant_abaissement numeric(10,2),
   haut_chut_apres_abaissement numeric(10,2),
+  date_debut_avt date,
+  date_fin_avt date,
+  date_debut_apr date,
+  date_fin_apr date,
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
   CONSTRAINT fk_dp FOREIGN KEY (ob_dp_id) REFERENCES dbeel.data_provider (dp_id),
   CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
@@ -673,12 +677,9 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
 ) INHERITS(dbeel.physical_obstruction);
 
   WITH 
-hauteur_chute_bdoe_nlignes AS (
-	
-	SELECT hco_hauteur AS h_chute_bdoe, hco_ouv_id::integer AS ouv_id FROM  bdoe.hauteur_chute 
-	),--58380 -->61978
 hauteur_chute_bdoe AS (	
-	SELECT avg(h_chute_bdoe) h_chute_bdoe,ouv_id FROM  hauteur_chute_bdoe_nlignes GROUP BY ouv_id
+	SELECT hco_hauteur as h_chute_bdoe, hco_ouv_id::integer as ouv_id, hco_date_mesure  
+	FROM bdoe.hauteur_chute 
 	),
 
 hauteur_chute_sto AS (
@@ -716,19 +717,20 @@ hauteur_chute_ice_sto AS (
 
 -- si on deux chutes lors d'opérations successives, on prend la plus petite
 hauteur_chute_ice_par_ouvrage AS
-(SELECT ouv_id, 
+(SELECT ouv_id, opi_date_releve,
 	min(sto_hauteur_chute) AS hauteur_chute_ice,
 	max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante	
 	FROM hauteur_chute_ice_sto
-	GROUP BY ouv_id),
+	GROUP BY ouv_id, opi_date_releve),
 -- Nos hauteurs sont en général égales, parfois plus faibles, mais pas systématiquement ???. 
 -- Dans certains cas on a une hauteur_chute venant de opi alors que pour nous rien ... 
 -- peut être parce que dans ICE ils traitent mieux les nulls
 -- SELECT * FROM hauteur_chute_ice_par_ouvrage WHERE hauteur_chute_ice_plus_limitante < hauteur_chute_ice
 hauteur_chute_ice AS
-(SELECT ouv_id, 
+(SELECT ouv_id, opi_date_releve,
 	coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) AS h_chute_ice
-	FROM hauteur_chute_ice_par_ouvrage),
+	FROM hauteur_chute_ice_par_ouvrage
+	WHERE coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) IS NOT NULL ),
 	
 selectionne_roe AS (	
 	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
@@ -758,6 +760,10 @@ hauteur_chute_roe AS (
  	  SELECT ouv_id, dbeel_op_id, ref_hauteur_chute_etiage_classe,  ref_hauteur_chute_etiage AS h_chute_roe, ref_chce_id, obstruction_type_no_id  
  	  FROM selectionne_roe
  	  ),
+ 
+hauteur_tous AS (
+)
+ 	  
 --SELECT * FROM hauteur_chute_roe
 -- TODO changer les priorités BDOE / ICES
 height AS (
@@ -986,32 +992,128 @@ FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--80324
 
 --TODO : aller chercher les infos suivantes dans les différentes tables
 add_column_bdoe as (
-	select ouv_avis_tech_global_id,
-		ouv_commentaire_chute_bdoe,
-		ouv_commentaire_avis_bdoe,
-		ouv_commentaires_bdoe,
-		ouv_commentaire_mesures_bdoe,
+	select ouv_atg_id AS ouv_avis_tech_global_id,
+		ouv_commentaire_chute AS ouv_commentaire_chute_bdoe,
+		ouv_commentaire_avis AS ouv_commentaire_avis_bdoe,
+		ouv_commentaires AS ouv_commentaires_bdoe,
+		ouv_commentaire_mesures AS ouv_commentaire_mesures_bdoe,
 		ouv_derasement_date,
 		ouv_arasement_date,
 		ouv_debut_activite,
-		ouv_fin_activite
+		ouv_fin_activite,
+		ouv_id
 	from bdoe.ouvrage
 	--trouver comment joindre avec l'uuid
 ),
 add_column_roe as (
-	select ref_commentaire_sous_type
+	select ref_commentaire_sous_type,
+	ref_id
 	from roe.obstacle_referentiel
-	--trouver comment joindre avec l'uuid (il faudra faire pareil que pour add_column_bdoe vu que code ROE dans les 2 cas)
-),
-hauteur_chute_date as (
-	--ouv_debut_activité | NULL
-	--à   > aller chercher les hauteurs de chutes dans cette période
-	--ouv_arasement ou derasement
+	),
+	
+date_evenement_bdoe AS (
+	SELECT ouv_id, 
+	ouv_debut_activite AS date_evt,
+	'début activité usage' AS type_evt
+	FROM bdoe.ouvrage 
+	WHERE ouv_debut_activite IS NOT NULL 
+	UNION ALL 
+	SELECT  ouv_id, 
+	ouv_fin_activite AS date_evt,
+	'fin activité usage' AS type_evt
+	FROM bdoe.ouvrage 
+	WHERE ouv_fin_activite IS NOT NULL 
+	UNION ALL 
+	SELECT ouv_id,
+	ouv_arasement_date AS date_evt,
+	'arasement' AS type_evt
+	FROM bdoe.ouvrage
+	WHERE ouv_arasement_date IS NOT NULL
+	UNION ALL 
+	SELECT ouv_id,
+	ouv_derasement_date AS date_evt,
+	'derasement' AS type_evt
+	FROM bdoe.ouvrage
+	WHERE ouv_derasement_date IS NOT NULL
+	UNION ALL 
+	SELECT DISTINCT dfp_ouv_id,
+	dfp_date_mes AS date_evt,
+	'dispositifs de franchissement' AS type_evt
+	--dfp_libelle AS type_passe
+	FROM bdoe.franchissement_piscicole_bdoe
+	WHERE dfp_date_mes IS NOT NULL
+	ORDER BY ouv_id, date_evt),
+	
+ordre_periode AS (
+SELECT ouv_id, type_evt, '1800-01-01' as datedebut, 
+min(date_evt) 
+AS datefin 
+FROM date_evenement_bdoe
+GROUP BY ouv_id, type_evt
 
-	--ouv_arasement derasement
-	--à   > pour dérasement systématiquement 0 pour arasement chercher la hauteur de chute
-	--NULL
+UNION ALL 
+
+SELECT ouv_id, type_evt, date_evt as datedebut,
+LEAD(date_evt, 1, '2035-01-01') 
+OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
+FROM date_evenement_bdoe 
+ORDER BY ouv_id, datedebut) 
+SELECT * FROM ordre_periode
+	
+
+hauteur_date_avt as (
+	SELECT ouv_id,
+	null AS 
+	CASE WHEN ouv_arasement_date = '1905-07-07' OR ouv_derasement_date = '1905-07-07'
+	THEN '2015-01-01'
+	WHEN ouv_arasement_date IS NOT NULL
+	THEN ouv_arasement_date END AS date_arasement,
+	WHEN ouv_derasement_date IS NOT NULL
+	THEN ouv_derasement_date 
+	END AS date_fin_avt
+	FROM bdoe.ouvrage 
+	WHERE ouv_arasement_date <> '1900-01-01'
+	OR ouv_derasement_date <> '1900-01-01'),
+	
+hauteur_chute_date_avt AS (
+	SELECT ouv_id, 
+	date_debut_avt,
+	date_fin_avt,
+	avg(hco_hauteur) AS hauteur_chute_avt
+	FROM hauteur_date_avt
+	LEFT JOIN bdoe.hauteur_chute ON hco_ouv_id = ouv_id AND hco_date_mesure < date_fin_avt
+	GROUP BY ouv_id, date_debut_avt, date_fin_avt),
+	
+
+hauteur_date_apr as (
+	SELECT ouv_id,
+	CASE WHEN ouv_arasement_date = '1905-07-07' OR ouv_derasement_date = '1905-07-07'
+	THEN '2015-01-01'
+	WHEN ouv_arasement_date IS NOT NULL
+	THEN ouv_arasement_date 
+	WHEN ouv_derasement_date IS NOT NULL
+	THEN ouv_derasement_date 
+	END AS date_debut_apr,
+	NULL AS date_fin_apr
+	FROM bdoe.ouvrage
+	WHERE ouv_arasement_date <> '1900-01-01'
+	OR ouv_derasement_date <> '1900-01-01'),
+	
+hauteur_chute_date_apr AS (
+	SELECT ouv_id, 
+	date_debut_apr,
+	date_fin_apr,
+	avg(hco_hauteur )AS hauteur_chute_apr
+	FROM hauteur_date_apr
+	LEFT JOIN bdoe.hauteur_chute ON hco_ouv_id = ouv_id AND hco_date_mesure > date_debut_apr
+	GROUP BY ouv_id, date_debut_apr,date_fin_apr),
+	
+hauteur_chute_date AS (
+	SELECT * FROM hauteur_chute_date_apr
+	JOIN hauteur_chute_date_avt ON hauteur_chute_date_apr.ouv_id = hauteur_chute_date_avt.ouv_id
 )
+	
+
 
 
 -- ajouter ouv_atg_id de bdoe, ouv_commentaires_bdoe, ouv_commentaires_mesurebdoe, ouv_commentaire_roe
@@ -1075,7 +1177,11 @@ ouv_arasement_date,
 ouv_debut_activite,
 ouv_fin_activite,
 haut_chut_avant_abaissement,
-haut_chut_apres_abaissement
+haut_chut_apres_abaissement,
+date_debut_avt,
+date_fin_avt,
+date_debut_apr,
+date_fin_apr
 )
 
 SELECT 
@@ -1105,16 +1211,32 @@ SELECT
   'Cédric and Mathilde' AS author_last_update, 
   'initial insertion Height:' || coalesce(commentaire_hauteur_chute,'No height') AS comment_update, 
   mitigationmeasureid AS mitigation_measure_no_id,
-  esp_id
+  esp_id,
+ouv_avis_tech_global_id,
+ouv_commentaire_chute_bdoe,
+ouv_commentaire_avis_bdoe,
+ouv_commentaires_bdoe,
+ouv_commentaire_mesures_bdoe,
+ref_commentaire_sous_type_roe,
+ouv_derasement_date,
+ouv_arasement_date,
+ouv_debut_activite,
+ouv_fin_activite,
+hauteur_chute_avt,
+hauteur_chute_apr
 FROM 
   obstruction
   LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
   LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
   LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
   LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
-  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id ,
+  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
+  LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
+  LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id
+  LEFT JOIN hauteur_chute_date ON hauteur_chute_date.ouv_id = obstruction.ouv_id,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT null
+  AND  obstruction_type_no_id IS NOT NULL
+  
 
   ; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 
