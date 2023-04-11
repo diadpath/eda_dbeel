@@ -676,11 +676,19 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   CONSTRAINT fk_ot_mortality_type FOREIGN KEY (ot_no_mortality_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS(dbeel.physical_obstruction);
 
-  WITH 
+
+WITH 
+-- Pour la bdoe il peut y avoir plusieurs hauteurs de chutes différentes le meme jour.
+-- Dans ce cas on prends la moyenne sinon on aura des problèmes.
 hauteur_chute_bdoe AS (	
-	SELECT hco_hauteur as h_chute_bdoe, hco_ouv_id::integer as ouv_id, hco_date_mesure  
+	SELECT avg(hco_hauteur) as h_chute_bdoe,
+	hco_ouv_id::integer as ouv_id, 
+	hco_date_mesure AS bdoe_date_mesure  
 	FROM bdoe.hauteur_chute 
-	),
+	WHERE hco_date_mesure IS NOT NULL
+	GROUP BY hco_date_mesure, hco_ouv_id
+	)
+	SELECT * FROM hauteur_chute_bdoe WHERE ouv_id = 13697
 
 hauteur_chute_sto AS (
 	SELECT   ooi_ref_id AS ouv_id, *
@@ -692,7 +700,7 @@ hauteur_chute_sto AS (
 	),
 -- TODO voir si on garde voie sur berge, si ça à une quelconque conséquence sur la hauteur de chute
 hauteur_chute_reordonne AS (
-	SELECT *, -- contient opi_date_releve
+	SELECT opi_date_releve AS ice_date_mesure, *, -- contient opi_date_releve
 	 CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
 	               WHEN sto_tso_id=1 THEN 3 -- seuil
 	               WHEN sto_tso_id=3 THEN 4 -- vannage
@@ -717,17 +725,19 @@ hauteur_chute_ice_sto AS (
 
 -- si on deux chutes lors d'opérations successives, on prend la plus petite
 hauteur_chute_ice_par_ouvrage AS
-(SELECT ouv_id, opi_date_releve,
+(SELECT 
+  ouv_id, 
+  ice_date_mesure,
 	min(sto_hauteur_chute) AS hauteur_chute_ice,
 	max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante	
 	FROM hauteur_chute_ice_sto
-	GROUP BY ouv_id, opi_date_releve),
+	GROUP BY ouv_id, ice_date_mesure),
 -- Nos hauteurs sont en général égales, parfois plus faibles, mais pas systématiquement ???. 
 -- Dans certains cas on a une hauteur_chute venant de opi alors que pour nous rien ... 
 -- peut être parce que dans ICE ils traitent mieux les nulls
 -- SELECT * FROM hauteur_chute_ice_par_ouvrage WHERE hauteur_chute_ice_plus_limitante < hauteur_chute_ice
 hauteur_chute_ice AS
-(SELECT ouv_id, opi_date_releve,
+(SELECT ouv_id, ice_date_mesure,
 	coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) AS h_chute_ice
 	FROM hauteur_chute_ice_par_ouvrage
 	WHERE coalesce(hauteur_chute_ice,hauteur_chute_ice_plus_limitante) IS NOT NULL ),
@@ -761,11 +771,139 @@ hauteur_chute_roe AS (
  	  FROM selectionne_roe
  	  ),
  
-hauteur_tous AS (
+hauteur_chute_tous AS (
+SELECT
+   ouv_id,
+   bdoe_date_mesure AS date_mesure,
+   h_chute_bdoe AS h_chute,
+   'bdoe' AS source_hchute
+   FROM   hauteur_chute_bdoe
+  UNION 
+   SELECT 
+    ouv_id,
+    ice_date_mesure AS date_mesure,
+    h_chute_ice AS h_chute,
+    'ice' AS source_hchute
+   FROM  hauteur_chute_ice
+   UNION 
+     SELECT 
+     ouv_id,
+     NULL AS date_mesure,
+     h_chute_roe AS h_chute,
+     'roe' AS source_hchute
+     FROM hauteur_chute_roe
+     WHERE h_chute_roe IS NOT NULL
+     ),
+--SELECT * FROM hauteur_chute_tous WHERE ouv_id = 13697
+     
+
+-- Il peut y avoir differents types d'évennements qui changent un ouvrage
+-- insallation d'une passe, dérasement, arasement, mise en activité ...
+-- ci dessous on groupe tous les evennements dans un meme tableau puis
+-- on utilise une fonction window (over partition by) pour calculer les périodes. 
+
+date_evenement_all AS (
+  SELECT ouv_id, 
+  ouv_debut_activite AS date_evt,
+  'début activité usage' AS type_evt
+  FROM bdoe.ouvrage 
+  WHERE ouv_debut_activite IS NOT NULL 
+  UNION ALL 
+  SELECT  ouv_id, 
+  ouv_fin_activite AS date_evt,
+  'fin activité usage' AS type_evt
+  FROM bdoe.ouvrage 
+  WHERE ouv_fin_activite IS NOT NULL 
+  UNION ALL 
+  SELECT ouv_id,
+  ouv_arasement_date AS date_evt,
+  'arasement' AS type_evt
+  FROM bdoe.ouvrage
+  WHERE ouv_arasement_date IS NOT NULL
+  UNION ALL 
+  SELECT ouv_id,
+  ouv_derasement_date AS date_evt,
+  'derasement' AS type_evt
+  FROM bdoe.ouvrage
+  WHERE ouv_derasement_date IS NOT NULL
+  UNION ALL 
+  SELECT DISTINCT dfp_ouv_id,
+  dfp_date_mes AS date_evt,
+  'dispositifs de franchissement' AS type_evt
+  --dfp_libelle AS type_passe
+  FROM bdoe.franchissement_piscicole_bdoe
+  WHERE dfp_date_mes IS NOT NULL
+    UNION ALL 
+  SELECT DISTINCT ref_id AS ouv_id,
+  ref_date_construction_ouvrage AS date_evt,
+  'date_construction_ouvrage' AS type_evt
+  --dfp_libelle AS type_passe  
+  FROM roe.roesudo
+  WHERE ref_date_construction_ouvrage IS NOT NULL
+
+  -- TODO la date de construction EST UNE DATE DE DEBUT
+  
+  ORDER BY ouv_id, date_evt),
+  
+-- La premiere va de NULL a min, les suivantes vont de
+-- date à date+1 dans le partition by. 
+ 
+ordre_periode AS (
+SELECT ouv_id, 'Creation?' AS type_evt, '1800-01-01' as datedebut, 
+min(date_evt) 
+AS datefin 
+FROM date_evenement_all
+GROUP BY ouv_id, type_evt
+
+UNION ALL 
+
+SELECT ouv_id, type_evt, date_evt as datedebut,
+LEAD(date_evt, 1, '2035-01-01') 
+OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
+FROM date_evenement_all 
+ORDER BY ouv_id, datedebut),
+
+
+-- On joint les hauteur_tous (qui éventuellement contiennent des dates)
+-- avec ordre periode
+
+hauteur_chute_par_periode AS (
+
+ SELECT
+ hauteur_chute_tous.ouv_id,
+ date_mesure,
+ h_chute,
+ source_hchute,
+ type_evt,
+ datedebut,
+ datefin
+ FROM
+ hauteur_chute_tous JOIN ordre_periode ON (
+ ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
+ AND date_mesure BETWEEN datedebut AND datefin)
+ 
+ UNION
+ -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates)
+ -- ces ligne s'appliquent alors à toutes les périodes avant et après l'arasement d'un ouvrage 
+ -- certains ouvrages ont des petites hauteurs de chute dans le roe donc ils ont été mis à jour.
+ SELECT
+ hauteur_chute_tous.ouv_id,
+ NULL AS date_mesure,
+ h_chute, 
+ 'roe' AS source_hchute,
+ type_evt,
+ datedebut,
+ datefin
+ FROM 
+ hauteur_chute_tous JOIN ordre_periode ON 
+ ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
+ WHERE date_mesure IS NULL
 )
- 	  
---SELECT * FROM hauteur_chute_roe
--- TODO changer les priorités BDOE / ICES
+SELECT * FROM hauteur_chute_par_periode
+
+--TODO ON EN EST LA VOIR ISSUE #16
+
+
 height AS (
  	  SELECT  
  	 coalesce(hauteur_chute_bdoe.ouv_id,hauteur_chute_ice.ouv_id,hauteur_chute_roe.ouv_id) AS ouv_id,
@@ -1009,113 +1147,8 @@ add_column_roe as (
 	select ref_commentaire_sous_type,
 	ref_id
 	from roe.obstacle_referentiel
-	),
+	)
 	
-date_evenement_bdoe AS (
-	SELECT ouv_id, 
-	ouv_debut_activite AS date_evt,
-	'début activité usage' AS type_evt
-	FROM bdoe.ouvrage 
-	WHERE ouv_debut_activite IS NOT NULL 
-	UNION ALL 
-	SELECT  ouv_id, 
-	ouv_fin_activite AS date_evt,
-	'fin activité usage' AS type_evt
-	FROM bdoe.ouvrage 
-	WHERE ouv_fin_activite IS NOT NULL 
-	UNION ALL 
-	SELECT ouv_id,
-	ouv_arasement_date AS date_evt,
-	'arasement' AS type_evt
-	FROM bdoe.ouvrage
-	WHERE ouv_arasement_date IS NOT NULL
-	UNION ALL 
-	SELECT ouv_id,
-	ouv_derasement_date AS date_evt,
-	'derasement' AS type_evt
-	FROM bdoe.ouvrage
-	WHERE ouv_derasement_date IS NOT NULL
-	UNION ALL 
-	SELECT DISTINCT dfp_ouv_id,
-	dfp_date_mes AS date_evt,
-	'dispositifs de franchissement' AS type_evt
-	--dfp_libelle AS type_passe
-	FROM bdoe.franchissement_piscicole_bdoe
-	WHERE dfp_date_mes IS NOT NULL
-	ORDER BY ouv_id, date_evt),
-	
-ordre_periode AS (
-SELECT ouv_id, type_evt, '1800-01-01' as datedebut, 
-min(date_evt) 
-AS datefin 
-FROM date_evenement_bdoe
-GROUP BY ouv_id, type_evt
-
-UNION ALL 
-
-SELECT ouv_id, type_evt, date_evt as datedebut,
-LEAD(date_evt, 1, '2035-01-01') 
-OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
-FROM date_evenement_bdoe 
-ORDER BY ouv_id, datedebut) 
-SELECT * FROM ordre_periode
-	
-
-hauteur_date_avt as (
-	SELECT ouv_id,
-	null AS 
-	CASE WHEN ouv_arasement_date = '1905-07-07' OR ouv_derasement_date = '1905-07-07'
-	THEN '2015-01-01'
-	WHEN ouv_arasement_date IS NOT NULL
-	THEN ouv_arasement_date END AS date_arasement,
-	WHEN ouv_derasement_date IS NOT NULL
-	THEN ouv_derasement_date 
-	END AS date_fin_avt
-	FROM bdoe.ouvrage 
-	WHERE ouv_arasement_date <> '1900-01-01'
-	OR ouv_derasement_date <> '1900-01-01'),
-	
-hauteur_chute_date_avt AS (
-	SELECT ouv_id, 
-	date_debut_avt,
-	date_fin_avt,
-	avg(hco_hauteur) AS hauteur_chute_avt
-	FROM hauteur_date_avt
-	LEFT JOIN bdoe.hauteur_chute ON hco_ouv_id = ouv_id AND hco_date_mesure < date_fin_avt
-	GROUP BY ouv_id, date_debut_avt, date_fin_avt),
-	
-
-hauteur_date_apr as (
-	SELECT ouv_id,
-	CASE WHEN ouv_arasement_date = '1905-07-07' OR ouv_derasement_date = '1905-07-07'
-	THEN '2015-01-01'
-	WHEN ouv_arasement_date IS NOT NULL
-	THEN ouv_arasement_date 
-	WHEN ouv_derasement_date IS NOT NULL
-	THEN ouv_derasement_date 
-	END AS date_debut_apr,
-	NULL AS date_fin_apr
-	FROM bdoe.ouvrage
-	WHERE ouv_arasement_date <> '1900-01-01'
-	OR ouv_derasement_date <> '1900-01-01'),
-	
-hauteur_chute_date_apr AS (
-	SELECT ouv_id, 
-	date_debut_apr,
-	date_fin_apr,
-	avg(hco_hauteur )AS hauteur_chute_apr
-	FROM hauteur_date_apr
-	LEFT JOIN bdoe.hauteur_chute ON hco_ouv_id = ouv_id AND hco_date_mesure > date_debut_apr
-	GROUP BY ouv_id, date_debut_apr,date_fin_apr),
-	
-hauteur_chute_date AS (
-	SELECT * FROM hauteur_chute_date_apr
-	JOIN hauteur_chute_date_avt ON hauteur_chute_date_apr.ouv_id = hauteur_chute_date_avt.ouv_id
-)
-	
-
-
-
 -- ajouter ouv_atg_id de bdoe, ouv_commentaires_bdoe, ouv_commentaires_mesurebdoe, ouv_commentaire_roe
 -- récupérer les différentes dates
 -- ouv_debut_activite
