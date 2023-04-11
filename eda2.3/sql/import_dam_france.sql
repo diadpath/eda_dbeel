@@ -642,7 +642,7 @@ count;fishway_type;po_presence_eel_pass
 --ALTER TABLE montepomi.dbeel_physical_obstruction
 --ALTER COLUMN fishway_type TYPE INTEGER USING fishway_type::INTEGER;
 
-
+-- SELECT count(*) FROM roe.roesudo;--117340
 DROP TABLE if exists montepomi.dbeel_physical_obstruction CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction (
   fishway_type INTEGER,
@@ -687,8 +687,8 @@ hauteur_chute_bdoe AS (
 	FROM bdoe.hauteur_chute 
 	WHERE hco_date_mesure IS NOT NULL
 	GROUP BY hco_date_mesure, hco_ouv_id
-	)
-	SELECT * FROM hauteur_chute_bdoe WHERE ouv_id = 13697
+	),
+	-- SELECT * FROM hauteur_chute_bdoe WHERE ouv_id = 13697 (show duplicated value)
 
 hauteur_chute_sto AS (
 	SELECT   ooi_ref_id AS ouv_id, *
@@ -761,13 +761,17 @@ selectionne_roe AS (
 	chce_nom AS ref_hauteur_chute_etiage_classe --change 2020 la classe de hauteur de chute est stockée dans un référentiel
 	FROM roe.roesudo
 	LEFT JOIN roe.classe_hauteur_chute_etiage ON classe_hauteur_chute_etiage.chce_id = ref_chce_id -- CHANGE 2020 adapt code to new roe
- 	WHERE  geom_reproj IS NOT NULL and
+ 	WHERE  geom_reproj IS NOT NULL AND
  	ref_sta_id in(0,4) 
  	 ),
---SELECT *  FROM selectionne_roe	--88743 --> 92253
+--SELECT count(*)  FROM selectionne_roe	--88743 --> 92253 (2023-04-11)
 -- change 2020 add ref_chce_id
 hauteur_chute_roe AS (
- 	  SELECT ouv_id, dbeel_op_id, ref_hauteur_chute_etiage_classe,  ref_hauteur_chute_etiage AS h_chute_roe, ref_chce_id, obstruction_type_no_id  
+ 	  SELECT ouv_id, 
+ 	  dbeel_op_id, 
+ 	  ref_hauteur_chute_etiage_classe, 
+ 	  ref_hauteur_chute_etiage AS h_chute_roe,
+ 	  ref_chce_id 	 
  	  FROM selectionne_roe
  	  ),
  
@@ -783,25 +787,25 @@ SELECT
     ouv_id,
     ice_date_mesure AS date_mesure,
     h_chute_ice AS h_chute,
-    'ice' AS source_hchute
+    'ice' AS source_hchute    
    FROM  hauteur_chute_ice
    UNION 
      SELECT 
      ouv_id,
      NULL AS date_mesure,
      h_chute_roe AS h_chute,
-     'roe' AS source_hchute
+     'roe' AS source_hchute      
      FROM hauteur_chute_roe
      WHERE h_chute_roe IS NOT NULL
      ),
---SELECT * FROM hauteur_chute_tous WHERE ouv_id = 13697
+--SELECT * FROM hauteur_chute_tous WHERE ouv_id = 6278
      
 
 -- Il peut y avoir differents types d'évennements qui changent un ouvrage
 -- insallation d'une passe, dérasement, arasement, mise en activité ...
 -- ci dessous on groupe tous les evennements dans un meme tableau puis
 -- on utilise une fonction window (over partition by) pour calculer les périodes. 
-
+     
 date_evenement_all AS (
   SELECT ouv_id, 
   ouv_debut_activite AS date_evt,
@@ -814,18 +818,21 @@ date_evenement_all AS (
   'fin activité usage' AS type_evt
   FROM bdoe.ouvrage 
   WHERE ouv_fin_activite IS NOT NULL 
+  AND ouv_fin_activite < CURRENT_DATE
   UNION ALL 
   SELECT ouv_id,
   ouv_arasement_date AS date_evt,
   'arasement' AS type_evt
   FROM bdoe.ouvrage
   WHERE ouv_arasement_date IS NOT NULL
+  AND ouv_arasement_date  < CURRENT_DATE
   UNION ALL 
   SELECT ouv_id,
   ouv_derasement_date AS date_evt,
   'derasement' AS type_evt
   FROM bdoe.ouvrage
   WHERE ouv_derasement_date IS NOT NULL
+  AND ouv_derasement_date < CURRENT_DATE
   UNION ALL 
   SELECT DISTINCT dfp_ouv_id,
   dfp_date_mes AS date_evt,
@@ -833,36 +840,39 @@ date_evenement_all AS (
   --dfp_libelle AS type_passe
   FROM bdoe.franchissement_piscicole_bdoe
   WHERE dfp_date_mes IS NOT NULL
+  AND dfp_date_mes < CURRENT_DATE
     UNION ALL 
   SELECT DISTINCT ref_id AS ouv_id,
   ref_date_construction_ouvrage AS date_evt,
-  'date_construction_ouvrage' AS type_evt
+  'date construction ouvrage' AS type_evt
   --dfp_libelle AS type_passe  
   FROM roe.roesudo
   WHERE ref_date_construction_ouvrage IS NOT NULL
-
-  -- TODO la date de construction EST UNE DATE DE DEBUT
-  
   ORDER BY ouv_id, date_evt),
   
 -- La premiere va de NULL a min, les suivantes vont de
 -- date à date+1 dans le partition by. 
  
 ordre_periode AS (
-SELECT ouv_id, 'Creation?' AS type_evt, '1800-01-01' as datedebut, 
-min(date_evt) 
-AS datefin 
+SELECT ouv_id, 
+'date debut (defaut)' AS type_evt, 
+'1800-01-01' AS datedebut, 
+min(date_evt) AS datefin 
 FROM date_evenement_all
-GROUP BY ouv_id, type_evt
+WHERE type_evt != 'date construction ouvrage'
+GROUP BY ouv_id
 
 UNION ALL 
 
-SELECT ouv_id, type_evt, date_evt as datedebut,
+SELECT ouv_id, 
+type_evt, 
+date_evt AS datedebut,
 LEAD(date_evt, 1, '2035-01-01') 
 OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
 
+--SELECT * FROM ordre_periode WHERE ouv_id= 6278
 
 -- On joint les hauteur_tous (qui éventuellement contiennent des dates)
 -- avec ordre periode
@@ -883,7 +893,8 @@ hauteur_chute_par_periode AS (
  AND date_mesure BETWEEN datedebut AND datefin)
  
  UNION
- -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates)
+ -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates) et tous les ouvrages
+ -- y compris ceux sur lesquels on a pas pu déterminer de période
  -- ces ligne s'appliquent alors à toutes les périodes avant et après l'arasement d'un ouvrage 
  -- certains ouvrages ont des petites hauteurs de chute dans le roe donc ils ont été mis à jour.
  SELECT
@@ -898,18 +909,42 @@ hauteur_chute_par_periode AS (
  hauteur_chute_tous JOIN ordre_periode ON 
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
  WHERE date_mesure IS NULL
-)
-SELECT * FROM hauteur_chute_par_periode
+),
 
---TODO ON EN EST LA VOIR ISSUE #16
+-- choisir en priorié ICE > BDOE > ROE (pas de date)
+-- on refait une jointure avec selectionne_roe ci dessus pour récupérer
+-- tous les ouvrages ROE selectionnés (92253)  et
+-- obstruction_type_no_id qui correspond au code de l'ouvrage dans la dbeel
+
+--TODO ICI ALLER CHERCHER PAR DERRIERE LES DONNEES HAUTEUR CHUTE ROE QUI ONT DISPARU
+ordered_hauteur_chute_par_periode AS (
+SELECT 
+selectionne_roe.ouv_id,
+obstruction_type_no_id,
+date_mesure,
+h_chute,
+source_hchute,
+type_evt,
+datedebut,
+datefin  
+FROM selectionne_roe
+LEFT JOIN hauteur_chute_par_periode
+ ON selectionne_roe.ouv_id = hauteur_chute_par_periode.ouv_id
+ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ICE' THEN 1
+                                WHEN source_hchute = 'bdoe' THEN 2
+                                WHEN source_hchute = 'roe'  THEN 3
+                                END)
+                                
+--SELECT * FROM  ordered_hauteur_chute_par_periode ;  --96456 (   92253 pour ouvrages distincts)    
+SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
+
 
 
 height AS (
  	  SELECT  
- 	 coalesce(hauteur_chute_bdoe.ouv_id,hauteur_chute_ice.ouv_id,hauteur_chute_roe.ouv_id) AS ouv_id,
- 	 dbeel_op_id,
- 	 obstruction_type_no_id,
- 	 round(
+ 	 FIRST(ouv_id),
+
+   first()
  	 CASE 
    WHEN h_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
  	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN h_chute_bdoe --bdoe ensuite
@@ -937,9 +972,13 @@ height AS (
  	 LEFT JOIN  hauteur_chute_ice on hauteur_chute_roe.ouv_id=hauteur_chute_ice.ouv_id 
  	 LEFT JOIN hauteur_chute_bdoe On hauteur_chute_bdoe.ouv_id= hauteur_chute_roe.ouv_id
         -- WHERE coalesce(h_chute_roe, h_chute_ice, h_chute_bdoe) IS NOT NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
-        ),
+   GROUP BY ouv_id, datedebut),
 --SELECT count(*) FROM  height    --88743 -> 92253
 	 
+-- JOIN WITH     dbeel_op_id,
+   obstruction_type_no_id,  
+   
+   
 reception_devalaison_tous AS (
 	SELECT ooi_ref_id AS ouv_id, 
 	TRUE AS po_downs_pb
@@ -1125,7 +1164,10 @@ FROM decision_note),--10879 -- montepomi : 31 482
 /*countme AS (SELECT count (*)  over (partition by ouv_id), * FROM final_franch )
 SELECT * FROM countme WHERE count>1*/
 obstruction AS (
-SELECT replace(id_original,'ROE','')::integer AS ouv_id, op_id 
+SELECT replace(id_original,'ROE','')::integer AS ouv_id, 
+op_id 
+   dbeel_op_id,
+   obstruction_type_no_id,
 FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--80324
 
 --TODO : aller chercher les infos suivantes dans les différentes tables
