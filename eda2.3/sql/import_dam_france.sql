@@ -771,34 +771,34 @@ hauteur_chute_roe AS (
  	  dbeel_op_id, 
  	  ref_hauteur_chute_etiage_classe, 
  	  ref_hauteur_chute_etiage AS h_chute_roe,
- 	  ref_chce_id 	 
+ 	  ref_chce_id 	 -- pas de valeurs de classe sans hauteur => pas d'intérêt
  	  FROM selectionne_roe
  	  ),
  
 hauteur_chute_tous AS (
-SELECT
+ SELECT
    ouv_id,
    bdoe_date_mesure AS date_mesure,
    h_chute_bdoe AS h_chute,
    'bdoe' AS source_hchute
-   FROM   hauteur_chute_bdoe
-  UNION 
-   SELECT 
+  FROM   hauteur_chute_bdoe
+ UNION 
+  SELECT 
     ouv_id,
     ice_date_mesure AS date_mesure,
-    h_chute_ice AS h_chute,
-    'ice' AS source_hchute    
-   FROM  hauteur_chute_ice
-   UNION 
-     SELECT 
+    h_chute_ice AS h_chute,    
+    'ice' AS source_hchute   
+  FROM  hauteur_chute_ice
+UNION 
+  SELECT 
      ouv_id,
      NULL AS date_mesure,
      h_chute_roe AS h_chute,
      'roe' AS source_hchute      
-     FROM hauteur_chute_roe
-     WHERE h_chute_roe IS NOT NULL
+  FROM hauteur_chute_roe
+  WHERE h_chute_roe IS NOT NULL
      ),
---SELECT * FROM hauteur_chute_tous WHERE ouv_id = 6278
+--SELECT * FROM hauteur_chute_tous  --59118
      
 
 -- Il peut y avoir differents types d'évennements qui changent un ouvrage
@@ -915,69 +915,46 @@ hauteur_chute_par_periode AS (
 -- on refait une jointure avec selectionne_roe ci dessus pour récupérer
 -- tous les ouvrages ROE selectionnés (92253)  et
 -- obstruction_type_no_id qui correspond au code de l'ouvrage dans la dbeel
-
---TODO ICI ALLER CHERCHER PAR DERRIERE LES DONNEES HAUTEUR CHUTE ROE QUI ONT DISPARU
+-- il n'y a pas d'autres données dispo ce qui veut dire que la grande majorité des hauteurs de chute est nulle.
 ordered_hauteur_chute_par_periode AS (
 SELECT 
 selectionne_roe.ouv_id,
 obstruction_type_no_id,
 date_mesure,
 h_chute,
-source_hchute,
+source_hchute AS commentaire_hauteur_chute,
 type_evt,
-datedebut,
-datefin  
+datedebut::date,
+datefin::date  
 FROM selectionne_roe
 LEFT JOIN hauteur_chute_par_periode
  ON selectionne_roe.ouv_id = hauteur_chute_par_periode.ouv_id
-ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ICE' THEN 1
+ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
                                 WHEN source_hchute = 'bdoe' THEN 2
                                 WHEN source_hchute = 'roe'  THEN 3
-                                END)
+                                END),
                                 
 --SELECT * FROM  ordered_hauteur_chute_par_periode ;  --96456 (   92253 pour ouvrages distincts)    
-SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
+--SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
 
-
-
+-- ci dessous on a pour un meme ouvrage plusieurs lignes
+-- les lignes roe ont une date nulle elles vont se joindre à toutes les lignes dans la clause between utilisée dans hauteur_chute_par_periode
+-- Il peut aussi y avoir des lignes de source ICE et BDOE (voir arasement ci dessous)
+-- comme on a ré-ordonné on prend l'abord ice puis bdoe puis roe
+-- Dans l'immense majorité des cas il n'y a pas de valeur pour la hauteur de chute                               
+/*      
+261 292 2010-12-31  2.615 bdoe    date debut (defaut) 1800-01-01  2010-12-31
+261 292 2010-12-31  0.59  roe    date debut (defaut)  1800-01-01  2010-12-31 => SUPPRIMEE
+261 292 2011-05-11  0.59  ice    arasement            2010-12-31  2035-01-01                   
+261 292 2010-12-31  0.59  bdoe    arasement           2010-12-31  2035-01-01 => SUPPRIMEE   
+261 292 2010-12-31  0.59  roe    arasement            2010-12-31  2035-01-01 => SUPPRIMEE
+*/   
 height AS (
- 	  SELECT  
- 	 FIRST(ouv_id),
+ 	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
 
-   first()
- 	 CASE 
-   WHEN h_chute_ice is NOT NULL THEN h_chute_ice --ice d'abord
- 	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN h_chute_bdoe --bdoe ensuite
- 	 WHEN h_chute_bdoe is NULL and h_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe::numeric -- ROE ensuite
-  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=1 THEN NULL -- indéterminé
-  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=2 THEN 0.25 --valeurs unique classe <0.5
-  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=3 THEN 0.75 --De 0.5m à inférieure à 1m
-  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=4 THEN 1.25 --De 1m à inférieure à 1.5m
-	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=5 THEN 1.75 -- De 1.5m à inférieure à 2m
-	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=6 THEN 2.5  --'DE 2m A INFERIEURE A 3m'	   
-	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=7 THEN 4 --'DE 3m A INFERIEURE A 5m'
-	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=8 THEN 7.5 --'DE 5m A INFERIEURE A 10m'
-	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id=9 THEN 20 --'SUPERIEURE OU EGALE A 10m'
-	 ELSE NULL	
-	 END,2) AS hauteur_chute,	 
-	 CASE 
-	 WHEN h_chute_ice is NOT NULL THEN 'Choix ice (1)' --ice d'abord (parce que sinon on en a aucun)
- 	 WHEN h_chute_ice IS NULL and h_chute_bdoe is NOT NULL  THEN  'Choix bdoe (2)' --bdoe ensuite
- 	 WHEN h_chute_bdoe is NULL and h_chute_ice is NULL AND h_chute_roe IS NOT NULL THEN 'Choix roe (3)' -- très rare
-  	 WHEN h_chute_bdoe IS NULL AND h_chute_roe IS NULL and h_chute_ice is NULL AND ref_chce_id IS NOT NULL 
-  	 AND ref_chce_id!=1 THEN 'Choix classe (4)' --jamais, merci de vous êtres fait c... => les classes de hauteur de chute doivent venir des autres tables
- 	 ELSE 'Pas de hauteur'	
-	 END  AS commentaire_hauteur_chute  
- 	 FROM hauteur_chute_roe 
- 	 LEFT JOIN  hauteur_chute_ice on hauteur_chute_roe.ouv_id=hauteur_chute_ice.ouv_id 
- 	 LEFT JOIN hauteur_chute_bdoe On hauteur_chute_bdoe.ouv_id= hauteur_chute_roe.ouv_id
-        -- WHERE coalesce(h_chute_roe, h_chute_ice, h_chute_bdoe) IS NOT NULL AND ref_hauteur_chute_etiage_classe IS NOT NULL 
-   GROUP BY ouv_id, datedebut),
---SELECT count(*) FROM  height    --88743 -> 92253
-	 
--- JOIN WITH     dbeel_op_id,
-   obstruction_type_no_id,  
-   
+--SELECT * FROM height  
+--SELECT count(*) FROM  height    -- 94725 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
+ 
    
 reception_devalaison_tous AS (
 	SELECT ooi_ref_id AS ouv_id, 
