@@ -681,7 +681,7 @@ WITH
 -- Pour la bdoe il peut y avoir plusieurs hauteurs de chutes différentes le meme jour.
 -- Dans ce cas on prends la moyenne sinon on aura des problèmes.
 hauteur_chute_bdoe AS (	
-	SELECT avg(hco_hauteur) as h_chute_bdoe,
+	SELECT round(avg(hco_hauteur),2) as h_chute_bdoe,
 	hco_ouv_id::integer as ouv_id, 
 	hco_date_mesure AS bdoe_date_mesure  
 	FROM bdoe.hauteur_chute 
@@ -764,16 +764,29 @@ selectionne_roe AS (
  	WHERE  geom_reproj IS NOT NULL AND
  	ref_sta_id in(0,4) 
  	 ),
+--SELECT * FROM selectionne_roe
 --SELECT count(*)  FROM selectionne_roe	--88743 --> 92253 (2023-04-11)
 -- change 2020 add ref_chce_id
 hauteur_chute_roe AS (
  	  SELECT ouv_id, 
  	  dbeel_op_id, 
- 	  ref_hauteur_chute_etiage_classe, 
- 	  ref_hauteur_chute_etiage AS h_chute_roe,
- 	  ref_chce_id 	 -- pas de valeurs de classe sans hauteur => pas d'intérêt
+ 	  obstruction_type_no_id,
+   CASE WHEN ref_chce_id=1 THEN NULL -- indéterminé
+     WHEN ref_chce_id=2 THEN 0.25 --valeurs unique classe <0.5
+     WHEN ref_chce_id=3 THEN 0.75 --De 0.5m à inférieure à 1m
+     WHEN ref_chce_id=4 THEN 1.25 --De 1m à inférieure à 1.5m
+     WHEN ref_chce_id=5 THEN 1.75 -- De 1.5m à inférieure à 2m
+     WHEN ref_chce_id=6 THEN 2.5  --'DE 2m A INFERIEURE A 3m'     
+     WHEN  ref_chce_id=7 THEN 4 --'DE 3m A INFERIEURE A 5m'
+     WHEN ref_chce_id=8 THEN 7.5 --'DE 5m A INFERIEURE A 10m'
+     WHEN ref_chce_id=9 THEN 20 --'SUPERIEURE OU EGALE A 10m'
+     ELSE NULL  
+   END AS h_chute_roe_classe,  
+  	 COALESCE(ref_hauteur_chute_etiage,ref_hauteur_terrain) AS h_chute_roe
  	  FROM selectionne_roe
+ 	  WHERE dbeel_op_id IS NOT NULL -- ON vire les ouvrages pas utilisés à l'étape précédente (table observation place)
  	  ),
+-- SELECT * FROM hauteur_chute_roe; --91188
  
 hauteur_chute_tous AS (
  SELECT
@@ -852,15 +865,28 @@ date_evenement_all AS (
   
 -- La premiere va de NULL a min, les suivantes vont de
 -- date à date+1 dans le partition by. 
- 
+-- pour la première partie on veut tous les ouvrage avec
+-- une date de début par défaut sauf ceux qui ont une date de construction d'ouvrage 
+
+
+  
 ordre_periode AS (
-SELECT ouv_id, 
+(SELECT ouv_id, 
 'date debut (defaut)' AS type_evt, 
-'1800-01-01' AS datedebut, 
+'1800-01-01'::date AS datedebut, 
 min(date_evt) AS datefin 
 FROM date_evenement_all
-WHERE type_evt != 'date construction ouvrage'
 GROUP BY ouv_id
+
+EXCEPT 
+
+SELECT ouv_id, 
+'date debut (defaut)' AS type_evt, 
+'1800-01-01'::date AS datedebut, 
+min(date_evt) AS datefin 
+FROM date_evenement_all
+WHERE type_evt = 'date construction ouvrage'
+GROUP BY ouv_id)
 
 UNION ALL 
 
@@ -872,7 +898,7 @@ OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
 
---SELECT * FROM ordre_periode WHERE ouv_id= 6278
+-- SELECT * FROM ordre_periode WHERE ouv_id=689
 
 -- On joint les hauteur_tous (qui éventuellement contiennent des dates)
 -- avec ordre periode
@@ -910,6 +936,7 @@ hauteur_chute_par_periode AS (
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
  WHERE date_mesure IS NULL
 ),
+--SELECT * FROM hauteur_chute_par_periode;--7647
 
 -- choisir en priorié ICE > BDOE > ROE (pas de date)
 -- on refait une jointure avec selectionne_roe ci dessus pour récupérer
@@ -918,23 +945,27 @@ hauteur_chute_par_periode AS (
 -- il n'y a pas d'autres données dispo ce qui veut dire que la grande majorité des hauteurs de chute est nulle.
 ordered_hauteur_chute_par_periode AS (
 SELECT 
-selectionne_roe.ouv_id,
+hauteur_chute_roe.ouv_id,
 obstruction_type_no_id,
 date_mesure,
-h_chute,
-source_hchute AS commentaire_hauteur_chute,
+CASE WHEN h_chute IS NULL AND h_chute_roe IS NULL THEN h_chute_roe_classe
+     WHEN h_chute IS NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe
+     WHEN h_chute IS NOT NULL THEN h_chute END AS h_chute,
+CASE WHEN h_chute IS NULL AND h_chute_roe IS NULL THEN 'roe classe'
+     WHEN h_chute IS NULL AND h_chute_roe IS NOT NULL THEN 'roe'
+     WHEN h_chute IS NOT NULL THEN source_hchute END  AS commentaire_h_chute,
 type_evt,
 datedebut::date,
 datefin::date  
-FROM selectionne_roe
+FROM hauteur_chute_roe
 LEFT JOIN hauteur_chute_par_periode
- ON selectionne_roe.ouv_id = hauteur_chute_par_periode.ouv_id
+ ON hauteur_chute_roe.ouv_id = hauteur_chute_par_periode.ouv_id
 ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
                                 WHEN source_hchute = 'bdoe' THEN 2
                                 WHEN source_hchute = 'roe'  THEN 3
-                                END),
+                                END)
                                 
---SELECT * FROM  ordered_hauteur_chute_par_periode ;  --96456 (   92253 pour ouvrages distincts)    
+SELECT * FROM  ordered_hauteur_chute_par_periode ;  --95632 (   92253 pour ouvrages distincts)    
 --SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
 
 -- ci dessous on a pour un meme ouvrage plusieurs lignes
