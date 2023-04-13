@@ -656,16 +656,12 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_commentaires_bdoe text,
   ouv_commentaire_mesures_bdoe text,
   ref_commentaire_sous_type_roe text,
-  ouv_derasement_date date,
-  ouv_arasement_date date,
-  ouv_debut_activite date,
-  ouv_fin_activite date,
-  haut_chut_avant_abaissement numeric(10,2),
-  haut_chut_apres_abaissement numeric(10,2),
-  date_debut_avt date,
-  date_fin_avt date,
-  date_debut_apr date,
-  date_fin_apr date,
+  ouv_date_debut date,
+  ouv_date_fin date,
+  h_chute_date_mesure date,
+  h_chute numeric,
+  source_h_chute varchar (15),
+  ouv_type_evt varchar (30),
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
   CONSTRAINT fk_dp FOREIGN KEY (ob_dp_id) REFERENCES dbeel.data_provider (dp_id),
   CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
@@ -936,7 +932,8 @@ hauteur_chute_par_periode AS (
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
  WHERE date_mesure IS NULL
 ),
---SELECT * FROM hauteur_chute_par_periode;--7647
+--SELECT * FROM hauteur_chute_par_periode
+--where datedebut is not null;--8082
 
 -- choisir en priorié ICE > BDOE > ROE (pas de date)
 -- on refait une jointure avec selectionne_roe ci dessus pour récupérer
@@ -963,9 +960,10 @@ LEFT JOIN hauteur_chute_par_periode
 ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
                                 WHEN source_hchute = 'bdoe' THEN 2
                                 WHEN source_hchute = 'roe'  THEN 3
-                                END)
+                                END),
                                 
-SELECT * FROM  ordered_hauteur_chute_par_periode ;  --95632 (   92253 pour ouvrages distincts)    
+--SELECT * FROM  ordered_hauteur_chute_par_periode --95632 (   92253 pour ouvrages distincts)
+--where datedebut is not null;  --8002 avec une date  ( on en perd 80 par rapport au tableau hauteur chute par periode ==> restreint sur les ouvrages ROE selectionnés  
 --SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
 
 -- ci dessous on a pour un meme ouvrage plusieurs lignes
@@ -981,9 +979,10 @@ SELECT * FROM  ordered_hauteur_chute_par_periode ;  --95632 (   92253 pour ouvra
 261 292 2010-12-31  0.59  roe    arasement            2010-12-31  2035-01-01 => SUPPRIMEE
 */   
 height AS (
- 	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
+ 	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode)
 
---SELECT * FROM height  
+--SELECT * FROM height 
+--where datedebut is not null;--6106
 --SELECT count(*) FROM  height    -- 94725 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
  
    
@@ -1151,7 +1150,7 @@ decision_note AS (
 -- toujours soit BDOE soit ICE
  FROM distinctbdoe FULL OUTER JOIN ice_unique on exm_ouv_id=ooi_ref_id and species = exm_esp_id), --10918
  
- --SELECT * FROM decision_note WHERE exm_ouv_id is not null and ooi_ref_id is NOT NULL 
+--SELECT * FROM decision_note WHERE exm_ouv_id is not null and ooi_ref_id is NOT NULL 
 final_franch AS( 
 SELECT  COALESCE(exm_ouv_id,ooi_ref_id) AS ouv_id, 
 COALESCE(exm_esp_id,species) AS esp_id,
@@ -1168,16 +1167,16 @@ CASE	 WHEN exm_not_id=0 THEN 209
 		END AS	po_no_obstruction_passability,
 	CASE WHEN coalesce(exm_date,opi_date_releve)  = '1900-01-01' THEN NULL ELSE COALESCE(exm_date,opi_date_releve) END AS exm_date
 FROM decision_note),--10879 -- montepomi : 31 482
-
+--select* from final_franch;
 /*countme AS (SELECT count (*)  over (partition by ouv_id), * FROM final_franch )
 SELECT * FROM countme WHERE count>1*/
 obstruction AS (
 SELECT replace(id_original,'ROE','')::integer AS ouv_id, 
-op_id 
-   dbeel_op_id,
-   obstruction_type_no_id,
-FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--80324
-
+op_id, 
+--dbeel_op_id,
+   op_no_observationplacetype
+FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--91188
+--select * from obstruction
 --TODO : aller chercher les infos suivantes dans les différentes tables
 add_column_bdoe as (
 	select ouv_atg_id AS ouv_avis_tech_global_id,
@@ -1194,8 +1193,8 @@ add_column_bdoe as (
 	--trouver comment joindre avec l'uuid
 ),
 add_column_roe as (
-	select ref_commentaire_sous_type,
-	ref_id
+	select ref_commentaire_sous_type as ref_commentaire_sous_type_roe ,
+	ref_id as ouv_id
 	from roe.obstacle_referentiel
 	)
 	
@@ -1227,26 +1226,26 @@ ob_id,
 ob_no_origin,
 ob_no_type,
 ob_no_period,
-ob_starting_date,
-ob_ending_date,
+--ob_starting_date,
+--ob_ending_date,
 ob_op_id,
 ob_dp_id,
 ot_no_obstruction_type,
 ot_obstruction_number,
-ot_no_mortality_type,
-ot_no_mortality,
+--ot_no_mortality_type,
+--ot_no_mortality,
 po_no_obstruction_passability,
-po_obstruction_height,
-po_downs_pb,
-po_downs_water_depth,
-po_presence_eel_pass,
+--po_obstruction_height,
+--po_downs_pb,
+--po_downs_water_depth,
+--po_presence_eel_pass,
 po_method_perm_ev,
-po_date_presence_eel_pass,
-fishway_type,
+--po_date_presence_eel_pass,
+--fishway_type,
 date_last_update,
 author_last_update,
 comment_update,
-mitigation_measure_no_id,
+--mitigation_measure_no_id,
 esp_id,
 --Champs insérés
 ouv_avis_tech_global_id,
@@ -1255,16 +1254,12 @@ ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
 ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
-ouv_derasement_date,
-ouv_arasement_date,
-ouv_debut_activite,
-ouv_fin_activite,
-haut_chut_avant_abaissement,
-haut_chut_apres_abaissement,
-date_debut_avt,
-date_fin_avt,
-date_debut_apr,
-date_fin_apr
+ouv_date_debut,
+ouv_date_fin,
+h_chute_date_mesure,
+h_chute,
+source_h_chute,
+ouv_type_evt
 )
 
 SELECT 
@@ -1272,56 +1267,61 @@ SELECT
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  NULL AS ob_starting_date,
-  NULL AS ob_ending_date,
+  --NULL AS ob_starting_date,
+  --NULL AS ob_ending_date,
   obstruction.op_id AS ob_op_id,
   dp_id AS ob_dp_id,
   obstruction_type_no_id AS ot_no_obstruction_type,-- physical
    1 AS ot_obstruction_number,
-   NULL AS ot_no_mortality_type, 
-   NULL AS ot_no_mortality,
+   --NULL AS ot_no_mortality_type, 
+   --NULL AS ot_no_mortality,
    po_no_obstruction_passability, 
-  hauteur_chute AS po_obstruction_height, 
-  po_downs_pb, 
-  NULL AS po_downs_water_depth, 
-  po_presence_eel_pass, 
+  --hauteur_chute AS po_obstruction_height, 
+  --po_downs_pb, 
+  --NULL AS po_downs_water_depth, 
+  --po_presence_eel_pass, 
   CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
        WHEN po_no_obstruction_passability in (287,288,289,290) THEN 'ICE'
        ELSE NULL END AS po_method_perm_ev, 
-  NULL AS po_date_presence_eel_pass, -- bullshit
-  fishway_type, 
+  --NULL AS po_date_presence_eel_pass, -- bullshit
+  --fishway_type, 
   current_date AS date_last_update, 
-  'Cédric and Mathilde' AS author_last_update, 
-  'initial insertion Height:' || coalesce(commentaire_hauteur_chute,'No height') AS comment_update, 
-  mitigationmeasureid AS mitigation_measure_no_id,
-  esp_id,
+  'Léa, Jules, Benjamin and Marion' AS author_last_update, 
+  'initial insertion Height for all species:' AS comment_update, 
+  --mitigationmeasureid AS mitigation_measure_no_id,
+esp_id,
 ouv_avis_tech_global_id,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
 ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
-ouv_derasement_date,
-ouv_arasement_date,
-ouv_debut_activite,
-ouv_fin_activite,
-hauteur_chute_avt,
-hauteur_chute_apr
+datedebut as ouv_date_debut,
+datefin as ouv_date_fin,
+date_mesure as h_chute_date_mesure,
+h_chute as h_chute,
+commentaire_h_chute as source_h_chute,
+type_evt as ouv_type_evt
 FROM 
   obstruction
   LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
   LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
-  LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
-  LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
-  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
+  -- LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
+  --LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
+  --LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
   LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
   LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id
-  LEFT JOIN hauteur_chute_date ON hauteur_chute_date.ouv_id = obstruction.ouv_id,
+  ,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
+
   AND  obstruction_type_no_id IS NOT NULL
   
 
   ; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
+    --112 456 (13/04/2023)
+    -- vérification nombre date début fin 
+  select* from montepomi.dbeel_physical_obstruction 
+  where ouv_date_debut is not null; --8424 on a plus de lignes ==> car on a plusieurs espèces 
 
 
 
