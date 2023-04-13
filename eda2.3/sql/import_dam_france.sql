@@ -979,7 +979,7 @@ ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
 261 292 2010-12-31  0.59  roe    arasement            2010-12-31  2035-01-01 => SUPPRIMEE
 */   
 height AS (
- 	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode)
+ 	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
 
 --SELECT * FROM height 
 --where datedebut is not null;--6106
