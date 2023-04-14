@@ -714,7 +714,6 @@ hauteur_chute_ice_sto AS (
 	 FROM hauteur_chute_reordonne                	               
 	),
 --SELECT * FROM hauteur_chute_ice_sto limit 50
-	
 
 -- si on deux chutes lors d'opérations successives, on prend la plus petite
 hauteur_chute_ice_par_ouvrage AS
@@ -860,9 +859,7 @@ date_evenement_all AS (
 -- date à date+1 dans le partition by. 
 -- pour la première partie on veut tous les ouvrage avec
 -- une date de début par défaut sauf ceux qui ont une date de construction d'ouvrage 
-
-
-  
+ 
 ordre_periode AS (
 (SELECT ouv_id, 
 'date debut (defaut)' AS type_evt, 
@@ -997,69 +994,6 @@ reception_devalaison AS (SELECT DISTINCT on (ouv_id) * FROM reception_devalaison
 	
 --SELECT * FROM reception_devalaison --583 -->543
 
--- si presence d'une passe correspondant à la liste et ouvrage noté infranchissable à une date existante (correspond aux avis récents)
--- Avis technique global Avis technique à la montaison
-
--- TODO adapter pour Lamproie, Saumon, Alose
-ice_presence_eel_pass AS(
--- On récupère la première des passes 
-SELECT  distinct on (ouv_id) 
-	ouv_id,
-	CASE WHEN dfp_tdfp_id in (1,2,5,6,7,8) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
-	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
-	CASE WHEN dfp_tdfp_id = 2 THEN 278
-		WHEN dfp_tdfp_id = 5 THEN 275
-		WHEN dfp_tdfp_id = 8 THEN 276
-		WHEN dfp_tdfp_id = 1 THEN 271
-		WHEN dfp_tdfp_id = 7 THEN 271 -- pre barrage est identique à pool type fishway
-		WHEN dfp_tdfp_id = 6 THEN 272
-		WHEN dfp_tdfp_id = 3 THEN 274		
-		WHEN dfp_tdfp_id = 4 THEN 273
-		WHEN dfp_tdfp_id = 9 THEN 279 -- de toutes façons on récupère mais on mettra non
-		ELSE NULL END AS fishway_type	
-	FROM ice.obstacle_operation_ice 
-	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
-	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
-	JOIN ice.structure_obstacle on sto_pao_id=pao_id
-        JOIN ice.dispositif_franchissement_piscicole  on sto_id= dfp_id 
-         JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
-        ),
- --SELECT * FROM ice_presence_eel_pass --125
-
-union_roe_pass AS (
-          SELECT fty_code::numeric AS cdtypedisp, 
-          fpi_ref_id AS ouv_id
-          FROM roe.franchissement_piscicole 
-          join roe.franchissement_piscicole_type on fpi_fty_id=fty_id
-          
- 	  ),
-roe_presence_eel_pass AS (
-	SELECT DISTINCT on (ouv_id)
-	ouv_id,
-	CASE WHEN cdtypedisp in (2,3,5,7,8,9) THEN TRUE ELSE FALSE END AS po_presence_eel_pass,
-	-- On peut avoir plusieurs passes dans ce cAS on les prend dans l'ordre suivant :
-	CASE WHEN cdtypedisp = 9 THEN 278
-		WHEN cdtypedisp = 8 THEN 275
-		WHEN cdtypedisp = 5 THEN 276
-		WHEN cdtypedisp = 2 THEN 271
-		WHEN cdtypedisp = 7 THEN 271 -- pre barrage est identique à pool type fishway
-		WHEN cdtypedisp = 3 THEN 272
-		WHEN cdtypedisp = 6 THEN 274		
-		WHEN cdtypedisp = 1 THEN 273
-		WHEN cdtypedisp in (10,11) THEN 279 -- de toutes façons on récupère mais on mettra non
-		ELSE NULL -- correpond au type 0 absence de passe
-		END AS fishway_type	
-	FROM union_roe_pass 	
-),
-
-presence_eel_pass AS (
-
-	SELECT coalesce(ice.ouv_id,roe.ouv_id) AS ouv_id,
-	CASE WHEN ice.fishway_type is not NULL THEN ice.fishway_type else roe.fishway_type END AS fishway_type,
-	CASE WHEN ice.po_presence_eel_pass is not NULL THEN ice.po_presence_eel_pass else roe.po_presence_eel_pass END AS po_presence_eel_pass  
-       FROM roe_presence_eel_pass roe FULL OUTER JOIN ice_presence_eel_pass ice on roe.ouv_id=ice.ouv_id),
-
-
 --SELECT * FROM presence_eel_pass--58754
 --SELECT DISTINCT on (ouv_id) * FROM presence_eel_pass
 
@@ -1082,91 +1016,6 @@ SELECT doe_ouv_id AS ouv_id,
 FROM expertise_devalaison_tous  
 ),  
   
--- TODO note expertise devalaison
-
-notes_expertise AS (
-SELECT calcul_ice.*,
-ooi_ref_id,
-CASE WHEN opi_date_releve is NULL THEN opi_date_creation::date 
-else opi_date_releve END AS opi_date_releve,
- cli_code, 
- cli_libelle,
- coalesce(ouv_lineaire_aval,9999) AS ouv_lineaire_aval -- si pAS de valeur on calcule pAS 
-FROM ice.obstacle_operation_ice JOIN ice.operation_ice on opi_ooi_id=ooi_id 
-JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
-JOIN ice.structure_obstacle on sto_pao_id=pao_id 
-JOIN ice.calcul_ice ON sto_id=cai_sto_id
-join ice.classe_ice on calcul_ice.cai_cli_id=classe_ice.cli_id 
-LEFT JOIN bdoe.ouvrage on ouvrage.ouv_id=ooi_ref_id
-WHERE cai_gre_id in (1,3,5,19,20) and cli_code NOT IN ('DNA','NC','DA')
-ORDER BY ooi_ref_id,cai_gre_id,opi_date_releve),
---Select count(ooi_ref_id) OVER( PARTITION BY ooi_ref_id), * FROM notes_expertise ORDER BY count desc, cai_gre_id, cli_code desc) --11221
-ice_all_species AS (
-SELECT DISTINCT on (ooi_ref_id) *,5 as species FROM notes_expertise WHERE cai_gre_id = 20 and ouv_lineaire_aval <50  -- SELECTing notes for glASs eel only WHEN < 50 km
-UNION
-SELECT DISTINCT on (ooi_ref_id) *,5 as species FROM notes_expertise WHERE cai_gre_id = 19
-union 
-SELECT DISTINCT on (ooi_ref_id) *, 45 as species FROM notes_expertise WHERE cai_gre_id = 1 
-union 
-SELECT DISTINCT on (ooi_ref_id) *, 3 as species FROM notes_expertise WHERE cai_gre_id = 3
-union 
-SELECT DISTINCT on (ooi_ref_id) *, 34 as species FROM notes_expertise WHERE cai_gre_id = 5
-ORDER BY ooi_ref_id, species,  cli_code desc),
--- Si une des deux notes est  franchissable on considère que c'est franchissable
-
-ice_unique AS (
-SELECT DISTINCT on (ooi_ref_id, species) * FROM ice_all_species), --on prend la moins pénalisante
-
---  FRANCHISSABILITES DANS ROE
----PAS de données	
-
---  FRANCHISSABILITES DANS BDOE	
--- selection finale, je prends comme pour ICE la note la moins pénalisante (et tant pis pour la date il n'y avait que 15 doublons)
--- On choisira de rendre franchissable les ouvrages ayant zero et 1
-orderedbdoe AS (
-SELECT exm_ouv_id, exm_not_id, exm_esp_id, 
-coalesce (exm_date, '1900-01-01') AS exm_date
-FROM bdoe.expertise_montaison WHERE exm_esp_id in (3,5,34,45) ORDER BY exm_ouv_id, exm_esp_id, exm_not_id asc),
-distinctbdoe AS (
-SELECT distinct on (exm_ouv_id, exm_esp_id) * FROM orderedbdoe),--7645 --montepomi : 10482
-
-decision_note AS (
-	SELECT
-	exm_ouv_id,
-	exm_date, exm_esp_id, species,
--- En fonction de la date, on prend le plus récent 
--- quand on a a la fois un ice et un bdoe, et que la date de ice est plus récente que celle de bdoe (ou alors dboe est null et alors on a mis 1900)
- CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND exm_date < opi_date_releve THEN NULL
-            ELSE exm_not_id END AS exm_not_id,
-       CASE WHEN exm_ouv_id is not null and ooi_ref_id is NOT NULL AND  opi_date_releve< exm_date THEN NULL
-            ELSE cli_code END AS cli_code,            
-            ooi_ref_id,
-            opi_date_releve
--- alors on efface la note bdoe
--- A partir de maintenant on a soit l'une soit l'autre dans deux colonnes séparées , donc dans le CASE WHEN qui suit on prendra
--- toujours soit BDOE soit ICE
- FROM distinctbdoe FULL OUTER JOIN ice_unique on exm_ouv_id=ooi_ref_id and species = exm_esp_id), --10918
- 
---SELECT * FROM decision_note WHERE exm_ouv_id is not null and ooi_ref_id is NOT NULL 
-final_franch AS( 
-SELECT  COALESCE(exm_ouv_id,ooi_ref_id) AS ouv_id, 
-COALESCE(exm_esp_id,species) AS esp_id,
-CASE	 WHEN exm_not_id=0 THEN 209
-		WHEN exm_not_id=1 THEN 210
-		WHEN exm_not_id=2 THEN 211	
-		WHEN exm_not_id=3 THEN 212		
-		WHEN exm_not_id=4 THEN 213		
-		WHEN exm_not_id=5 THEN 214
-		WHEN cli_code='1' THEN 287
-		WHEN cli_code='0.66' THEN 288
-		WHEN cli_code='0.33' THEN 289
-		WHEN cli_code='0' THEN 290
-		END AS	po_no_obstruction_passability,
-	CASE WHEN coalesce(exm_date,opi_date_releve)  = '1900-01-01' THEN NULL ELSE COALESCE(exm_date,opi_date_releve) END AS exm_date
-FROM decision_note),--10879 -- montepomi : 31 482
---select* from final_franch;
-/*countme AS (SELECT count (*)  over (partition by ouv_id), * FROM final_franch )
-SELECT * FROM countme WHERE count>1*/
 obstruction AS (
 SELECT replace(id_original,'ROE','')::integer AS ouv_id, 
 op_id, 
@@ -1306,6 +1155,46 @@ FROM
   AND  obstruction_type_no_id IS NOT NULL; 
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04
+
+ 
+-- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
+-- On va chercher les expertises ICE par passes a poissons et espèces
+-- A ce stade on ne sait pas comment joindre les deux tableaux car l'id des dispositifs de 
+-- franchissement ice et roe ne sont pas les mêmes
+ 
+WITH note_ice_pap AS (
+SELECT dfp_id, cipo_gre_id,cipo_cli_id, cli_code, cli_libelle, gre_libelle
+FROM ice.dispositif_franchissement_piscicole
+LEFT JOIN ice.structure_obstacle ON structure_obstacle.sto_id=dispositif_franchissement_piscicole.dfp_id
+LEFT JOIN ice.partie_obstacle ON pao_id=sto_pao_id
+LEFT JOIN ice.classe_ice_partie_obstacle ON cipo_pao_id=pao_id
+LEFT JOIN ice.classe_ice ci ON cli_id=cipo_cli_id
+LEFT JOIN ice.groupe_espece ON gre_id=cipo_gre_id
+WHERE cipo_gre_id IN (1,3,5,19,20))--115
+
+
+SELECT DISTINCT dbeel_obstruction_place.op_id,
+franchissement_piscicole.fpi_ref_id AS ouv_id, 
+franchissement_piscicole.fpi_id AS pap_id,
+franchissement_piscicole_type.fty_code::numeric AS cdtypedisp, 
+franchissement_piscicole_type.fty_nom,
+dfp_date_mes AS date_creation_pap
+FROM montepomi.dbeel_obstruction_place
+LEFT JOIN roe.franchissement_piscicole ON 'ROE'||franchissement_piscicole.fpi_ref_id=id_original  
+LEFT JOIN roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_ouv_id=fpi_ref_id
+LEFT JOIN note_ice_pap ON dfp_id = ;--92146
+          
+
+
+
+  SELECT DISTINCT dfp_ouv_id,
+
+  --dfp_libelle AS type_passe
+  FROM bdoe.franchissement_piscicole_bdoe
+  WHERE dfp_date_mes IS NOT NULL
+ 
+ 
     -- vérification nombre date début fin 
   select* from montepomi.dbeel_physical_obstruction 
   where ouv_date_debut is not null; --8424 on a plus de lignes ==> car on a plusieurs espèces 
