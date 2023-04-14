@@ -649,7 +649,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   date_last_update date,
   author_last_update text,
   comment_update text,
-  esp_id integer, 
+  --esp_id integer, 
   ouv_avis_tech_global_id integer,
   ouv_commentaire_chute_bdoe text,
   ouv_commentaire_avis_bdoe text,
@@ -664,7 +664,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
   CONSTRAINT fk_ob_period FOREIGN KEY (ob_no_period) REFERENCES dbeel_nomenclature.period_type (no_id) ,
   CONSTRAINT fk_ob_type FOREIGN KEY (ob_no_type) REFERENCES dbeel_nomenclature.observation_type (no_id) ,
-  CONSTRAINT fk_po_obstruction_passability FOREIGN KEY (po_no_obstruction_passability)REFERENCES dbeel_nomenclature.obstruction_impact (no_id),
+  --CONSTRAINT fk_po_obstruction_passability FOREIGN KEY (po_no_obstruction_passability)REFERENCES dbeel_nomenclature.obstruction_impact (no_id),
   CONSTRAINT fk_ot_obstruction_type FOREIGN KEY (ot_no_obstruction_type) REFERENCES dbeel_nomenclature.obstruction_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_ot_mortality_type FOREIGN KEY (ot_no_mortality_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS(dbeel.physical_obstruction);
@@ -1231,19 +1231,19 @@ ot_no_obstruction_type,
 ot_obstruction_number,
 --ot_no_mortality_type,
 --ot_no_mortality,
-po_no_obstruction_passability,
+--po_no_obstruction_passability,
 po_obstruction_height,
 po_downs_pb,
 --po_downs_water_depth,
 --po_presence_eel_pass,
-po_method_perm_ev,
+--po_method_perm_ev,
 --po_date_presence_eel_pass,
 --fishway_type,
 date_last_update,
 author_last_update,
 comment_update,
 mitigation_measure_no_id,
-esp_id,
+--esp_id,
 --Champs insérés 2023
 ouv_avis_tech_global_id,
 ouv_commentaire_chute_bdoe,
@@ -1269,21 +1269,21 @@ SELECT
    1 AS ot_obstruction_number,
    --NULL AS ot_no_mortality_type, 
    --NULL AS ot_no_mortality,
-   po_no_obstruction_passability, 
+   --po_no_obstruction_passability, 
   h_chute AS po_obstruction_height, 
   po_downs_pb, 
   --NULL AS po_downs_water_depth, 
   --po_presence_eel_pass, 
-  CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
-       WHEN po_no_obstruction_passability in (287,288,289,290) THEN 'ICE'
-       ELSE NULL END AS po_method_perm_ev, 
+  --CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
+  --     WHEN po_no_obstruction_passability in (287,288,289,290) THEN 'ICE'
+  --     ELSE NULL END AS po_method_perm_ev, 
   --NULL AS po_date_presence_eel_pass, -- bullshit
   --fishway_type, 
   current_date AS date_last_update, 
   'Léa, Jules, Benjamin and Marion' AS author_last_update, 
   'initial insertion Height for all species:' AS comment_update, 
   mitigationmeasureid AS mitigation_measure_no_id,
-esp_id,
+--esp_id,
 ouv_avis_tech_global_id,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
@@ -1295,7 +1295,7 @@ commentaire_h_chute as source_h_chute,
 type_evt as ouv_type_evt
 FROM 
   obstruction
-  LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
+  --LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
   LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
   LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
   --LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
@@ -1303,11 +1303,9 @@ FROM
   LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
   LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL
-  
-
-  ; --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
-    --112 456 (13/04/2023)
+  AND  obstruction_type_no_id IS NOT NULL; 
+--103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
+-- 93736 14/04
     -- vérification nombre date début fin 
   select* from montepomi.dbeel_physical_obstruction 
   where ouv_date_debut is not null; --8424 on a plus de lignes ==> car on a plusieurs espèces 
