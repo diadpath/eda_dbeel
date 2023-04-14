@@ -28,20 +28,29 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
     obstruction_type.no_code AS obstruction_type_code,
     obstruction_type.no_name AS obstruction_type_name,
     dbeel_physical_obstruction.ot_obstruction_number,
-    dbeel_physical_obstruction.ot_no_mortality_type,
-    dbeel_physical_obstruction.ot_no_mortality,
+    --dbeel_physical_obstruction.ot_no_mortality_type,
+    --dbeel_physical_obstruction.ot_no_mortality,
     obstruction_impact.no_code AS obstruction_impact_code,
     obstruction_impact.no_name AS obstruction_impact_name,
     dbeel_physical_obstruction.po_obstruction_height,
     dbeel_physical_obstruction.po_downs_pb,
-    dbeel_physical_obstruction.po_downs_water_depth,
-    dbeel_physical_obstruction.po_presence_eel_pass,
-    dbeel_physical_obstruction.po_method_perm_ev,
-    dbeel_physical_obstruction.po_date_presence_eel_pass,
+    --dbeel_physical_obstruction.po_downs_water_depth,
+    -- dbeel_physical_obstruction.po_presence_eel_pass,
+    --dbeel_physical_obstruction.po_method_perm_ev,
+    --dbeel_physical_obstruction.po_date_presence_eel_pass,
     --dbeel_physical_obstruction.po_turbine_number,
-    fishway_type.no_code AS fishway_type_code,
-    fishway_type.no_name AS fishway_type_name,
+    --fishway_type.no_code AS fishway_type_code,
+    --fishway_type.no_name AS fishway_type_name,
     downstream_mitigation_measure.no_name AS downstream_mitigation_measure_name,
+    dbeel_physical_obstruction.ouv_avis_tech_global_id,
+	dbeel_physical_obstruction.ouv_commentaire_chute_bdoe,
+	dbeel_physical_obstruction.ouv_commentaire_avis_bdoe,
+	dbeel_physical_obstruction.ouv_commentaires_bdoe,
+	dbeel_physical_obstruction.ouv_commentaire_mesures_bdoe,
+	dbeel_physical_obstruction.ref_commentaire_sous_type_roe,
+	dbeel_physical_obstruction.h_chute_date_mesure,
+	dbeel_physical_obstruction.source_h_chute,
+	dbeel_physical_obstruction.ouv_type_evt,
     'http://maps.google.fr/maps?q='||st_y(st_transform(the_geom,4326))||','||st_x(st_transform(the_geom,4326)) AS googlemapscoods
    FROM montepomi.dbeel_obstruction_place
    JOIN montepomi.dbeel_physical_obstruction ON dbeel_physical_obstruction.ob_op_id = dbeel_obstruction_place.op_id
@@ -51,7 +60,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
    LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
-; --  103309
+; --  103309 --montepomi : 93736
 
 
 
@@ -104,9 +113,10 @@ CREATE TABLE montepomi.join_obstruction_rn as(
 		order by idsegment, distance desc)
 SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from projection
 );
-create index idx_france_join_obstruction_rn_idsegment ON france.join_obstruction_rn using btree(idsegment); --183msec
+create index idx_montepomi_join_obstruction_rn_idsegment ON montepomi.join_obstruction_rn using btree(idsegment); --183msec
 
---85037 10s
+SELECT * FROM montepomi.join_obstruction_rn LIMIT 10;
+--85037 10s -- montepomi : 91188
 /*
 select count(*) from france.join_obstruction_rn;--84270
 select count(*) FROM montepomi.dbeel_obstruction_place; --105662
@@ -229,8 +239,8 @@ WITH downstreamjoin AS (
   from france.rn 
 ) SELECT count(*) FROM downstreamjoin; --6199371 rows
 */
-DROP TABLE IF EXISTS france.join_obstruction_rn_downstream;
-CREATE TABLE france.join_obstruction_rn_downstream as(
+DROP TABLE IF EXISTS montepomi.join_obstruction_rn_downstream;
+CREATE TABLE montepomi.join_obstruction_rn_downstream as(
 WITH downstreamjoin AS (  
   select unnest(regexp_split_to_array(ltree2text(path),E'\\.+')) as vecteurchemin,
   rn.idsegment AS idsegmentsource  
@@ -239,8 +249,8 @@ WITH downstreamjoin AS (
  SELECT j.op_id, 
  j.position_ouvrage_segment, 
  downstreamjoin.* FROm downstreamjoin 
- JOIN france.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
-);-- CB: 6268275 38sC; MM: 6268230
+ JOIN montepomi.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
+);-- CB: 6268275 38sC; MM: 6268230  -- montepomi : 6593098 
 --SELECT count(*) FROM france.join_obstruction_rn_downstream
 
 
