@@ -89,8 +89,8 @@ create index idx_spain_join_obstruction_rn_idsegment ON spain.join_obstruction_r
 --select count(*) from spain.join_obstruction_rn;
 
 --REINDEX TABLE FRANCE.rn;
-DROP TABLE IF EXISTS france.join_obstruction_rn;
-CREATE TABLE france.join_obstruction_rn as(
+DROP TABLE IF EXISTS montepomi.join_obstruction_rn;
+CREATE TABLE montepomi.join_obstruction_rn as(
   
    with projection as (	
         SELECT r.idsegment, 
