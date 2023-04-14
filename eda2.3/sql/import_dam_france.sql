@@ -656,10 +656,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_commentaires_bdoe text,
   ouv_commentaire_mesures_bdoe text,
   ref_commentaire_sous_type_roe text,
-  ouv_date_debut date,
-  ouv_date_fin date,
   h_chute_date_mesure date,
-  h_chute numeric,
   source_h_chute varchar (15),
   ouv_type_evt varchar (30),
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
@@ -1226,8 +1223,8 @@ ob_id,
 ob_no_origin,
 ob_no_type,
 ob_no_period,
---ob_starting_date,
---ob_ending_date,
+ob_starting_date,
+ob_ending_date,
 ob_op_id,
 ob_dp_id,
 ot_no_obstruction_type,
@@ -1235,8 +1232,8 @@ ot_obstruction_number,
 --ot_no_mortality_type,
 --ot_no_mortality,
 po_no_obstruction_passability,
---po_obstruction_height,
---po_downs_pb,
+po_obstruction_height,
+po_downs_pb,
 --po_downs_water_depth,
 --po_presence_eel_pass,
 po_method_perm_ev,
@@ -1245,19 +1242,16 @@ po_method_perm_ev,
 date_last_update,
 author_last_update,
 comment_update,
---mitigation_measure_no_id,
+mitigation_measure_no_id,
 esp_id,
---Champs insérés
+--Champs insérés 2023
 ouv_avis_tech_global_id,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
 ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
-ouv_date_debut,
-ouv_date_fin,
 h_chute_date_mesure,
-h_chute,
 source_h_chute,
 ouv_type_evt
 )
@@ -1267,8 +1261,8 @@ SELECT
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  --NULL AS ob_starting_date,
-  --NULL AS ob_ending_date,
+  datedebut AS ob_starting_date,
+  datefin AS ob_ending_date,
   obstruction.op_id AS ob_op_id,
   dp_id AS ob_dp_id,
   obstruction_type_no_id AS ot_no_obstruction_type,-- physical
@@ -1276,8 +1270,8 @@ SELECT
    --NULL AS ot_no_mortality_type, 
    --NULL AS ot_no_mortality,
    po_no_obstruction_passability, 
-  --hauteur_chute AS po_obstruction_height, 
-  --po_downs_pb, 
+  h_chute AS po_obstruction_height, 
+  po_downs_pb, 
   --NULL AS po_downs_water_depth, 
   --po_presence_eel_pass, 
   CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
@@ -1288,7 +1282,7 @@ SELECT
   current_date AS date_last_update, 
   'Léa, Jules, Benjamin and Marion' AS author_last_update, 
   'initial insertion Height for all species:' AS comment_update, 
-  --mitigationmeasureid AS mitigation_measure_no_id,
+  mitigationmeasureid AS mitigation_measure_no_id,
 esp_id,
 ouv_avis_tech_global_id,
 ouv_commentaire_chute_bdoe,
@@ -1296,24 +1290,19 @@ ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
 ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
-datedebut as ouv_date_debut,
-datefin as ouv_date_fin,
 date_mesure as h_chute_date_mesure,
-h_chute as h_chute,
 commentaire_h_chute as source_h_chute,
 type_evt as ouv_type_evt
 FROM 
   obstruction
   LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
   LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
-  -- LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
+  LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
   --LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
-  --LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
+  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
   LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
-  LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id
-  ,
+  LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-
   AND  obstruction_type_no_id IS NOT NULL
   
 
