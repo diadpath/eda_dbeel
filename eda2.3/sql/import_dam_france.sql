@@ -1185,21 +1185,36 @@ LEFT JOIN roe.franchissement_piscicole_type on fpi_fty_id=fty_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_ouv_id=fpi_ref_id
 LEFT JOIN note_ice_pap ON dfp_id = ;--92146
           
+-- #18 Summary of expertise data in ICE and Bdoe at the scale of dam and species
+/*ouv_id,
+species,
+fishway working for the species ? (TRUE/FALSE)
+ICE score of passability by dam and species
+Bdoe score of passability by dam and species
+Global score calculated thanks to all the previous information collected
+*/
+ 
+-- TODO créer colonne species (avec 4 espèces pour 1 ouvrage)
 
+-- EN COURS ...
 
+SELECT dbeel_obstruction_place.op_id, ooi_ref_id,
+			CASE
+				WHEN species = 'anguille' AND dfp_tdfp_id IN (1, 2, 5, 6, 7, 8) THEN TRUE
+				WHEN species in ('alose', 'lamproies','saumon') AND dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
+				THEN TRUE   
+			    END AS po_presence_pass
 
-  SELECT DISTINCT dfp_ouv_id,
-
-  --dfp_libelle AS type_passe
-  FROM bdoe.franchissement_piscicole_bdoe
-  WHERE dfp_date_mes IS NOT NULL
- 
- 
-    -- vérification nombre date début fin 
-  select* from montepomi.dbeel_physical_obstruction 
-  where ouv_date_debut is not null; --8424 on a plus de lignes ==> car on a plusieurs espèces 
-
-
+		FROM montepomi.dbeel_obstruction_place 
+		LEFT JOIN ice.obstacle_operation_ice ON 'ROE'||dbeel_obstruction_place.ref_id=ooi_ref_id
+		JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		JOIN ice.dispositif_franchissement_piscicole ON
+			sto_id = dfp_id
+		--JOIN hauteur_chute_roe hh ON hh.ouv_id = ooi_ref_id
+			-- pour virer les codes gelés et autres
+	),
 
 
 --select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
