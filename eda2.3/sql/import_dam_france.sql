@@ -1197,21 +1197,100 @@ Global score calculated thanks to all the previous information collected
 -- TODO créer colonne species (avec 4 espèces pour 1 ouvrage)
 
 -- EN COURS ...
+WITH table_espece AS (
+	SELECT
+		'alose' AS species,
+		3 AS gre_id
+UNION ALL
+	SELECT
+		'lamproie' AS species,
+		5 AS gre_id
+UNION ALL
+	SELECT
+		'saumon' AS species,
+		1 AS gre_id
+UNION ALL
+	SELECT
+		'anguille' AS species,
+		19 AS gre_id
+UNION ALL 
+	SELECT
+		'civelle' AS species,
+		20 AS gre_id
+),
 
-SELECT dbeel_obstruction_place.op_id, ooi_ref_id,
+ice_pap AS (
+SELECT DISTINCT species ,ooi_ref_id, gre_id,
 			CASE
 				WHEN species = 'anguille' AND dfp_tdfp_id IN (1, 2, 5, 6, 7, 8) THEN TRUE
-				WHEN species in ('alose', 'lamproies','saumon') AND dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
+			    END AS po_presence_pass,
+			    pao_id,
+			    opi_date_releve
+		FROM ice.obstacle_operation_ice
+		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		LEFT JOIN ice.dispositif_franchissement_piscicole ON
+			sto_id = dfp_id, table_espece
+			WHERE (dfp_tdfp_id IN (1, 2, 5, 6, 7, 8)) AND species = 'anguille'
+			UNION ALL 
+			SELECT DISTINCT species ,ooi_ref_id, gre_id,
+			CASE
+				WHEN species in ('alose', 'lamproie','saumon') AND dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
 				THEN TRUE   
-			    END AS po_presence_pass
+			    END AS po_presence_pass,
+			    pao_id,
+			    opi_date_releve
+		FROM ice.obstacle_operation_ice
+		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		LEFT JOIN ice.dispositif_franchissement_piscicole ON
+			sto_id = dfp_id, table_espece
+			WHERE (dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)) AND species IN ('alose', 'lamproie','saumon')),
+			
+ice_mesure AS (
+SELECT cipo_gre_id, cipo_cli_id, ooi_ref_id
+FROM ice.classe_ice_partie_obstacle
+LEFT JOIN ice.partie_obstacle ON pao_id = cipo_pao_id 
+LEFT JOIN ice.operation_ice ON pao_opi_id = opi_id
+LEFT JOIN ice.obstacle_operation_ice ON opi_ooi_id = ooi_id
+WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20))
 
-		FROM montepomi.dbeel_obstruction_place 
-		LEFT JOIN ice.obstacle_operation_ice ON 'ROE'||dbeel_obstruction_place.ref_id=ooi_ref_id
-		JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		JOIN ice.dispositif_franchissement_piscicole ON
+
+				
+SELECT
+	DISTINCT dbeel_obstruction_place.op_id,
+	table_espece.species,
+	ice_mesure.ooi_ref_id,
+	id_original,
+	po_presence_pass,
+	cipo_cli_id AS class_ice
+FROM
+	montepomi.dbeel_obstruction_place
+LEFT JOIN ice_pap ON
+	dbeel_obstruction_place.id_original = 'ROE' || ice_pap.ooi_ref_id
+	 --364752
+LEFT JOIN ice_mesure ON
+	dbeel_obstruction_place.id_original = 'ROE' || ice_mesure.ooi_ref_id,
+		table_espece --463910
+
+
+		SELECT * 
+		FROM ice.classe_ice_partie_obstacle
+		WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20) --39477
+		
+SELECT dfp_tdfp_id
+FROM montepomi.dbeel_obstruction_place--, table_espece --364752
+		LEFT JOIN ice.obstacle_operation_ice ON dbeel_obstruction_place.id_original='ROE'||ooi_ref_id --365848
+		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		LEFT JOIN ice.dispositif_franchissement_piscicole ON
 			sto_id = dfp_id
+			WHERE id_original='ROE36547'
+			
+
 		--JOIN hauteur_chute_roe hh ON hh.ouv_id = ooi_ref_id
 			-- pour virer les codes gelés et autres
 	),
