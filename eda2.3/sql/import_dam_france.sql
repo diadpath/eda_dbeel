@@ -1219,66 +1219,183 @@ UNION ALL
 		20 AS gre_id
 ),
 
-ice_pap AS (
-SELECT DISTINCT species ,ooi_ref_id, gre_id,
-			CASE
-				WHEN species = 'anguille' AND dfp_tdfp_id IN (1, 2, 5, 6, 7, 8) THEN TRUE
-			    END AS po_presence_pass,
-			    pao_id,
-			    opi_date_releve
-		FROM ice.obstacle_operation_ice
+dbeel_especes AS (
+SELECT
+	DISTINCT dbeel_obstruction_place.op_id, id_original,
+	table_espece.species, table_espece.gre_id 
+FROM montepomi.dbeel_obstruction_place,
+		table_espece), --455 940
+		
+ice_type_pap AS (SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'alose' AS species,
+			TRUE::boolean AS po_presence_pass,
+			    max(operation_ice.opi_date_releve)  -- On fait le max car juste l'ouvrage 113393 a 2 dates avec les même types de passes 
+		FROM dbeel_especes
+		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
 		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
 		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
 		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
 		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id, table_espece
-			WHERE (dfp_tdfp_id IN (1, 2, 5, 6, 7, 8)) AND species = 'anguille'
-			UNION ALL 
-			SELECT DISTINCT species ,ooi_ref_id, gre_id,
-			CASE
-				WHEN species in ('alose', 'lamproie','saumon') AND dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
-				THEN TRUE   
-			    END AS po_presence_pass,
-			    pao_id,
-			    opi_date_releve
-		FROM ice.obstacle_operation_ice
+			sto_id = dfp_id
+			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
+			GROUP BY obstacle_operation_ice.ooi_ref_id
+			
+UNION ALL 
+
+SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'saumon' AS species,
+			TRUE::boolean AS po_presence_pass,
+			    max(operation_ice.opi_date_releve)
+		FROM dbeel_especes
+		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
 		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
 		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
 		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
 		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id, table_espece
-			WHERE (dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)) AND species IN ('alose', 'lamproie','saumon')),
+			sto_id = dfp_id
+			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)
+			GROUP BY obstacle_operation_ice.ooi_ref_id
+UNION ALL
+
+SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'lamproie' AS species,
+			TRUE::boolean AS po_presence_pass,
+			    max(operation_ice.opi_date_releve)
+		FROM dbeel_especes
+		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		LEFT JOIN ice.dispositif_franchissement_piscicole ON
+			sto_id = dfp_id
+			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)	
+			GROUP BY obstacle_operation_ice.ooi_ref_id
+			
+UNION ALL 
+
+SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
+			TRUE::boolean AS po_presence_pass,
+			    max(operation_ice.opi_date_releve)
+		FROM dbeel_especes
+		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+		LEFT JOIN ice.dispositif_franchissement_piscicole ON
+			sto_id = dfp_id
+			WHERE dfp_tdfp_id IN (1, 2, 5, 6, 7, 8)
+			GROUP BY obstacle_operation_ice.ooi_ref_id),
+			
+roe_type_pap AS (
+SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
+			TRUE::boolean AS po_presence_pass
+FROM roe.franchissement_piscicole 
+WHERE fpi_fty_id = 4 -- 3 sous-TYPES pour fpi_fty_id = 4 dont 2 sûrs pour la civelle (tapis brosse et substrat rugeux) et 1 incertain (passe piège)
+
+UNION ALL 
+
+SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
+			TRUE::boolean AS po_presence_pass
+FROM roe.franchissement_piscicole 
+WHERE fpi_fty_id IN (1,8,7,2,6) -- On enlève le TYPE 4 considéré uniquement pour les civelles
+
+UNION ALL 
+
+SELECT fpi_ref_id AS ouv_id, 'alose' AS species,
+			TRUE::boolean AS po_presence_pass
+FROM roe.franchissement_piscicole 
+WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
+
+UNION ALL 
+
+SELECT fpi_ref_id AS ouv_id, 'lamproie' AS species,
+			TRUE::boolean AS po_presence_pass
+FROM roe.franchissement_piscicole 
+WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
+
+UNION ALL 
+
+SELECT fpi_ref_id AS ouv_id, 'saumon' AS species,
+			TRUE::boolean AS po_presence_pass
+FROM roe.franchissement_piscicole 
+WHERE fpi_fty_id IN (1,8,5,0,7,2,6)),
+
+dbeel_type_pap AS (
+SELECT DISTINCT dbeel_especes.*, po_presence_pass
+FROM dbeel_especes
+LEFT JOIN roe_type_pap ON 'ROE' || ouv_id = id_original 
+AND dbeel_especes.species = roe_type_pap.species), --455 940
+			
 			
 ice_mesure AS (
-SELECT cipo_gre_id, cipo_cli_id, ooi_ref_id
+SELECT CASE WHEN cipo_gre_id = 1 THEN 'saumon'
+WHEN cipo_gre_id = 3 THEN 'alose'
+WHEN cipo_gre_id = 5 THEN 'lamproie'
+WHEN cipo_gre_id = 19 THEN 'anguille'
+WHEN cipo_gre_id = 20 THEN 'civelle'
+END AS species,
+cipo_cli_id, ooi_ref_id, opi_date_releve, cipo_pao_id
 FROM ice.classe_ice_partie_obstacle
 LEFT JOIN ice.partie_obstacle ON pao_id = cipo_pao_id 
 LEFT JOIN ice.operation_ice ON pao_opi_id = opi_id
 LEFT JOIN ice.obstacle_operation_ice ON opi_ooi_id = ooi_id
-WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20))
+WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20)),
 
 
-				
+bdoe_expertise AS (
+SELECT exm_ouv_id, 
+CASE WHEN exm_esp_id = '3' THEN 'alose'
+WHEN exm_esp_id = '5' THEN 'anguille'
+WHEN exm_esp_id = '34' THEN 'lamproie'
+WHEN exm_esp_id = '45' THEN 'saumon' END AS species,
+exm_not_id, exm_date, not_libelle
+FROM bdoe.expertise_montaison
+LEFT JOIN bdoe.note ON not_id = exm_not_id
+WHERE exm_esp_id in ('3','5','45','34')), --10 564
+
+bdoe_ouvrage AS (
+SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
+FROM bdoe.ouvrage
+LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id) --114 314
+
+		
+
 SELECT
-	DISTINCT dbeel_obstruction_place.op_id,
-	table_espece.species,
+	DISTINCT 
+	dbeel_type_pap.id_original,
+	dbeel_type_pap.species,
 	ice_mesure.ooi_ref_id,
-	id_original,
-	po_presence_pass,
-	cipo_cli_id AS class_ice
+	dbeel_type_pap.po_presence_pass,
+	ice_mesure.cipo_cli_id AS class_ice,
+	ice_mesure.opi_date_releve AS date_mesure_ice,
+	ice_mesure.cipo_pao_id AS partie_obstacle,
+	bdoe_ouvrage.ouv_atg_id, 
+	bdoe_ouvrage.ouv_date_avis, 
+	bdoe_ouvrage.atg_libelle,
+	bdoe_expertise.exm_not_id, 
+	bdoe_expertise.exm_date, 
+	bdoe_expertise.not_libelle
+	
 FROM
-	montepomi.dbeel_obstruction_place
-LEFT JOIN ice_pap ON
-	dbeel_obstruction_place.id_original = 'ROE' || ice_pap.ooi_ref_id
-	 --364752
+	dbeel_type_pap
+	
 LEFT JOIN ice_mesure ON
-	dbeel_obstruction_place.id_original = 'ROE' || ice_mesure.ooi_ref_id,
-		table_espece --463910
+	dbeel_type_pap.id_original = 'ROE' || ice_mesure.ooi_ref_id 
+	AND dbeel_type_pap.species = ice_mesure.species --457 415 : ON se rend compte que note_ice est sur la partie d'ouvrage (et non l'ouvrage en entier)
+LEFT JOIN bdoe_expertise ON
+	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
+	AND dbeel_type_pap.species = bdoe_expertise.species 
+LEFT JOIN bdoe_ouvrage ON
+	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --468 134
+	
+-- Pour aller voir la note ice sur les parties d'ouvrages
+--SELECT * FROM test WHERE id_original = 'ROE23285'	
+--SELECT id_original, count(*) FROM test GROUP BY 1 ORDER BY 2 DESC
 
+	
 
-		SELECT * 
+		
+		
+	SELECT * 
 		FROM ice.classe_ice_partie_obstacle
-		WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20) --39477
+		WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20) --39477 
 		
 SELECT dfp_tdfp_id
 FROM montepomi.dbeel_obstruction_place--, table_espece --364752
