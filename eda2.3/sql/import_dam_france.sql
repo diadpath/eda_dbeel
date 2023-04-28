@@ -839,14 +839,25 @@ date_evenement_all AS (
   WHERE ouv_derasement_date IS NOT NULL
   AND ouv_derasement_date < CURRENT_DATE
   UNION ALL 
-  SELECT DISTINCT dfp_ouv_id,
+  SELECT DISTINCT dfp_ouv_id AS ouv_id,
   dfp_date_mes AS date_evt,
-  'dispositifs de franchissement' AS type_evt
+  'dispositif de franchissement' AS type_evt
   --dfp_libelle AS type_passe
   FROM bdoe.franchissement_piscicole_bdoe
   WHERE dfp_date_mes IS NOT NULL
   AND dfp_date_mes < CURRENT_DATE
     UNION ALL 
+  SELECT DISTINCT 
+  fpi_ref_id AS ouv_id,
+  (hfpi_date_metier||'-12-31')::date AS date_evt,
+  'dispositif de franchissement' AS type_evt
+  FROM roe.historique_franch_piscicole
+  LEFT JOIN roe.franchissement_piscicole ON fpi_id = hfpi_fpi_id
+  LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id = fpi_id
+  WHERE hfpi_date_metier IS NOT NULL
+  AND (hfpi_date_metier||'-12-31')::date < current_date
+  AND dfp_date_mes IS NULL
+  UNION all
   SELECT DISTINCT ref_id AS ouv_id,
   ref_date_construction_ouvrage AS date_evt,
   'date construction ouvrage' AS type_evt
@@ -854,6 +865,7 @@ date_evenement_all AS (
   FROM roe.roesudo
   WHERE ref_date_construction_ouvrage IS NOT NULL
   ORDER BY ouv_id, date_evt),
+  
   
 -- La premiere va de NULL a min, les suivantes vont de
 -- date à date+1 dans le partition by. 
@@ -888,7 +900,8 @@ OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
 
--- SELECT * FROM ordre_periode WHERE ouv_id=689
+-- Attention à date_metier qui correspondrait a des modifications sur la franchissabilité de l'ouvrage mais pas forcément lié à un dispositif de franchissement
+--SELECT * FROM ordre_periode WHERE ouv_id=217 
 
 -- On joint les hauteur_tous (qui éventuellement contiennent des dates)
 -- avec ordre periode
@@ -974,6 +987,7 @@ ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
 */   
 height AS (
  	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
+ 	  
 
 --SELECT * FROM height 
 --where datedebut is not null;--6106
@@ -1031,7 +1045,7 @@ FROM bdoe.ouvrage
 LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114 314
 
 
-SELECT
+/*SELECT
  height.*,
  bdoe_ouvrage_nn.ouv_date_avis,
  CASE WHEN bdoe_ouvrage_nn.ouv_atg_id IS NOT NULL THEN bdoe_ouvrage_nn.ouv_atg_id
@@ -1053,7 +1067,7 @@ SELECT
  FROM  bdoe_ouvrage
  WHERE ouv_date_avis IS NULL) AS bdoe_ouvrage_n 
  ON 
- bdoe_ouvrage_n.ouv_id=height.ouv_id --93736
+ bdoe_ouvrage_n.ouv_id=height.ouv_id --93736*/
  
  
  
@@ -1189,7 +1203,7 @@ FROM
   AND  obstruction_type_no_id IS NOT NULL; 
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04
-
+-- 93954 28/04
  
 -- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
 -- On va chercher les expertises ICE par passes a poissons et espèces
@@ -1231,6 +1245,7 @@ Global score calculated thanks to all the previous information collected
 -- TODO créer colonne species (avec 4 espèces pour 1 ouvrage)
 
 -- EN COURS ...
+CREATE TABLE montepomi.dbeel_physical_obstruction_species AS (
 WITH table_espece AS (
 	SELECT
 		'alose' AS species,
@@ -1409,17 +1424,17 @@ WHEN exm_esp_id = '45' THEN 'saumon' END AS species,
 exm_not_id, exm_date, not_libelle
 FROM bdoe.expertise_montaison
 LEFT JOIN bdoe.note ON not_id = exm_not_id
-WHERE exm_esp_id in ('3','5','45','34')) --10 564
+WHERE exm_esp_id in ('3','5','45','34')), --10 564
 
 --bdoe_ouvrage AS (
 --SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
 --FROM bdoe.ouvrage
 --LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id) --114 314
 
-		
 
-SELECT
+expertise_ouv_esp AS (SELECT
 	DISTINCT 
+	dbeel_type_pap.op_id,
 	dbeel_type_pap.id_original,
 	dbeel_type_pap.species,
 	--ice_mesure.ooi_ref_id,
@@ -1442,10 +1457,55 @@ LEFT JOIN ice_mesure ON
 	AND dbeel_type_pap.species = ice_mesure.species --456585(avant distinct sur pao 457 415 : ON se rend compte que note_ice est sur la partie d'ouvrage (et non l'ouvrage en entier))
 LEFT JOIN bdoe_expertise ON
 	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
-	AND dbeel_type_pap.species = bdoe_expertise.species 
---LEFT JOIN bdoe_ouvrage ON
---	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --456650 (avant ddistinct sur pao 468 134)
+	AND dbeel_type_pap.species = bdoe_expertise.species)
 	
+SELECT id_original, 
+species, 
+ob_id,
+ob_no_origin,
+ob_no_type,
+ob_no_period,
+ob_starting_date,
+ob_ending_date,
+CASE WHEN exm_date between ob_starting_date AND ob_ending_date -1 THEN exm_not_id 
+ELSE NULL END AS note_exp_bdoe,
+exm_date,
+CASE WHEN date_mesure_ice between ob_starting_date AND ob_ending_date -1 THEN class_ice
+ELSE NULL END AS note_exp_ice, 
+date_mesure_ice,
+ob_op_id,
+ob_dp_id,
+ot_no_obstruction_type,
+ot_obstruction_number,
+ot_no_mortality_type,
+ot_no_mortality,
+po_no_obstruction_passability,
+po_obstruction_height,
+po_downs_pb,
+po_downs_water_depth,
+--po_presence_eel_pass,
+expertise_ouv_esp.po_presence_pass, 
+po_method_perm_ev,
+po_date_presence_eel_pass,
+mitigation_measure_no_id,
+fishway_type,
+date_last_update,
+author_last_update,
+comment_update,
+ouv_avis_tech_global_id,
+ouv_commentaire_chute_bdoe,
+ouv_commentaire_avis_bdoe,
+ouv_commentaires_bdoe,
+ouv_commentaire_mesures_bdoe,
+ref_commentaire_sous_type_roe,
+h_chute_date_mesure,
+source_h_chute,
+ouv_type_evt
+FROM expertise_ouv_esp --WHERE id_original = 'ROE105820'
+LEFT JOIN montepomi.dbeel_physical_obstruction ON ( ob_op_id = op_id )
+) --470 535
+
+
 -- Pour aller voir la note ice sur les parties d'ouvrages
 --SELECT * FROM test WHERE id_original = 'ROE23285'	
 --SELECT id_original, count(*) FROM test GROUP BY 1 ORDER BY 2 DESC
