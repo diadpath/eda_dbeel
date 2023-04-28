@@ -1286,15 +1286,16 @@ SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
 roe_type_pap AS (
 SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
 			TRUE::boolean AS po_presence_pass
-FROM roe.franchissement_piscicole 
-WHERE fpi_fty_id = 4 -- 3 sous-TYPES pour fpi_fty_id = 4 dont 2 sûrs pour la civelle (tapis brosse et substrat rugeux) et 1 incertain (passe piège)
+FROM roe.franchissement_piscicole
+LEFT JOIN bdoe.ouvrage ON fpi_ref_id=ouv_id
+WHERE fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
 			TRUE::boolean AS po_presence_pass
 FROM roe.franchissement_piscicole 
-WHERE fpi_fty_id IN (1,8,7,2,6) -- On enlève le TYPE 4 considéré uniquement pour les civelles
+WHERE fpi_fty_id IN (1,4,8,7,2,6) 
 
 UNION ALL 
 
@@ -1325,7 +1326,8 @@ AND dbeel_especes.species = roe_type_pap.species), --455 940
 			
 			
 ice_mesure AS (
-SELECT CASE WHEN cipo_gre_id = 1 THEN 'saumon'
+SELECT DISTINCT ON(ooi_ref_id,opi_date_releve,cipo_gre_id)
+CASE WHEN cipo_gre_id = 1 THEN 'saumon'
 WHEN cipo_gre_id = 3 THEN 'alose'
 WHEN cipo_gre_id = 5 THEN 'lamproie'
 WHEN cipo_gre_id = 19 THEN 'anguille'
@@ -1336,9 +1338,19 @@ FROM ice.classe_ice_partie_obstacle
 LEFT JOIN ice.partie_obstacle ON pao_id = cipo_pao_id 
 LEFT JOIN ice.operation_ice ON pao_opi_id = opi_id
 LEFT JOIN ice.obstacle_operation_ice ON opi_ooi_id = ooi_id
-WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20)),
-
-
+LEFT JOIN ice.structure_obstacle ON sto_pao_id=pao_id
+WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20)
+ORDER BY ooi_ref_id,opi_date_releve,cipo_gre_id,
+				CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
+	               WHEN sto_tso_id=1 THEN 3 -- seuil
+	               WHEN sto_tso_id=3 THEN 4 -- vannage
+	               WHEN sto_tso_id=2 THEN 5	-- seuil en enrochement	
+	               WHEN sto_tso_id=7 THEN 6 -- prise d'eau 
+	               WHEN sto_tso_id=4 THEN 7 -- ouvrage routier
+	               WHEN sto_tso_id=6 THEN 1	-- dispositif de franchissement piscicole             
+	               WHEN sto_tso_id=8 THEN 8 -- voie sur berge
+	               END 
+),
 bdoe_expertise AS (
 SELECT exm_ouv_id, 
 CASE WHEN exm_esp_id = '3' THEN 'alose'
@@ -1378,12 +1390,12 @@ FROM
 	
 LEFT JOIN ice_mesure ON
 	dbeel_type_pap.id_original = 'ROE' || ice_mesure.ooi_ref_id 
-	AND dbeel_type_pap.species = ice_mesure.species --457 415 : ON se rend compte que note_ice est sur la partie d'ouvrage (et non l'ouvrage en entier)
+	AND dbeel_type_pap.species = ice_mesure.species --456585(avant distinct sur pao 457 415 : ON se rend compte que note_ice est sur la partie d'ouvrage (et non l'ouvrage en entier))
 LEFT JOIN bdoe_expertise ON
 	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
 	AND dbeel_type_pap.species = bdoe_expertise.species 
 LEFT JOIN bdoe_ouvrage ON
-	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --468 134
+	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --456650 (avant ddistinct sur pao 468 134)
 	
 -- Pour aller voir la note ice sur les parties d'ouvrages
 --SELECT * FROM test WHERE id_original = 'ROE23285'	
