@@ -977,7 +977,7 @@ height AS (
 
 --SELECT * FROM height 
 --where datedebut is not null;--6106
---SELECT count(*) FROM  height    -- 94725 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
+--SELECT count(*) FROM  height    -- 93736 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
  
    
 reception_devalaison_tous AS (
@@ -1024,6 +1024,40 @@ op_id,
 FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--91188
 --select * from obstruction
 --TODO : aller chercher les infos suivantes dans les différentes tables
+
+bdoe_ouvrage AS (
+SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
+FROM bdoe.ouvrage
+LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114 314
+
+
+SELECT
+ height.*,
+ bdoe_ouvrage_nn.ouv_date_avis,
+ CASE WHEN bdoe_ouvrage_nn.ouv_atg_id IS NOT NULL THEN bdoe_ouvrage_nn.ouv_atg_id
+ ELSE bdoe_ouvrage_n.ouv_atg_id
+ END AS ouv_atg_id,
+ CASE WHEN bdoe_ouvrage_nn.atg_libelle IS NOT NULL THEN bdoe_ouvrage_nn.atg_libelle
+ ELSE bdoe_ouvrage_n.atg_libelle
+ END AS atg_libelle
+ FROM
+ height LEFT JOIN 
+ (SELECT * 
+ FROM  bdoe_ouvrage
+ WHERE ouv_date_avis IS NOT NULL) AS bdoe_ouvrage_nn
+ ON 
+ bdoe_ouvrage_nn.ouv_id=height.ouv_id
+ AND ouv_date_avis BETWEEN datedebut AND datefin
+ LEFT JOIN 
+ (SELECT * 
+ FROM  bdoe_ouvrage
+ WHERE ouv_date_avis IS NULL) AS bdoe_ouvrage_n 
+ ON 
+ bdoe_ouvrage_n.ouv_id=height.ouv_id --93736
+ 
+ 
+ 
+ 
 add_column_bdoe as (
 	select ouv_atg_id AS ouv_avis_tech_global_id,
 		ouv_commentaire_chute AS ouv_commentaire_chute_bdoe,
@@ -1285,37 +1319,52 @@ SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
 			
 roe_type_pap AS (
 SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
-			TRUE::boolean AS po_presence_pass
+			TRUE::boolean AS po_presence_pass,
+			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
 FROM roe.franchissement_piscicole
 LEFT JOIN bdoe.ouvrage ON fpi_ref_id=ouv_id
+LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
-			TRUE::boolean AS po_presence_pass
+			TRUE::boolean AS po_presence_pass,
+			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
 FROM roe.franchissement_piscicole 
+LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (1,4,8,7,2,6) 
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'alose' AS species,
-			TRUE::boolean AS po_presence_pass
+			TRUE::boolean AS po_presence_pass,
+			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
 FROM roe.franchissement_piscicole 
+LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'lamproie' AS species,
-			TRUE::boolean AS po_presence_pass
+			TRUE::boolean AS po_presence_pass,
+			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
 FROM roe.franchissement_piscicole 
+LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'saumon' AS species,
-			TRUE::boolean AS po_presence_pass
+			TRUE::boolean AS po_presence_pass,
+			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
 FROM roe.franchissement_piscicole 
+LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (1,8,5,0,7,2,6)),
 
 dbeel_type_pap AS (
@@ -1360,12 +1409,12 @@ WHEN exm_esp_id = '45' THEN 'saumon' END AS species,
 exm_not_id, exm_date, not_libelle
 FROM bdoe.expertise_montaison
 LEFT JOIN bdoe.note ON not_id = exm_not_id
-WHERE exm_esp_id in ('3','5','45','34')), --10 564
+WHERE exm_esp_id in ('3','5','45','34')) --10 564
 
-bdoe_ouvrage AS (
-SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
-FROM bdoe.ouvrage
-LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id) --114 314
+--bdoe_ouvrage AS (
+--SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
+--FROM bdoe.ouvrage
+--LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id) --114 314
 
 		
 
@@ -1373,14 +1422,14 @@ SELECT
 	DISTINCT 
 	dbeel_type_pap.id_original,
 	dbeel_type_pap.species,
-	ice_mesure.ooi_ref_id,
+	--ice_mesure.ooi_ref_id,
 	dbeel_type_pap.po_presence_pass,
 	ice_mesure.cipo_cli_id AS class_ice,
 	ice_mesure.opi_date_releve AS date_mesure_ice,
-	ice_mesure.cipo_pao_id AS partie_obstacle,
-	bdoe_ouvrage.ouv_atg_id, 
-	bdoe_ouvrage.ouv_date_avis, 
-	bdoe_ouvrage.atg_libelle,
+	--ice_mesure.cipo_pao_id AS partie_obstacle,
+--	bdoe_ouvrage.ouv_atg_id, 
+--	bdoe_ouvrage.ouv_date_avis, 
+--	bdoe_ouvrage.atg_libelle,
 	bdoe_expertise.exm_not_id, 
 	bdoe_expertise.exm_date, 
 	bdoe_expertise.not_libelle
@@ -1394,8 +1443,8 @@ LEFT JOIN ice_mesure ON
 LEFT JOIN bdoe_expertise ON
 	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
 	AND dbeel_type_pap.species = bdoe_expertise.species 
-LEFT JOIN bdoe_ouvrage ON
-	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --456650 (avant ddistinct sur pao 468 134)
+--LEFT JOIN bdoe_ouvrage ON
+--	dbeel_type_pap.id_original = 'ROE' || bdoe_ouvrage.ouv_id --456650 (avant ddistinct sur pao 468 134)
 	
 -- Pour aller voir la note ice sur les parties d'ouvrages
 --SELECT * FROM test WHERE id_original = 'ROE23285'	
