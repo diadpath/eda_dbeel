@@ -1244,98 +1244,115 @@ Global score calculated thanks to all the previous information collected
  
 -- TODO créer colonne species (avec 4 espèces pour 1 ouvrage)
 
--- EN COURS ...
-CREATE TABLE montepomi.dbeel_physical_obstruction_species AS (
+-- Traitement des données de passe à poissons. 
+-- On récupère les fonctionnalités de passe par espèce
+-- et on va les joindre à la table physical_obstruction en utilisant la date de construction de la passe
+-- une passe s'appliquera à toutes les périodes dont la date de fin est supérieure à la date de construction de passe.
+-- attention a la même période (même ob_id) il peut y avoir plusieurs passes pour une espèce
+-- si une passe est franchissable (true pour l'espèce) et une ne l'est pas, il faudra choisir celle qui est franchissable.
+-- DISTINCT FROM .... order by po_presence_pass::numeric desc
+-- Pour toutes les passes pour lesquelles on a pas de date, on applique la jointure à toute les périodes 
+-- ca veut dire qu'on pourra avoir des observations avec une passe alors qu'en fait la passe n'était pas construite.
+-- On fait un union entre la table qui fait la jointure avec les dates de construction de passe et les observations
+-- et la table qui fait la même jointure mais pour laquelle la date de construction est NULL
+-- TODO voir pourquoi après le UNION on passe de 15041 à 15019, peut etre tous les ouvrages de obstruction op_no_observationplace
+-- ne sont pas dans dbeel_physical_obstruction.
+DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_pass_species;
+CREATE TABLE montepomi.dbeel_physical_obstruction_pass_species AS (
 WITH table_espece AS (
-	SELECT
-		'alose' AS species,
-		3 AS gre_id
+  SELECT
+    'alose' AS species,
+    3 AS gre_id
 UNION ALL
-	SELECT
-		'lamproie' AS species,
-		5 AS gre_id
+  SELECT
+    'lamproie' AS species,
+    5 AS gre_id
 UNION ALL
-	SELECT
-		'saumon' AS species,
-		1 AS gre_id
+  SELECT
+    'saumon' AS species,
+    1 AS gre_id
 UNION ALL
-	SELECT
-		'anguille' AS species,
-		19 AS gre_id
+  SELECT
+    'anguille' AS species,
+    19 AS gre_id
 UNION ALL 
-	SELECT
-		'civelle' AS species,
-		20 AS gre_id
+  SELECT
+    'civelle' AS species,
+    20 AS gre_id
 ),
-
 dbeel_especes AS (
 SELECT
-	DISTINCT dbeel_obstruction_place.op_id, id_original,
-	table_espece.species, table_espece.gre_id 
+  DISTINCT dbeel_obstruction_place.op_id, id_original,
+  table_espece.species, table_espece.gre_id 
 FROM montepomi.dbeel_obstruction_place,
-		table_espece), --455 940
-		
-ice_type_pap AS (SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'alose' AS species,
-			TRUE::boolean AS po_presence_pass,
-			    max(operation_ice.opi_date_releve)  -- On fait le max car juste l'ouvrage 113393 a 2 dates avec les même types de passes 
-		FROM dbeel_especes
-		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
-		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id
-			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
-			GROUP BY obstacle_operation_ice.ooi_ref_id
-			
+    table_espece),
+    
+--ON ne garde pas celui là que quelques lignes    
+/*    
+ice_type_pap AS (
+
+SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'alose' AS species,
+      TRUE::boolean AS po_presence_pass,
+          max(operation_ice.opi_date_releve)  -- On fait le max car juste l'ouvrage 113393 a 2 dates avec les même types de passes 
+    FROM dbeel_especes
+    LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+    LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+    LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+    LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+    LEFT JOIN ice.dispositif_franchissement_piscicole ON
+      sto_id = dfp_id
+      WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7) 
+      GROUP BY obstacle_operation_ice.ooi_ref_id
+      
 UNION ALL 
 
 SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'saumon' AS species,
-			TRUE::boolean AS po_presence_pass,
-			    max(operation_ice.opi_date_releve)
-		FROM dbeel_especes
-		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
-		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id
-			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)
-			GROUP BY obstacle_operation_ice.ooi_ref_id
+      TRUE::boolean AS po_presence_pass,
+          max(operation_ice.opi_date_releve)
+    FROM dbeel_especes
+    LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+    LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+    LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+    LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+    LEFT JOIN ice.dispositif_franchissement_piscicole ON
+      sto_id = dfp_id
+      WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)
+      GROUP BY obstacle_operation_ice.ooi_ref_id
 UNION ALL
 
 SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'lamproie' AS species,
-			TRUE::boolean AS po_presence_pass,
-			    max(operation_ice.opi_date_releve)
-		FROM dbeel_especes
-		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
-		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id
-			WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)	
-			GROUP BY obstacle_operation_ice.ooi_ref_id
-			
+      TRUE::boolean AS po_presence_pass,
+          max(operation_ice.opi_date_releve)
+    FROM dbeel_especes
+    LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+    LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+    LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+    LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+    LEFT JOIN ice.dispositif_franchissement_piscicole ON
+      sto_id = dfp_id
+      WHERE dfp_tdfp_id IN (1, 2, 3, 4, 5, 6, 7)  
+      GROUP BY obstacle_operation_ice.ooi_ref_id
+      
 UNION ALL 
 
 SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
-			TRUE::boolean AS po_presence_pass,
-			    max(operation_ice.opi_date_releve)
-		FROM dbeel_especes
-		LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
-		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id
-			WHERE dfp_tdfp_id IN (1, 2, 5, 6, 7, 8)
-			GROUP BY obstacle_operation_ice.ooi_ref_id),
-			
+      TRUE::boolean AS po_presence_pass,
+          max(operation_ice.opi_date_releve)
+    FROM dbeel_especes
+    LEFT JOIN ice.obstacle_operation_ice ON id_original = 'ROE' || ooi_ref_id 
+    LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
+    LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
+    LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
+    LEFT JOIN ice.dispositif_franchissement_piscicole ON
+      sto_id = dfp_id
+      WHERE dfp_tdfp_id IN (1, 2, 5, 6, 7, 8)
+      GROUP BY obstacle_operation_ice.ooi_ref_id),
+*/      
 roe_type_pap AS (
 SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
-			TRUE::boolean AS po_presence_pass,
-			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
+      fpi_id,
+      TRUE::boolean AS po_presence_pass,
+      COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole
 LEFT JOIN bdoe.ouvrage ON fpi_ref_id=ouv_id
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
@@ -1345,8 +1362,9 @@ WHERE fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 -- On gard
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
-			TRUE::boolean AS po_presence_pass,
-			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
+      fpi_id,
+      TRUE::boolean AS po_presence_pass,
+      COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
@@ -1355,8 +1373,9 @@ WHERE fpi_fty_id IN (1,4,8,7,2,6)
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'alose' AS species,
-			TRUE::boolean AS po_presence_pass,
-			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
+      fpi_id,
+      TRUE::boolean AS po_presence_pass,
+      COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
@@ -1365,8 +1384,9 @@ WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'lamproie' AS species,
-			TRUE::boolean AS po_presence_pass,
-			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
+      fpi_id,
+      TRUE::boolean AS po_presence_pass,
+      COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
@@ -1375,37 +1395,85 @@ WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'saumon' AS species,
-			TRUE::boolean AS po_presence_pass,
-			COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS hfpi_date_metier
+      fpi_id,
+      TRUE::boolean AS po_presence_pass,
+      COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 WHERE fpi_fty_id IN (1,8,5,0,7,2,6)),
 
+-- on utilise pas ICE type_pass
 dbeel_type_pap AS (
-SELECT DISTINCT dbeel_especes.*, po_presence_pass
+SELECT DISTINCT dbeel_especes.*,  fpi_id, po_presence_pass, date_passe
 FROM dbeel_especes
 LEFT JOIN roe_type_pap ON 'ROE' || ouv_id = id_original 
-AND dbeel_especes.species = roe_type_pap.species), --455 940
-			
-			
+AND dbeel_especes.species = roe_type_pap.species
+WHERE fpi_id IS NOT NULL 
+), --456 068 --> 15541 (not null)
+
+--SELECT * FROM dbeel_type_pap --15541
+
+join_with_physical_obstruction_date AS(
+SELECT * FROM dbeel_type_pap JOIN 
+montepomi.dbeel_physical_obstruction ON
+dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id AND
+date_passe < ob_ending_date
+), -- 2703
+
+join_with_physical_obstruction_null AS(
+SELECT * FROM dbeel_type_pap JOIN 
+montepomi.dbeel_physical_obstruction ON
+dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id 
+WHERE date_passe IS NULL)
+
+SELECT * FROM join_with_physical_obstruction_date 
+   UNION 
+SELECT * FROM              join_with_physical_obstruction_null
+) -- END CREATE TABLE 15019 (pourquoi pas 15041)
+
+--SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
+--SELECT id_original, count(*) FROM join_with_physical_obstruction GROUP BY 1 ORDER BY 2 DESC  
+
+
+
+
+
+
+-- ci dessous on créee deux tableaux, l'un provenant de ICE un de BDOE avec les 
+-- mêmes colonnes id_original, species, score, date_releve, libelle_score, et source_score (soit ice soit bdoe)
+-- Pour les expertises dont la date est nulle dans BDOE, on va joindre avec toutes les observations 
+-- de dbeel_obstruction_places quelle que soit la date
+-- Pour un ob_id (une période donnée) OBJECT n va avoir plusieurs notes d'expertise, par espèces,
+-- Mais aussi correspondant potentiellement à différentes dates et différentes sources (soit bdoe soit ice)
+-- il va falloir choisir, on va prendre ICE puis bdoe et on prend pour toute la période l'expertise la plus récente
+
+CREATE TABLE montepomi.dbeel_physical_obstruction_species AS (
+WITH 		
+-- pour le ICE on ne garde qu'un seul enregistrement PAD our toutes les parties d'obstacle
 ice_mesure AS (
 SELECT DISTINCT ON(ooi_ref_id,opi_date_releve,cipo_gre_id)
+'ROE'||ooi_ref_id AS id_original,
 CASE WHEN cipo_gre_id = 1 THEN 'saumon'
 WHEN cipo_gre_id = 3 THEN 'alose'
 WHEN cipo_gre_id = 5 THEN 'lamproie'
 WHEN cipo_gre_id = 19 THEN 'anguille'
 WHEN cipo_gre_id = 20 THEN 'civelle'
 END AS species,
-cipo_cli_id, ooi_ref_id, opi_date_releve, cipo_pao_id
+cipo_cli_id AS score, 
+opi_date_releve AS date_releve, 
+--cipo_pao_id,
+cli_libelle AS libelle_score,
+'ice' AS source_note
 FROM ice.classe_ice_partie_obstacle
+JOIN ice.classe_ice ON cipo_cli_id = cli_id
 LEFT JOIN ice.partie_obstacle ON pao_id = cipo_pao_id 
 LEFT JOIN ice.operation_ice ON pao_opi_id = opi_id
 LEFT JOIN ice.obstacle_operation_ice ON opi_ooi_id = ooi_id
 LEFT JOIN ice.structure_obstacle ON sto_pao_id=pao_id
 WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20)
 ORDER BY ooi_ref_id,opi_date_releve,cipo_gre_id,
-				CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
+				    CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
 	               WHEN sto_tso_id=1 THEN 3 -- seuil
 	               WHEN sto_tso_id=3 THEN 4 -- vannage
 	               WHEN sto_tso_id=2 THEN 5	-- seuil en enrochement	
@@ -1415,130 +1483,55 @@ ORDER BY ooi_ref_id,opi_date_releve,cipo_gre_id,
 	               WHEN sto_tso_id=8 THEN 8 -- voie sur berge
 	               END 
 ),
+--SELECT * FROM ice_mesure --27614
+
 bdoe_expertise AS (
-SELECT exm_ouv_id, 
+SELECT 'ROE'||exm_ouv_id AS id_original, 
 CASE WHEN exm_esp_id = '3' THEN 'alose'
 WHEN exm_esp_id = '5' THEN 'anguille'
 WHEN exm_esp_id = '34' THEN 'lamproie'
 WHEN exm_esp_id = '45' THEN 'saumon' END AS species,
-exm_not_id, exm_date, not_libelle
+exm_not_id AS score, 
+exm_date AS date_releve,
+not_libelle AS libelle_score,
+'bdoe' AS source_note
 FROM bdoe.expertise_montaison
 LEFT JOIN bdoe.note ON not_id = exm_not_id
 WHERE exm_esp_id in ('3','5','45','34')), --10 564
 
---bdoe_ouvrage AS (
---SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
---FROM bdoe.ouvrage
---LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id) --114 314
+bdoe_ice_mesure AS (
+SELECT * FROM bdoe_expertise
+UNION ALL
+SELECT * FROM ice_mesure), -- 38178
 
 
-expertise_ouv_esp AS (SELECT
-	DISTINCT 
-	dbeel_type_pap.op_id,
-	dbeel_type_pap.id_original,
-	dbeel_type_pap.species,
-	--ice_mesure.ooi_ref_id,
-	dbeel_type_pap.po_presence_pass,
-	ice_mesure.cipo_cli_id AS class_ice,
-	ice_mesure.opi_date_releve AS date_mesure_ice,
-	--ice_mesure.cipo_pao_id AS partie_obstacle,
---	bdoe_ouvrage.ouv_atg_id, 
---	bdoe_ouvrage.ouv_date_avis, 
---	bdoe_ouvrage.atg_libelle,
-	bdoe_expertise.exm_not_id, 
-	bdoe_expertise.exm_date, 
-	bdoe_expertise.not_libelle
+join_with_physical_obstruction_date AS(
+SELECT * FROM bdoe_ice_mesure 
+JOIN montepomi.dbeel_obstruction_place ON dbeel_obstruction_place.id_original = bdoe_ice_mesure.id_original 
+JOIN montepomi.dbeel_physical_obstruction ON 
+  dbeel_physical_obstruction.ob_op_id= op_id AND
+  date_releve between ob_starting_date AND ob_ending_date -1 
+) ,
+--SELECT * FROM join_with_physical_obstruction_date --2275 valeurs avec date non nulle.
 
---passe esp et expertise esp (format wide to long)
-	
-FROM
-	dbeel_type_pap
-	
-LEFT JOIN ice_mesure ON
-	dbeel_type_pap.id_original = 'ROE' || ice_mesure.ooi_ref_id 
-	AND dbeel_type_pap.species = ice_mesure.species --456585(avant distinct sur pao 457 415 : ON se rend compte que note_ice est sur la partie d'ouvrage (et non l'ouvrage en entier))
-LEFT JOIN bdoe_expertise ON
-	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
-	AND dbeel_type_pap.species = bdoe_expertise.species)
-	
---test as(	
-SELECT id_original, 
-species, 
-ob_id,
-ob_no_origin,
-ob_no_type,
-ob_no_period,
-ob_starting_date,
-ob_ending_date,
-ouv_type_evt,
-CASE WHEN exm_date between ob_starting_date AND ob_ending_date -1 THEN exm_not_id 
-ELSE NULL END AS note_exp_bdoe,
-exm_date,
-CASE WHEN date_mesure_ice between ob_starting_date AND ob_ending_date -1 THEN class_ice
-ELSE NULL END AS note_exp_ice, 
-date_mesure_ice,
-ob_op_id,
-ob_dp_id,
-ot_no_obstruction_type,
-ot_obstruction_number,
-ot_no_mortality_type,
-ot_no_mortality,
-po_no_obstruction_passability,
-po_obstruction_height,
-po_downs_pb,
-po_downs_water_depth,
---po_presence_eel_pass,
-expertise_ouv_esp.po_presence_pass, 
-po_method_perm_ev,
-po_date_presence_eel_pass,
-mitigation_measure_no_id,
-fishway_type,
-date_last_update,
-author_last_update,
-comment_update,
-ouv_avis_tech_global_id,
-ouv_commentaire_chute_bdoe,
-ouv_commentaire_avis_bdoe,
-ouv_commentaires_bdoe,
-ouv_commentaire_mesures_bdoe,
-ref_commentaire_sous_type_roe,
-h_chute_date_mesure,
-source_h_chute
-FROM expertise_ouv_esp --WHERE id_original = 'ROE105820'
-LEFT JOIN montepomi.dbeel_physical_obstruction ON ( ob_op_id = op_id )
-) --470 535
+join_with_physical_obstruction_null AS(
+SELECT * FROM bdoe_ice_mesure 
+JOIN montepomi.dbeel_obstruction_place ON dbeel_obstruction_place.id_original = bdoe_ice_mesure.id_original 
+JOIN montepomi.dbeel_physical_obstruction ON 
+  dbeel_physical_obstruction.ob_op_id= op_id 
+WHERE date_releve IS NULL),
+--SELECT * FROM join_with_physical_obstruction_null; --9137 lignes dans bdoe ou la date n'est pas renseignée
 
-
--- Pour aller voir la note ice sur les parties d'ouvrages
---SELECT * FROM test WHERE id_original = 'ROE23285'	
-SELECT id_original, count(*) FROM test GROUP BY 1 ORDER BY 2 DESC
-/*ROE71366	30
-ROE7585	25
-ROE60023	25
-ROE28711	25
-ROE12777	24*/ 
+expertise_ouv_esp AS (
+SELECT * FROM
+join_with_physical_obstruction_date 
+UNION 
+SELECT * FROM
+join_with_physical_obstruction_null
+)
+SELECT * FROM expertise_ouv_esp; --11399 
 	
 
-		
-		
-	SELECT * 
-		FROM ice.classe_ice_partie_obstacle
-		WHERE cipo_cli_id IS NOT NULL AND cipo_gre_id IN (1,3,5,19,20) --39477 
-		
-SELECT dfp_tdfp_id
-FROM montepomi.dbeel_obstruction_place--, table_espece --364752
-		LEFT JOIN ice.obstacle_operation_ice ON dbeel_obstruction_place.id_original='ROE'||ooi_ref_id --365848
-		LEFT JOIN ice.operation_ice ON opi_ooi_id = ooi_id
-		LEFT JOIN ice.partie_obstacle ON pao_opi_id = opi_id
-		LEFT JOIN ice.structure_obstacle ON sto_pao_id = pao_id
-		LEFT JOIN ice.dispositif_franchissement_piscicole ON
-			sto_id = dfp_id
-			WHERE id_original='ROE36547'
-			
-
-		--JOIN hauteur_chute_roe hh ON hh.ouv_id = ooi_ref_id
-			-- pour virer les codes gelés et autres
-	),
 
 
 --select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
