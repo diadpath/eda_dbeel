@@ -1448,6 +1448,8 @@ expertise_ouv_esp AS (SELECT
 	bdoe_expertise.exm_not_id, 
 	bdoe_expertise.exm_date, 
 	bdoe_expertise.not_libelle
+
+--passe esp et expertise esp (format wide to long)
 	
 FROM
 	dbeel_type_pap
@@ -1459,6 +1461,7 @@ LEFT JOIN bdoe_expertise ON
 	dbeel_type_pap.id_original = 'ROE' || bdoe_expertise.exm_ouv_id 
 	AND dbeel_type_pap.species = bdoe_expertise.species)
 	
+--test as(	
 SELECT id_original, 
 species, 
 ob_id,
@@ -1467,6 +1470,7 @@ ob_no_type,
 ob_no_period,
 ob_starting_date,
 ob_ending_date,
+ouv_type_evt,
 CASE WHEN exm_date between ob_starting_date AND ob_ending_date -1 THEN exm_not_id 
 ELSE NULL END AS note_exp_bdoe,
 exm_date,
@@ -1499,8 +1503,7 @@ ouv_commentaires_bdoe,
 ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
 h_chute_date_mesure,
-source_h_chute,
-ouv_type_evt
+source_h_chute
 FROM expertise_ouv_esp --WHERE id_original = 'ROE105820'
 LEFT JOIN montepomi.dbeel_physical_obstruction ON ( ob_op_id = op_id )
 ) --470 535
@@ -1508,8 +1511,12 @@ LEFT JOIN montepomi.dbeel_physical_obstruction ON ( ob_op_id = op_id )
 
 -- Pour aller voir la note ice sur les parties d'ouvrages
 --SELECT * FROM test WHERE id_original = 'ROE23285'	
---SELECT id_original, count(*) FROM test GROUP BY 1 ORDER BY 2 DESC
-
+SELECT id_original, count(*) FROM test GROUP BY 1 ORDER BY 2 DESC
+/*ROE71366	30
+ROE7585	25
+ROE60023	25
+ROE28711	25
+ROE12777	24*/ 
 	
 
 		
