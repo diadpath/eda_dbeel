@@ -1447,8 +1447,8 @@ SELECT * FROM              join_with_physical_obstruction_null
 -- Pour un ob_id (une période donnée) OBJECT n va avoir plusieurs notes d'expertise, par espèces,
 -- Mais aussi correspondant potentiellement à différentes dates et différentes sources (soit bdoe soit ice)
 -- il va falloir choisir, on va prendre ICE puis bdoe et on prend pour toute la période l'expertise la plus récente
-
-CREATE TABLE montepomi.dbeel_physical_obstruction_species AS (
+DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_score_species;
+CREATE TABLE montepomi.dbeel_physical_obstruction_score_species AS (
 WITH 		
 -- pour le ICE on ne garde qu'un seul enregistrement PAD our toutes les parties d'obstacle
 ice_mesure AS (
@@ -1506,7 +1506,10 @@ SELECT * FROM ice_mesure), -- 38178
 
 
 join_with_physical_obstruction_date AS(
-SELECT * FROM bdoe_ice_mesure 
+SELECT 
+ob_id,
+bdoe_ice_mesure.*
+FROM bdoe_ice_mesure 
 JOIN montepomi.dbeel_obstruction_place ON dbeel_obstruction_place.id_original = bdoe_ice_mesure.id_original 
 JOIN montepomi.dbeel_physical_obstruction ON 
   dbeel_physical_obstruction.ob_op_id= op_id AND
@@ -1515,7 +1518,10 @@ JOIN montepomi.dbeel_physical_obstruction ON
 --SELECT * FROM join_with_physical_obstruction_date --2275 valeurs avec date non nulle.
 
 join_with_physical_obstruction_null AS(
-SELECT * FROM bdoe_ice_mesure 
+SELECT 
+ob_id,
+bdoe_ice_mesure.*
+FROM bdoe_ice_mesure 
 JOIN montepomi.dbeel_obstruction_place ON dbeel_obstruction_place.id_original = bdoe_ice_mesure.id_original 
 JOIN montepomi.dbeel_physical_obstruction ON 
   dbeel_physical_obstruction.ob_op_id= op_id 
@@ -1529,8 +1535,8 @@ UNION
 SELECT * FROM
 join_with_physical_obstruction_null
 )
-SELECT * FROM expertise_ouv_esp; --11399 
-	
+SELECT * FROM expertise_ouv_esp 
+)	; -- END CREATE TABLE --11399 
 
 
 
