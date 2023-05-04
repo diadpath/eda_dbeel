@@ -1257,7 +1257,7 @@ Global score calculated thanks to all the previous information collected
 -- et la table qui fait la même jointure mais pour laquelle la date de construction est NULL
 -- TODO voir pourquoi après le UNION on passe de 15041 à 15019, peut etre tous les ouvrages de obstruction op_no_observationplace
 -- ne sont pas dans dbeel_physical_obstruction.
-DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_pass_species;
+DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_pass_species CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction_pass_species AS (
 WITH table_espece AS (
   SELECT
@@ -1351,57 +1351,54 @@ SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
 roe_type_pap AS (
 SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
       fpi_id,
-      TRUE::boolean AS po_presence_pass,
+      fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 AS po_presence_pass,   -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole
 LEFT JOIN bdoe.ouvrage ON fpi_ref_id=ouv_id
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-WHERE fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
+
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
       fpi_id,
-      TRUE::boolean AS po_presence_pass,
+      fpi_fty_id IN (1,4,8,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
-LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-WHERE fpi_fty_id IN (1,4,8,7,2,6) 
+LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id 
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'alose' AS species,
       fpi_id,
-      TRUE::boolean AS po_presence_pass,
+      fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'lamproie' AS species,
       fpi_id,
-      TRUE::boolean AS po_presence_pass,
+      fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-WHERE fpi_fty_id IN (1,8,5,0,7,2,6)
 
 UNION ALL 
 
 SELECT fpi_ref_id AS ouv_id, 'saumon' AS species,
       fpi_id,
-      TRUE::boolean AS po_presence_pass,
+      fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
 FROM roe.franchissement_piscicole 
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-WHERE fpi_fty_id IN (1,8,5,0,7,2,6)),
+),
 
 -- on utilise pas ICE type_pass
 dbeel_type_pap AS (
@@ -1415,14 +1412,14 @@ WHERE fpi_id IS NOT NULL
 --SELECT * FROM dbeel_type_pap --15541
 
 join_with_physical_obstruction_date AS(
-SELECT * FROM dbeel_type_pap JOIN 
+SELECT dbeel_type_pap.* FROM dbeel_type_pap JOIN 
 montepomi.dbeel_physical_obstruction ON
 dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id AND
 date_passe < ob_ending_date
 ), -- 2703
 
 join_with_physical_obstruction_null AS(
-SELECT * FROM dbeel_type_pap JOIN 
+SELECT dbeel_type_pap.* FROM dbeel_type_pap JOIN 
 montepomi.dbeel_physical_obstruction ON
 dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id 
 WHERE date_passe IS NULL)
