@@ -1411,22 +1411,22 @@ WHERE fpi_id IS NOT NULL
 --SELECT * FROM dbeel_type_pap --15541
 
 join_with_physical_obstruction_date AS(
-SELECT dbeel_type_pap.* FROM dbeel_type_pap JOIN 
+SELECT ob_id,dbeel_type_pap.* FROM dbeel_type_pap JOIN 
 montepomi.dbeel_physical_obstruction ON
 dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id AND
 date_passe < ob_ending_date
 ), -- 2703
 
 join_with_physical_obstruction_null AS(
-SELECT dbeel_type_pap.* FROM dbeel_type_pap JOIN 
+SELECT ob_id,dbeel_type_pap.* FROM dbeel_type_pap JOIN 
 montepomi.dbeel_physical_obstruction ON
 dbeel_physical_obstruction.ob_op_id = dbeel_type_pap.op_id 
 WHERE date_passe IS NULL)
 
 SELECT * FROM join_with_physical_obstruction_date 
    UNION 
-SELECT * FROM              join_with_physical_obstruction_null
-) -- END CREATE TABLE 15019 (pourquoi pas 15041)
+SELECT * FROM join_with_physical_obstruction_null
+); -- END CREATE TABLE 15019 (pourquoi pas 15041) 277740
 
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
 --SELECT id_original, count(*) FROM join_with_physical_obstruction GROUP BY 1 ORDER BY 2 DESC  

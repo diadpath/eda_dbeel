@@ -11,4 +11,4 @@ FROM montepomi.dbeel_physical_obstruction_pass_species
 ORDER BY ob_id, species, po_presence_pass DESC) --15 019
 
 SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350
-)
+);
