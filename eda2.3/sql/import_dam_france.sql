@@ -1037,7 +1037,6 @@ op_id,
    op_no_observationplacetype
 FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--91188
 --select * from obstruction
---TODO : aller chercher les infos suivantes dans les différentes tables
 
 bdoe_ouvrage AS (
 SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
@@ -1242,7 +1241,7 @@ Bdoe score of passability by dam and species
 Global score calculated thanks to all the previous information collected
 */
  
--- TODO créer colonne species (avec 4 espèces pour 1 ouvrage)
+
 
 -- Traitement des données de passe à poissons. 
 -- On récupère les fonctionnalités de passe par espèce
