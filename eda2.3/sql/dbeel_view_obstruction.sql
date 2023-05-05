@@ -30,8 +30,8 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
     dbeel_physical_obstruction.ot_obstruction_number,
     --dbeel_physical_obstruction.ot_no_mortality_type,
     --dbeel_physical_obstruction.ot_no_mortality,
-    obstruction_impact.no_code AS obstruction_impact_code,
-    obstruction_impact.no_name AS obstruction_impact_name,
+    --obstruction_impact.no_code AS obstruction_impact_code,
+    --obstruction_impact.no_name AS obstruction_impact_name,
     dbeel_physical_obstruction.po_obstruction_height,
     dbeel_physical_obstruction.po_downs_pb,
     --dbeel_physical_obstruction.po_downs_water_depth,
@@ -57,7 +57,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
    LEFT JOIN dbeel_nomenclature.observation_place_type ON op_no_observationplacetype=observation_place_type.no_id
    LEFT JOIN dbeel_nomenclature.obstruction_type ON obstruction_type.no_id=dbeel_physical_obstruction.ot_no_obstruction_type
    LEFT JOIN dbeel_nomenclature.obstruction_impact ON obstruction_impact.no_id= dbeel_physical_obstruction.po_no_obstruction_passability
-   LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
+  -- LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
 ; --  103309 --montepomi : 93736
