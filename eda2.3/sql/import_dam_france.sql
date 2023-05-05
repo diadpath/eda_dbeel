@@ -1464,7 +1464,7 @@ SELECT * FROM join_with_physical_obstruction_null
 -- Pour un ob_id (une période donnée) OBJECT n va avoir plusieurs notes d'expertise, par espèces,
 -- Mais aussi correspondant potentiellement à différentes dates et différentes sources (soit bdoe soit ice)
 -- il va falloir choisir, on va prendre ICE puis bdoe et on prend pour toute la période l'expertise la plus récente
-DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_score_species;
+DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_score_species CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction_score_species AS (
 WITH 		
 -- pour le ICE on ne garde qu'un seul enregistrement PAD our toutes les parties d'obstacle

@@ -1,5 +1,5 @@
-DROP MATERIALIZED VIEW IF EXISTS montepomi.dbeel_view_score CASCADE;
-CREATE MATERIALIZED VIEW montepomi.dbeel_view_score AS (
+DROP VIEW IF EXISTS montepomi.dbeel_view_score CASCADE;
+CREATE VIEW montepomi.dbeel_view_score AS (
 with
 ordered as( 
 SELECT * FROM montepomi.dbeel_physical_obstruction_score_species
