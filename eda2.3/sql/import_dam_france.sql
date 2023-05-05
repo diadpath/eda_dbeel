@@ -643,9 +643,20 @@ count;fishway_type;po_presence_eel_pass
 --ALTER COLUMN fishway_type TYPE INTEGER USING fishway_type::INTEGER;
 
 -- SELECT count(*) FROM roe.roesudo;--117340
+
+-- The following table now makes full use of starting_date and ending_date
+-- The are provided by default for any dams if no information on period is set 
+-- It will then be set from '1800-01-01'  to '2035-01-01'
+-- but any event like pass construction, dam construction, arasement (the dam is completely removed),
+-- derasement (the dam is partially destroyed), start of activity, end of activity will create a "period"
+-- for the dam.
+-- A height recorded at different times might be different but it will not create a "structural"
+-- modification of the dam (check with OFB how an alteration of dam structure over time might later be integrated).
+
 DROP TABLE if exists montepomi.dbeel_physical_obstruction CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction (
-  fishway_type INTEGER,
+  --fishway_type INTEGER,
+  --ouv_idnational TEXT,
   date_last_update date,
   author_last_update text,
   comment_update text,
@@ -660,6 +671,9 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   source_h_chute varchar (15),
   ouv_type_evt varchar (30),
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
+  CONSTRAINT c_uk_ob_id_date UNIQUE(ob_id, ob_starting_date, ob_ending_date),
+  CONSTRAINT c_nn_ob_starting_date CHECK (ob_starting_date IS NOT NULL),
+  CONSTRAINT c_nn_ob_ending_date CHECK (ob_ending_date IS NOT NULL),
   CONSTRAINT fk_dp FOREIGN KEY (ob_dp_id) REFERENCES dbeel.data_provider (dp_id),
   CONSTRAINT fk_ob_origin FOREIGN KEY (ob_no_origin)REFERENCES dbeel_nomenclature.observation_origin (no_id) ,
   CONSTRAINT fk_ob_period FOREIGN KEY (ob_no_period) REFERENCES dbeel_nomenclature.period_type (no_id) ,
@@ -667,6 +681,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   --CONSTRAINT fk_po_obstruction_passability FOREIGN KEY (po_no_obstruction_passability)REFERENCES dbeel_nomenclature.obstruction_impact (no_id),
   CONSTRAINT fk_ot_obstruction_type FOREIGN KEY (ot_no_obstruction_type) REFERENCES dbeel_nomenclature.obstruction_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_ot_mortality_type FOREIGN KEY (ot_no_mortality_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON UPDATE CASCADE ON DELETE RESTRICT
+  
 ) INHERITS(dbeel.physical_obstruction);
 
 
@@ -1135,6 +1150,7 @@ po_downs_pb,
 --po_method_perm_ev,
 --po_date_presence_eel_pass,
 --fishway_type,
+--ouv_idnational,
 date_last_update,
 author_last_update,
 comment_update,
@@ -1157,8 +1173,10 @@ SELECT
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  datedebut AS ob_starting_date,
-  datefin AS ob_ending_date,
+  COALESCE(datedebut,'1800-01-01') AS ob_starting_date,
+  COALESCE(datefin, '2035-01-01') AS ob_ending_date,
+  -- NOTE In the building query when no event occurs for a dam, then both
+  -- datedebut and datefin are NULL after joining and the coalesce fixes that case
   obstruction.op_id AS ob_op_id,
   dp_id AS ob_dp_id,
   obstruction_type_no_id AS ot_no_obstruction_type,-- physical
@@ -1175,6 +1193,7 @@ SELECT
   --     ELSE NULL END AS po_method_perm_ev, 
   --NULL AS po_date_presence_eel_pass, -- bullshit
   --fishway_type, 
+  --ouv_idnational, 
   current_date AS date_last_update, 
   'Léa, Jules, Benjamin and Marion' AS author_last_update, 
   'initial insertion Height for all species:' AS comment_update, 
@@ -1204,6 +1223,8 @@ FROM
 -- 93736 14/04
 -- 93954 28/04
  
+
+
 -- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
 -- On va chercher les expertises ICE par passes a poissons et espèces
 -- A ce stade on ne sait pas comment joindre les deux tableaux car l'id des dispositifs de 
