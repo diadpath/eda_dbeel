@@ -937,7 +937,7 @@ ORDER BY ouv_id, datedebut),
   SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
   FROM date_atg 
   LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
-  AND ouv_date_avis BETWEEN datedebut and datefin
+  AND ouv_date_avis >= datedebut and ouv_date_avis < datefin
   AND ouv_date_avis IS NOT NULL 
   AND datefin IS NOT NULL 
  
@@ -1286,7 +1286,7 @@ FROM
 -- 93954 28/04
 -- 93962 12/05
 
-
+SELECT * FROM montepomi.dbeel_physical_obstruction 
 
 
 -- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
