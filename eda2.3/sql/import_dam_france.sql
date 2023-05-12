@@ -662,6 +662,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   comment_update text,
   --esp_id integer, 
   ouv_avis_tech_global_id integer,
+  ouv_date_avis date,
   ouv_commentaire_chute_bdoe text,
   ouv_commentaire_avis_bdoe text,
   ouv_commentaires_bdoe text,
@@ -881,6 +882,11 @@ date_evenement_all AS (
   WHERE ref_date_construction_ouvrage IS NOT NULL
   ORDER BY ouv_id, date_evt),
   
+ 
+  
+
+		
+		
   
 -- La premiere va de NULL a min, les suivantes vont de
 -- date à date+1 dans le partition by. 
@@ -915,6 +921,59 @@ OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
 
+
+  
+  
+-- nouvelles colonnes des dates de l'avis technique global pour l'appliquer à une période
+
+  date_atg AS (
+  SELECT ouv_id, ouv_atg_id, ouv_date_avis 
+  FROM bdoe.ouvrage
+  WHERE ouv_date_avis IS NOT NULL AND ouv_date_avis < current_date),
+  
+  periode_atg AS (
+  -- 1er cas : la date de l'ouvrage existe et la date d'avis existe
+  
+  SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  FROM date_atg 
+  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
+  AND ouv_date_avis BETWEEN datedebut and datefin
+  AND ouv_date_avis IS NOT NULL 
+  AND datefin IS NOT NULL 
+ 
+  UNION 
+  
+  --2ème cas : la date d'avis n'existe pas 
+  SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  FROM date_atg 
+  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
+  AND ouv_date_avis IS NULL 
+  AND datefin IS NOT NULL 
+  
+  UNION 
+  
+  -- date d'ouvrage est nulle et la date d'avis n'existe pas
+   SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  FROM date_atg 
+  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
+  AND ouv_date_avis IS NULL 
+  AND datefin IS NULL 
+  
+  UNION 
+  
+  -- la date d'avis existe et la  date de fin existe pas 
+    SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  FROM date_atg 
+  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
+  AND ouv_date_avis IS NOT NULL 
+  AND datefin IS NULL
+  ORDER BY ouv_id, datedebut, datefin, ouv_date_avis),
+  
+unique_periode_atg as (
+SELECT distinct ON (ouv_id, datedebut, datefin) * FROM periode_atg),
+  
+--SELECT * FROM unique_periode_atg
+
 -- Attention à date_metier qui correspondrait a des modifications sur la franchissabilité de l'ouvrage mais pas forcément lié à un dispositif de franchissement
 --SELECT * FROM ordre_periode WHERE ouv_id=217 
 
@@ -934,7 +993,7 @@ hauteur_chute_par_periode AS (
  FROM
  hauteur_chute_tous JOIN ordre_periode ON (
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
- AND date_mesure BETWEEN datedebut AND datefin)
+ AND date_mesure < datefin)
  
  UNION
  -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates) et tous les ouvrages
@@ -1158,6 +1217,7 @@ mitigation_measure_no_id,
 --esp_id,
 --Champs insérés 2023
 ouv_avis_tech_global_id,
+ouv_date_avis,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1173,8 +1233,8 @@ SELECT
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  COALESCE(datedebut,'1800-01-01') AS ob_starting_date,
-  COALESCE(datefin, '2035-01-01') AS ob_ending_date,
+  COALESCE(height.datedebut,'1800-01-01') AS ob_starting_date,
+  COALESCE(height.datefin, '2035-01-01') AS ob_ending_date,
   -- NOTE In the building query when no event occurs for a dam, then both
   -- datedebut and datefin are NULL after joining and the coalesce fixes that case
   obstruction.op_id AS ob_op_id,
@@ -1200,6 +1260,7 @@ SELECT
   mitigationmeasureid AS mitigation_measure_no_id,
 --esp_id,
 ouv_avis_tech_global_id,
+ouv_date_avis,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1216,13 +1277,16 @@ FROM
   --LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
   LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
   LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
+  LEFT JOIN unique_periode_atg upa ON (upa.ouv_id, upa.datedebut, upa.datefin) = (obstruction.ouv_id, height.datedebut, height.datefin)
   LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
   dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
   AND  obstruction_type_no_id IS NOT NULL; 
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04
 -- 93954 28/04
- 
+-- 93962 12/05
+
+
 
 
 -- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
