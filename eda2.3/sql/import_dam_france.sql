@@ -1626,7 +1626,7 @@ set score_homogene =
 	CASE when source_note = 'bdoe' THEN 
 	case 
 	when score = 0 then 4
-	when  score = 1 THEN 4
+	when score = 1 THEN 4
 	WHEN score = 2 then 3
 	WHEN score = 3 THEN 2
 	WHEN score = 4 THEN 2
@@ -1634,6 +1634,7 @@ set score_homogene =
 	end
 	else score 
 end;
+
 ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN libelle_homogene varchar
 update montepomi.dbeel_physical_obstruction_score_species
 set libelle_homogene =
@@ -1643,9 +1644,6 @@ set libelle_homogene =
 	WHEN score_homogene = 3 THEN 'Barrière partielle à impact significatif'
 	WHEN score_homogene = 4 THEN 'Barrière franchissable à impact limité'
 end;
-
-select*
-FROM montepomi.dbeel_physical_obstruction_score_species
 
 --select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
 /*
