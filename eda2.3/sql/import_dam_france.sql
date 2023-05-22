@@ -1619,7 +1619,25 @@ join_with_physical_obstruction_null
 SELECT * FROM expertise_ouv_esp 
 )	; -- END CREATE TABLE --11399 
 
+--ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer
+--DROP score_homogene FROM montepomi.dbeel_physical_obstruction_score_species
 
+
+SELECT *,
+	CASE WHEN score = 0 AND source_note = 'bdoe'  
+	THEN score_homogene = 4
+	WHEN score = 1 AND source_note = 'bdoe' 
+	THEN score_homogene = 4
+	WHEN score = 2 AND source_note = 'bdoe' 
+	THEN score_homogene = 3
+	WHEN score = 3 AND source_note = 'bdoe' 
+	THEN score_homogene = 2
+	WHEN score = 4 AND source_note = 'bdoe' 
+	THEN score_homogene = 2
+	WHEN score = 5 AND source_note = 'bdoe' 
+	THEN score_homogene = 1
+	END 
+FROM montepomi.dbeel_physical_obstruction_score_species
 
 --select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
 /*
