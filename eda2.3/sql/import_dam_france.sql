@@ -1619,24 +1619,32 @@ join_with_physical_obstruction_null
 SELECT * FROM expertise_ouv_esp 
 )	; -- END CREATE TABLE --11399 
 
---ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer
+ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer
 --DROP score_homogene FROM montepomi.dbeel_physical_obstruction_score_species
+update montepomi.dbeel_physical_obstruction_score_species
+set score_homogene =
+	CASE when source_note = 'bdoe' THEN 
+	case 
+	when score = 0 then 4
+	when  score = 1 THEN 4
+	WHEN score = 2 then 3
+	WHEN score = 3 THEN 2
+	WHEN score = 4 THEN 2
+	WHEN score = 5 THEN 1
+	end
+	else score 
+end;
+ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN libelle_homogene varchar
+update montepomi.dbeel_physical_obstruction_score_species
+set libelle_homogene =
+	CASE 
+	when score_homogene = 1 THEN 'Barrière totale'
+	WHEN score_homogene = 2 then 'Barrière partielle à impact majeur'
+	WHEN score_homogene = 3 THEN 'Barrière partielle à impact significatif'
+	WHEN score_homogene = 4 THEN 'Barrière franchissable à impact limité'
+end;
 
-
-SELECT *,
-	CASE WHEN score = 0 AND source_note = 'bdoe'  
-	THEN score_homogene = 4
-	WHEN score = 1 AND source_note = 'bdoe' 
-	THEN score_homogene = 4
-	WHEN score = 2 AND source_note = 'bdoe' 
-	THEN score_homogene = 3
-	WHEN score = 3 AND source_note = 'bdoe' 
-	THEN score_homogene = 2
-	WHEN score = 4 AND source_note = 'bdoe' 
-	THEN score_homogene = 2
-	WHEN score = 5 AND source_note = 'bdoe' 
-	THEN score_homogene = 1
-	END 
+select*
 FROM montepomi.dbeel_physical_obstruction_score_species
 
 --select * from montepomi.dbeel_physical_obstruction  where author_last_update = 'Cédric and Mathilde' limit 10;
