@@ -922,7 +922,7 @@ FROM date_evenement_all
 ORDER BY ouv_id, datedebut),
 
 
-  
+
   
 -- nouvelles colonnes des dates de l'avis technique global pour l'appliquer à une période
 
@@ -1259,7 +1259,8 @@ SELECT
   'initial insertion Height for all species:' AS comment_update, 
   mitigationmeasureid AS mitigation_measure_no_id,
 --esp_id,
-ouv_avis_tech_global_id,
+CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
+ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
 ouv_date_avis,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
@@ -1286,7 +1287,7 @@ FROM
 -- 93954 28/04
 -- 93962 12/05
 
-SELECT * FROM montepomi.dbeel_physical_obstruction 
+SELECT count(*) FROM montepomi.dbeel_physical_obstruction 
 
 
 -- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
