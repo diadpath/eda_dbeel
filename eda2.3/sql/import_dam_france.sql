@@ -1294,28 +1294,28 @@ SELECT * FROM montepomi.dbeel_physical_obstruction
 -- A ce stade on ne sait pas comment joindre les deux tableaux car l'id des dispositifs de 
 -- franchissement ice et roe ne sont pas les mêmes
  
-WITH note_ice_pap AS (
-SELECT dfp_id, cipo_gre_id,cipo_cli_id, cli_code, cli_libelle, gre_libelle
-FROM ice.dispositif_franchissement_piscicole
-LEFT JOIN ice.structure_obstacle ON structure_obstacle.sto_id=dispositif_franchissement_piscicole.dfp_id
-LEFT JOIN ice.partie_obstacle ON pao_id=sto_pao_id
-LEFT JOIN ice.classe_ice_partie_obstacle ON cipo_pao_id=pao_id
-LEFT JOIN ice.classe_ice ci ON cli_id=cipo_cli_id
-LEFT JOIN ice.groupe_espece ON gre_id=cipo_gre_id
-WHERE cipo_gre_id IN (1,3,5,19,20))--115
-
-
-SELECT DISTINCT dbeel_obstruction_place.op_id,
-franchissement_piscicole.fpi_ref_id AS ouv_id, 
-franchissement_piscicole.fpi_id AS pap_id,
-franchissement_piscicole_type.fty_code::numeric AS cdtypedisp, 
-franchissement_piscicole_type.fty_nom,
-dfp_date_mes AS date_creation_pap
-FROM montepomi.dbeel_obstruction_place
-LEFT JOIN roe.franchissement_piscicole ON 'ROE'||franchissement_piscicole.fpi_ref_id=id_original  
-LEFT JOIN roe.franchissement_piscicole_type on fpi_fty_id=fty_id
-LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_ouv_id=fpi_ref_id
-LEFT JOIN note_ice_pap ON dfp_id = ;--92146
+--WITH note_ice_pap AS (
+--SELECT dfp_id, cipo_gre_id,cipo_cli_id, cli_code, cli_libelle, gre_libelle
+--FROM ice.dispositif_franchissement_piscicole
+--LEFT JOIN ice.structure_obstacle ON structure_obstacle.sto_id=dispositif_franchissement_piscicole.dfp_id
+--LEFT JOIN ice.partie_obstacle ON pao_id=sto_pao_id
+--LEFT JOIN ice.classe_ice_partie_obstacle ON cipo_pao_id=pao_id
+--LEFT JOIN ice.classe_ice ci ON cli_id=cipo_cli_id
+--LEFT JOIN ice.groupe_espece ON gre_id=cipo_gre_id
+--WHERE cipo_gre_id IN (1,3,5,19,20))--115
+--
+--
+--SELECT DISTINCT dbeel_obstruction_place.op_id,
+--franchissement_piscicole.fpi_ref_id AS ouv_id, 
+--franchissement_piscicole.fpi_id AS pap_id,
+--franchissement_piscicole_type.fty_code::numeric AS cdtypedisp, 
+--franchissement_piscicole_type.fty_nom,
+--dfp_date_mes AS date_creation_pap
+--FROM montepomi.dbeel_obstruction_place
+--LEFT JOIN roe.franchissement_piscicole ON 'ROE'||franchissement_piscicole.fpi_ref_id=id_original  
+--LEFT JOIN roe.franchissement_piscicole_type on fpi_fty_id=fty_id
+--LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_ouv_id=fpi_ref_id
+--LEFT JOIN note_ice_pap ON dfp_id = ;--92146
           
 -- #18 Summary of expertise data in ICE and Bdoe at the scale of dam and species
 /*ouv_id,
@@ -1341,6 +1341,7 @@ Global score calculated thanks to all the previous information collected
 -- et la table qui fait la même jointure mais pour laquelle la date de construction est NULL
 -- TODO voir pourquoi après le UNION on passe de 15041 à 15019, peut etre tous les ouvrages de obstruction op_no_observationplace
 -- ne sont pas dans dbeel_physical_obstruction.
+
 DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_pass_species CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction_pass_species AS (
 WITH table_espece AS (
@@ -1433,7 +1434,8 @@ SELECT DISTINCT obstacle_operation_ice.ooi_ref_id, 'anguille' AS species,
       GROUP BY obstacle_operation_ice.ooi_ref_id),
 */      
 roe_type_pap AS (
-SELECT fpi_ref_id AS ouv_id, 'civelle' AS species,
+SELECT fpi_ref_id AS ouv_id,
+	  'civelle' AS species,
       fpi_id,
       fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50 AS po_presence_pass,   -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -1445,7 +1447,8 @@ LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 
 UNION ALL 
 
-SELECT fpi_ref_id AS ouv_id, 'anguille' AS species,
+SELECT fpi_ref_id AS ouv_id,
+	  'anguille' AS species,
       fpi_id,
       fpi_fty_id IN (1,4,8,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -1455,7 +1458,8 @@ LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 
 UNION ALL 
 
-SELECT fpi_ref_id AS ouv_id, 'alose' AS species,
+SELECT fpi_ref_id AS ouv_id,
+	  'alose' AS species,
       fpi_id,
       fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -1465,7 +1469,8 @@ LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 
 UNION ALL 
 
-SELECT fpi_ref_id AS ouv_id, 'lamproie' AS species,
+SELECT fpi_ref_id AS ouv_id,
+	  'lamproie' AS species,
       fpi_id,
       fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -1475,7 +1480,8 @@ LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
 
 UNION ALL 
 
-SELECT fpi_ref_id AS ouv_id, 'saumon' AS species,
+SELECT fpi_ref_id AS ouv_id,
+	  'saumon' AS species,
       fpi_id,
       fpi_fty_id IN (1,8,5,0,7,2,6) AS po_presence_pass,
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -1511,7 +1517,7 @@ WHERE date_passe IS NULL)
 SELECT * FROM join_with_physical_obstruction_date 
    UNION 
 SELECT * FROM join_with_physical_obstruction_null
-); -- END CREATE TABLE 15019 (pourquoi pas 15041) 277740
+); -- END CREATE TABLE 15019 (pourquoi pas 15041) 279610
 
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
 --SELECT id_original, count(*) FROM join_with_physical_obstruction GROUP BY 1 ORDER BY 2 DESC  
@@ -1617,9 +1623,9 @@ SELECT * FROM
 join_with_physical_obstruction_null
 )
 SELECT * FROM expertise_ouv_esp 
-)	; -- END CREATE TABLE --11399 
+); -- END CREATE TABLE --11399 
 
-ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer
+ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer;
 --DROP score_homogene FROM montepomi.dbeel_physical_obstruction_score_species
 update montepomi.dbeel_physical_obstruction_score_species
 set score_homogene =
@@ -1635,7 +1641,7 @@ set score_homogene =
 	else score 
 end;
 
-ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN libelle_homogene varchar
+ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN libelle_homogene varchar;
 update montepomi.dbeel_physical_obstruction_score_species
 set libelle_homogene =
 	CASE 
