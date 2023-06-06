@@ -5,5 +5,5 @@ ordered as(
 SELECT * FROM montepomi.dbeel_physical_obstruction_score_species
 order by ob_id, species, source_note desc -- we take ICE then bdoe
 )
-select distinct on (ob_id, species, source_note) * from ordered
+select distinct on (ob_id, species) * from ordered
 ); --11341
