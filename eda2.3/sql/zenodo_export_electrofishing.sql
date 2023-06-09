@@ -42,6 +42,7 @@ ve.id,
 ve.op_id,
 ve.op_gis_layername,
 CASE WHEN et_establishment_name = 'Valencia Council (VAERSA)' THEN 'Servicio de Caza y Pesca de la Generalitat Valenciana'
+     WHEN et_establishment_name = 'ANBIOTEK' THEN 'Basque Water Agency (URA)'
 ELSE et_establishment_name END AS "data_provider",
 ve.op_placename,
 ve.ob_id,
