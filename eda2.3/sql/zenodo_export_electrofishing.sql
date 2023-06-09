@@ -14,8 +14,8 @@ op_gis_layername, -- DATA provider IN sudoang
 --institution, -- institution IF DATA come FROM the sibic
 --articletitle, -- article title IF DATA come FROM the sibic
 op_placename, -- Name OF the place
-st_x(st_transform(geom_reproj , 4326)), --x(EPSG 4326)
-st_y(st_transform(geom_reproj,4326)), --y (EPSG 4326)
+st_x(st_transform(geom_reproj , 4326)) AS x_espg_4326, --x(EPSG 4326)
+st_y(st_transform(geom_reproj,4326)) AS y_espg_4326, --y (EPSG 4326)
 country -- country
 FROM sudoang.dbeel_station s 
 LEFT JOIN species_location_uk l
