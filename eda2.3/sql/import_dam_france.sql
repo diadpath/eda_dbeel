@@ -663,6 +663,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   --esp_id integer, 
   ouv_avis_tech_global_id integer,
   ouv_date_avis date,
+  ouv_conformite_montaison integer,
   ouv_commentaire_chute_bdoe text,
   ouv_commentaire_avis_bdoe text,
   ouv_commentaires_bdoe text,
@@ -1147,6 +1148,7 @@ LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114 314
  
 add_column_bdoe as (
 	select ouv_atg_id AS ouv_avis_tech_global_id,
+	    ouv_conformite_montaison,
 		ouv_commentaire_chute AS ouv_commentaire_chute_bdoe,
 		ouv_commentaire_avis AS ouv_commentaire_avis_bdoe,
 		ouv_commentaires AS ouv_commentaires_bdoe,
@@ -1218,6 +1220,7 @@ mitigation_measure_no_id,
 --Champs insérés 2023
 ouv_avis_tech_global_id,
 ouv_date_avis,
+ouv_conformite_montaison,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1262,6 +1265,7 @@ SELECT
 CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
 ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
 ouv_date_avis,
+ouv_conformite_montaison,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1286,7 +1290,8 @@ FROM
 -- 93736 14/04
 -- 93954 28/04
 -- 93962 12/05
-
+-- 93962 16/06
+ 
 SELECT count(*) FROM montepomi.dbeel_physical_obstruction 
 
 
