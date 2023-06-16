@@ -25,8 +25,9 @@ CURRENT_DATE AS sta_last_update
 FROM rsa_loire.station WHERE 
 sta_zone='lcv'; --317
 
+--A LANCER IMPERATIVEMENT !!!
 UPDATE rsa.station SET sta_prod_id=11 WHERE sta_zone='lcvlogrami' AND sta_prod_id IS NULL;--317
-
+--
 INSERT INTO rsa.operation
 ( op_id, op_cod, op_sta_id, op_date, op_typ, op_zone, 
 op_last_update)
@@ -37,6 +38,7 @@ CURRENT_DATE AS op_last_update
 FROM rsa_loire.operation WHERE 
 op_zone='lcv'; --891
 
+--A LANCER IMPERATIVEMENT !!!
 UPDATE rsa.operation SET op_prod_id=11 WHERE op_zone='lcvlogrami' AND op_prod_id IS NULL;--891
 
 
