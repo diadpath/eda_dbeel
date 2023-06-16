@@ -664,6 +664,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_avis_tech_global_id integer,
   ouv_date_avis date,
   ouv_conformite_montaison integer,
+  ouv_conformite_devalaison integer,
   ouv_commentaire_chute_bdoe text,
   ouv_commentaire_avis_bdoe text,
   ouv_commentaires_bdoe text,
@@ -917,7 +918,7 @@ UNION ALL
 SELECT ouv_id, 
 type_evt, 
 date_evt AS datedebut,
-LEAD(date_evt, 1, '2035-01-01') 
+LEAD(date_evt, 1, '2035-01-01') -- ATTENTION SI MODIF 2035 ADAPT SCRIPT baseedariosriversegmetdam.R cumulated_dam_impact2 fntrans()
 OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
@@ -1149,6 +1150,7 @@ LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114 314
 add_column_bdoe as (
 	select ouv_atg_id AS ouv_avis_tech_global_id,
 	    ouv_conformite_montaison,
+	    ouv_conformite_devalaison,
 		ouv_commentaire_chute AS ouv_commentaire_chute_bdoe,
 		ouv_commentaire_avis AS ouv_commentaire_avis_bdoe,
 		ouv_commentaires AS ouv_commentaires_bdoe,
@@ -1221,6 +1223,7 @@ mitigation_measure_no_id,
 ouv_avis_tech_global_id,
 ouv_date_avis,
 ouv_conformite_montaison,
+ouv_conformite_devalaison,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1266,6 +1269,7 @@ CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
 ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
 ouv_date_avis,
 ouv_conformite_montaison,
+ouv_conformite_devalaison,
 ouv_commentaire_chute_bdoe,
 ouv_commentaire_avis_bdoe,
 ouv_commentaires_bdoe,
@@ -1696,6 +1700,33 @@ SELECT count(*) FROM uniqueCASE -- 80324
 /*-----------------------------------------------------
 * PRISE D'EAU
 ----------------------------------------------------------*/
+---- Hydropower plants:
+-- TODO ajouter conformite devalaison et atg
+DROP TABLE IF EXISTS montepomi.dbeel_hpp ;
+CREATE TABLE montepomi.dbeel_hpp (
+        CONSTRAINT c_pk_hpp_id PRIMARY KEY (hpp_id),
+        CONSTRAINT c_fk_hpp_orient_flow_no_id FOREIGN KEY (hpp_orient_flow_no_id) REFERENCES dbeel_nomenclature.orient_flow (no_id) ON UPDATE CASCADE ON DELETE CASCADE,
+        CONSTRAINT c_fk_hpp_ob_id FOREIGN KEY (hpp_ob_id) REFERENCES dbeel.physical_obstruction (ob_id) ON UPDATE CASCADE ON DELETE CASCADE
+) INHERITS (dbeel.hpp);
+
+
+---- Bypass:
+DROP TABLE IF EXISTS montepomi.dbeel_bypass;
+CREATE TABLE montepomi.dbeel_bypass (
+        CONSTRAINT c_pk_bypass_id PRIMARY KEY (bypass_id),
+  CONSTRAINT c_fk_bypass_hpp_id FOREIGN KEY (bypass_hpp_id) REFERENCES dbeel.hpp (hpp_id) ON UPDATE CASCADE ON DELETE CASCADE
+) INHERITS (dbeel.bypass); 
+
+
+---- Turbine:
+DROP TABLE IF EXISTS montepomi.dbeel_turbine;
+CREATE TABLE montepomi.dbeel_turbine (
+        CONSTRAINT c_pk_turb_id PRIMARY KEY (turb_id),
+  CONSTRAINT c_fk_turb_hpp_id FOREIGN KEY (turb_hpp_id) REFERENCES dbeel.hpp (hpp_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT c_fk_turb_turbine_type_no_id FOREIGN KEY (turb_turbine_type_no_id) REFERENCES dbeel_nomenclature.turbine_type (no_id) ON UPDATE CASCADE ON DELETE CASCADE
+) INHERITS (dbeel.turbine); 
+
+
 /*
  * RUNONCE CHANGES IN THE DBEEL
  */
@@ -1729,7 +1760,11 @@ COMMIT;
 
 /*
 INSERTION SCRIPT
+TODO voir cohérence avec aspect temporel
+TODO ajouter ATG et conformite devalaison
 */
+
+
 
 WITH roe_usage_hydro AS(
 SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
@@ -1746,20 +1781,33 @@ bdoe_usage_hydro AS (
 	JOIN  roe_usage_hydro on roe_usage_hydro.ouv_id='ROE'||ouvrage.ouv_id
 	),
 	
---SELECT * FROM bdoe_usage_hydro --5326 
+--SELECT * FROM bdoe_usage_hydro --5326 5508 
 prise_eau_ice AS (
-SELECT * FROM ice.obstacle_operation_ice 
+SELECT *,
+coalesce(opi_date_releve, opi_date_creation) AS opi_date
+FROM ice.obstacle_operation_ice 
 	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
 	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
 	JOIN ice.structure_obstacle on sto_pao_id=pao_id
         JOIN ice.prise_eau  on sto_id= pre_id
         ORDER BY opi_date_releve DESC
         ),
+        
 prise_eau_ice_unique AS (
-	SELECT distinct ON (ooi_id) * FROM  prise_eau_ice
-	),
-	
---SELECT * FROM prise_eau_ice_unique --562
+SELECT distinct ON (ooi_id) * FROM prise_eau_ice
+),
+        
+--SELECT count(*) FROM prise_eau_ice --925
+-- when joining with roesudo nrow = 925 similar to prise_eau_ice
+-- later on joining to obstruction place drop to 891 probably because some dams are identified as 'grille de pisciculture'
+-- joining without using the date create more line (all period for the same dam are joinded) --994
+-- when using the latest date only for the prise d'eau we have -- 970
+-- we have decided not to use date as the date is when the dam was expertised not the date when a HPP was present
+-- SO we remove lines
+  --AND opi_date >= ob_starting_date
+  --AND opi_date < ob_ending_date
+-- 
+
 
 bdoe_ice_montepomi AS (  
 	SELECT * 
@@ -1767,12 +1815,13 @@ bdoe_ice_montepomi AS (
 	JOIN roe.roesudo on dbeel_op_id = op_id
 	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	JOIN prise_eau_ice_unique on ref_id_national='ROE'||ooi_ref_id
+
     LEFT JOIN bdoe_usage_hydro on 'ROE'||bdoe_usage_hydro.ouv_id=ref_id_national 
-         ),
+         ), --970
 -- SELECT count(*) FROM bdoe_ice_montepomi WHERE (pre_id is not NULL OR usa_uty_id=5); --4727
 -- SELECT count(*) FROM bdoe_ice_montepomi WHERE (pre_id is not NULL ); --505 (après jointure montepomi)
 -- SELECT count(*) FROM bdoe_ice_montepomi WHERE usa_uty_id=5;--4462 (source roe après jointure montepomi) 
---SELECT * FROM bdoe_ice_montepomi limit 10;
+--SELECT * FROM bdoe_ice_montepomi;
 union_roe_pass AS (
           SELECT fty_code::numeric AS cdtypedisp, 
           fpi_ref_id AS ouv_id
@@ -1853,7 +1902,6 @@ SELECT
   'ICE' AS hpp_source
   FROM choix_bdoe_ice 
   FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
-  SELECT * FROM final_insert;
   
 INSERT INTO montepomi.dbeel_hpp
   (hpp_id ,
