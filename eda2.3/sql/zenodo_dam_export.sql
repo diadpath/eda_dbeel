@@ -28,4 +28,4 @@ st_x(st_transform(the_geom, 4326)) AS x_espg_4326,
 st_y(st_transform(the_geom, 4326)) AS y_espg_4326
 FROM sudoang.view_obstruction)
 
- TO '/temp/obstacles.csv' WITH (FORMAT CSV, HEADER); --106406
+ TO '/temp/obstacles.csv' WITH (CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8'); --106406

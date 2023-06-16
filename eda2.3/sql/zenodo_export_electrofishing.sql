@@ -1,5 +1,5 @@
-SELECT * FROM sudoang.species_location AS sl 
-SELECT count(*) FROM sudoang.dbeel_station ; --16669
+--SELECT * FROM sudoang.species_location AS sl 
+--SELECT count(*) FROM sudoang.dbeel_station ; --16669
 
 COPY (
 
@@ -10,9 +10,13 @@ JOIN sudoang."references" AS r  ON r.idref = s.idref
 --SELECT count(*) FROM species_location_uk --10678
 station AS (
 SELECT op_id, -- identifier OF OBservation_place
-op_gis_layername, -- DATA provider IN sudoang
---institution, -- institution IF DATA come FROM the sibic
---articletitle, -- article title IF DATA come FROM the sibic
+CASE WHEN institution IS NULL AND op_gis_layername =  'ANBIOTEK' THEN 'Basque Water Agency (URA)' 
+WHEN institution IS NULL AND op_gis_layername = 'Valencia Council (VAERSA)' THEN 'Servicio de Caza y Pesca de la Generalitat Valenciana'
+WHEN institution IS NULL AND op_gis_layername ilike 'Xunta' THEN 'Xunta de Galicia, Consellería de Medio Ambiente, Territorio e Vivenda'
+WHEN institution IS NULL THEN op_gis_layername
+ELSE institution END AS institution, -- institution IF DATA come FROM the sibic
+ref_article,
+articletitle, -- article title IF DATA come FROM the sibic
 op_placename, -- Name OF the place
 st_x(st_transform(geom_reproj , 4326)) AS x_espg_4326, --x(EPSG 4326)
 st_y(st_transform(geom_reproj,4326)) AS y_espg_4326, --y (EPSG 4326)
@@ -26,8 +30,8 @@ WHERE geom_reproj IS NOT NULL
 SELECT * FROM station
 )
 --WHERE op_gis_layername ='SIBIC'
- TO '/temp/station.csv' WITH (FORMAT CSV, HEADER);
- 
+ TO '/temp/station.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8');
+ --13793
  
  
  -- operations 
@@ -43,6 +47,7 @@ ve.op_id,
 ve.op_gis_layername,
 CASE WHEN et_establishment_name = 'Valencia Council (VAERSA)' THEN 'Servicio de Caza y Pesca de la Generalitat Valenciana'
      WHEN et_establishment_name = 'ANBIOTEK' THEN 'Basque Water Agency (URA)'
+     WHEN et_establishment_name ilike 'Xunta' THEN 'Xunta de Galicia, Consellería de Medio Ambiente, Territorio e Vivenda'
 ELSE et_establishment_name END AS "data_provider",
 ve.op_placename,
 ve.ob_id,
@@ -73,9 +78,10 @@ JOIN dbeel_nomenclature.electrofishing_mean ON electrofishing_mean.no_id = ef_no
 --SELECT count(*) FROM operation --16443
 SELECT * FROM operation
 )
-TO '/temp/operation.csv' WITH (FORMAT CSV, HEADER);
-
+TO '/temp/operation.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8');
+--16443
 -- individual size and weight, modifying view to left join
+
 COPY (
  WITH ba_number AS (
          SELECT ba.ba_ob_id,
@@ -146,8 +152,9 @@ COPY (
    FROM size
    LEFT  JOIN weight ON size.bc_ba_id = weight.bc_ba_id
  ) 
-TO '/temp/individual.csv' WITH (FORMAT CSV, HEADER); --137885
- 
+TO '/temp/individual.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8'); --137885
+
 COPY (
 SELECT * FROM sudoang.view_silvering)
-TO '/temp/silver.csv' WITH (FORMAT CSV, HEADER); 
+TO '/temp/silver.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8'); 
+--126838 
