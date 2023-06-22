@@ -202,9 +202,7 @@ CREATE OR REPLACE VIEW dbeel.view_electrofishing_loirebretagne AS
 
 
 
-DROP MATERIALIZED VIEW IF EXISTS dbeel.view_electrofishing_loirebretagne_frozen;
-create materialized VIEW dbeel.view_electrofishing_loirebretagne_frozen 
-as select * from dbeel.view_electrofishing_loirebretagne; 
+beel
 
 
 
@@ -224,6 +222,58 @@ SELECT count(*) AS count, ob_id FROM dbeel.view_electrofishing_loirebretagne_fro
 GROUP BY ob_id 
 ORDER BY count DESC;
 
-       
-   
+-- test for duplicates       
+ SELECT * FROM dbeel.view_electrofishing_loirebretagne_frozen WHERE ob_id ='a11d8cd3-61d7-4d42-a02e-2bb3054f97cd'  
 
+-- it's not there 
+ WITH ba AS(
+ SELECT batch.ba_ob_id,
+                    batch.ba_quantity,
+                    batch.ba_batch_level,
+                    b1.no_name AS ba_species,
+                    b2.no_name AS ba_stage,
+                    b3.no_name AS ba_value_type,
+                    b4.no_name AS ba_biological_characteristic_type,
+                    b5.no_name AS ba_individual_status
+                   FROM dbeel.batch
+                     JOIN dbeel_nomenclature.nomenclature b1 ON batch.ba_no_species = b1.no_id
+                     JOIN dbeel_nomenclature.nomenclature b2 ON batch.ba_no_stage = b2.no_id
+                     JOIN dbeel_nomenclature.nomenclature b3 ON batch.ba_no_value_type = b3.no_id
+                     JOIN dbeel_nomenclature.nomenclature b4 ON batch.ba_no_biological_characteristic_type = b4.no_id
+                     JOIN dbeel_nomenclature.nomenclature b5 ON batch.ba_no_individual_status = b5.no_id)
+                    SELECT * FROM ba
+          WHERE ba.ba_species::text = 'Anguilla anguilla'::text 
+          AND (ba.ba_stage::text = 'Yellow eel'::text OR ba.ba_stage::text = 'Yellow & silver eel mixed'::text OR ba.ba_stage::text = 'G, Y & S eel mixed'::text) 
+          AND ba.ba_biological_characteristic_type::text = 'Density'::TEXT
+           AND ba.ba_batch_level =1
+           AND ba_ob_id = 'a11d8cd3-61d7-4d42-a02e-2bb3054f97cd'
+
+           
+           
+SELECT count(*) AS count, ob_id FROM dbeel.view_electrofishing_loirebretagne_frozen 
+GROUP BY ob_id 
+ORDER BY count DESC;           
+           
+           
+-- one line           
+SELECT * FROM  france.join_loirebretagne_rn WHERE op_id='611c4212-c8a5-46d0-adb7-c997e51dd58a';
+SELECT * FROM  dbeel.observation_places
+             JOIN dbeel.electrofishing ON observation_places.op_id = electrofishing.ob_op_id
+             --JOIN dbeel.data_provider ON data_provider.dp_id = electrofishing.ob_dp_id
+             --JOIN france.join_loirebretagne_rn ON join_loirebretagne_rn.op_id= observation_places.op_id            
+             WHERE observation_places.op_id='611c4212-c8a5-46d0-adb7-c997e51dd58a';
+
+SELECT * FROM dbeel.electrofishing WHERE ob_op_id='611c4212-c8a5-46d0-adb7-c997e51dd58a';
+-- duplicate FD44 no data twice the same line in 2018
+DELETE FROM dbeel.electrofishing WHERE ob_id = 'a11d8cd3-61d7-4d42-a02e-2bb3054f97cd';
+
+SELECT * FROM dbeel.electrofishing WHERE ob_id='6a2c993a-ed97-46cb-92a3-8d031cb8e11b';
+
+SELECT * FROM  dbeel.observation_places
+             JOIN dbeel.electrofishing ON observation_places.op_id = electrofishing.ob_op_id
+             --JOIN dbeel.data_provider ON data_provider.dp_id = electrofishing.ob_dp_id
+             --JOIN france.join_loirebretagne_rn ON join_loirebretagne_rn.op_id= observation_places.op_id            
+             WHERE observation_places.op_id='d03c45c2-9ae5-49aa-b0ae-57bbd5e11df3';
+             
+DELETE FROM dbeel.electrofishing WHERE ob_id = '6a2c993a-ed97-46cb-92a3-8d031cb8e11b';
+DELETE FROM dbeel.electrofishing WHERE ob_id = 'a11d8cd3-61d7-4d42-a02e-2bb3054f97cd'; --0
