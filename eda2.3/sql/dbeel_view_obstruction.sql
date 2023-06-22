@@ -60,7 +60,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
   -- LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
-; --  103309 --montepomi : 93736
+; --  103309 --montepomi : 93736= > 93962
 
 
 
@@ -250,7 +250,7 @@ WITH downstreamjoin AS (
  j.position_ouvrage_segment, 
  downstreamjoin.* FROm downstreamjoin 
  JOIN montepomi.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
-);-- CB: 6268275 38sC; MM: 6268230  -- montepomi : 6593098 
+);-- CB: 6268275 38sC; MM: 6268230  -- montepomi : 6593098 6268275
 --SELECT count(*) FROM france.join_obstruction_rn_downstream
 
 
