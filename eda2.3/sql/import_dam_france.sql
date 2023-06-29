@@ -2170,7 +2170,7 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstr
 	JOIN montepomi.dbeel_physical_obstruction on op_id=ob_op_id 
     JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
-   ); --5973 -->7211(16/06)
+   ); --5973 -->7211(27/06)
 
 --SELECT country,count(*) FROM montepomi.view_dbeel_hpp group by country
 

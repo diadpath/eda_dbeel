@@ -12,3 +12,6 @@ ORDER BY ob_id, species, po_presence_pass DESC) --15 019
 
 SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350
 );
+
+
+-- SELECT * FROM montepomi.dbeel_view_pass 
