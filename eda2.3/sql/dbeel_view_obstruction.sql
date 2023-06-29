@@ -253,7 +253,7 @@ WITH downstreamjoin AS (
  j.position_ouvrage_segment, 
  downstreamjoin.* FROm downstreamjoin 
  JOIN montepomi.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
-);-- CB: 6268275 38sC; MM: 6268230  -- montepomi : 6593098 6268275
+);-- CB: 6268275 38sC; MM: 6268230  -- montepomi : 6593098 6268275 6592587
 --SELECT count(*) FROM france.join_obstruction_rn_downstream
 
 
