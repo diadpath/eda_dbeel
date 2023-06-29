@@ -1766,7 +1766,7 @@ TODO ajouter ATG et conformite devalaison
 */
 
 
-
+  create table montepomi.titi (like montepomi.dbeel_hpp);
 WITH roe_usage_hydro AS(
 SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
         FROM  roe.usage  
@@ -1781,24 +1781,42 @@ bdoe_usage_hydro AS (
 	SELECT bdoe.ouvrage.* FROM bdoe.ouvrage 
 	JOIN  roe_usage_hydro on roe_usage_hydro.ouv_id='ROE'||ouvrage.ouv_id
 	),
-	
 --SELECT * FROM bdoe_usage_hydro --5326 5508  -->5508(16/06)
+
+--Il faut joindre ice.operation_ice et ice.obstacle_operation_ice car pour un même ouvrage on peut avoir plusieurs
+--date de création/relève et on n'en veut qu'une. On prend la date min
+join_operation_ice_obstacle as(
+	select ooi_ref_id,coalesce(min(opi_date_releve) ,min(opi_date_creation)) AS opi_date
+	FROM ice.obstacle_operation_ice 
+	join ice.operation_ice on opi_ooi_id=ooi_id
+	group by ooi_ref_id
+),
+join2 as(
+	select *
+	from ice.operation_ice opi
+	join ice.obstacle_operation_ice ooi on ooi.ooi_id=opi.opi_ooi_id
+),
+
 prise_eau_ice AS (
-SELECT *,
-coalesce(opi_date_releve, opi_date_creation) AS opi_date
-FROM ice.obstacle_operation_ice 
-	JOIN ice.operation_ice on opi_ooi_id=ooi_id 
-	JOIN ice.partie_obstacle ON pao_opi_id=opi_id 
+SELECT j2.*,
+		partie_obstacle.*,
+		structure_obstacle.*,
+		prise_eau.*,
+		j.opi_date
+FROM join_operation_ice_obstacle j
+	join join2 j2 on j2.ooi_ref_id=j.ooi_ref_id and (j2.opi_date_releve=j.opi_date or j2.opi_date_creation=j.opi_date)
+	JOIN ice.partie_obstacle ON pao_opi_id=j2.opi_id 
 	JOIN ice.structure_obstacle on sto_pao_id=pao_id
-        JOIN ice.prise_eau  on sto_id= pre_id
-        ORDER BY opi_date_releve DESC
+    JOIN ice.prise_eau  on sto_id= pre_id
+    ORDER BY j.opi_date DESC
         ),
         
 prise_eau_ice_unique AS (
 SELECT distinct ON (ooi_id) * FROM prise_eau_ice
 ),
+--select * from prise_eau_ice_unique where ooi_ref_id=10787 --ooi_id=4518 ou 4656
         
---SELECT count(*) FROM prise_eau_ice --925
+--SELECT * FROM prise_eau_ice_unique --925
 -- when joining with roesudo nrow = 925 similar to prise_eau_ice
 -- later on joining to obstruction place drop to 891 probably because some dams are identified as 'grille de pisciculture'
 -- joining without using the date create more line (all period for the same dam are joinded) --994
@@ -1815,7 +1833,6 @@ bdoe_ice_montepomi AS (
 	JOIN roe.roesudo on dbeel_op_id = op_id
 	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	JOIN prise_eau_ice_unique on ref_id_national='ROE'||ooi_ref_id
-
     LEFT JOIN bdoe_usage_hydro on 'ROE'||bdoe_usage_hydro.ouv_id=ref_id_national 
          ), --970
 -- SELECT count(*) FROM bdoe_ice_montepomi WHERE (pre_id is not NULL OR usa_uty_id=5); --4727
@@ -1823,7 +1840,7 @@ bdoe_ice_montepomi AS (
 -- SELECT count(*) FROM bdoe_ice_montepomi WHERE usa_uty_id=5;--4462 (source roe après jointure montepomi) 
 --SELECT * FROM bdoe_ice_montepomi; --970 (16/06)
 
-union_roe_pass AS (
+ union_roe_pass AS (
           SELECT fty_code::numeric AS cdtypedisp, 
           fpi_ref_id AS ouv_id
           FROM roe.franchissement_piscicole 
@@ -1905,9 +1922,9 @@ SELECT
   FROM choix_bdoe_ice 
   FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
  
-  
-INSERT INTO montepomi.dbeel_hpp
-  (hpp_id ,
+--INSERT INTO montepomi.dbeel_hpp(
+  INSERT INTO montepomi.titi(
+  hpp_id ,
   hpp_ob_id ,
   hpp_name ,
   hpp_main_grid_or_production ,
@@ -1928,12 +1945,20 @@ INSERT INTO montepomi.dbeel_hpp
   hpp_id_original,
   hpp_source) SELECT * FROM final_insert; --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
 -- 859 -->970(16/06)
+)
 
 SELECT count (*)  FROM montepomi.dbeel_hpp; --1502 -->970(16/06)
 SELECT count (*)  FROM montepomi.dbeel_hpp WHERE hpp_source ='ICE'; --859 -->970(16/06)
 -- SELECT * FROM  montepomi.dbeel_hpp ;
 
-  
+
+  with doublon as(
+  SELECT hpp_ob_id ,count(*) as compte
+FROM montepomi.titi
+GROUP BY 1
+ORDER BY 2 desc
+)
+select * from montepomi.titi where hpp_ob_id in( select hpp_ob_id from doublon where compte>1) 
   
 /*
  * CETTE TABLE CORRESPOND AUX OUVRAGES AYANT UN USAGE HYDROELECTRIQUE
@@ -2134,6 +2159,8 @@ SELECT
   LEFT JOIN bdoe_montepomi ON 'ROE'||bdoe_montepomi.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
   LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471 -->6241(16/06)
 
+
+select * from montepomi.dbeel_hpp where hpp_ob_id='40fd7012-1a0f-4050-95a9-725372d8bcb0'
 /*
 THIS VIEW MUST BE RELAUNCHED NOW WE HAVE INTEGRATED NEW DATA
 */
