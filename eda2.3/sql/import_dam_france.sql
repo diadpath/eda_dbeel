@@ -1766,7 +1766,9 @@ TODO ajouter ATG et conformite devalaison
 */
 
 
-  create table montepomi.titi (like montepomi.dbeel_hpp);
+DELETE FROM montepomi.dbeel_hpp; --7176
+
+--create table montepomi.titi (like montepomi.dbeel_hpp);
 WITH roe_usage_hydro AS(
 SELECT DISTINCT 'ROE'||usa_obs_id AS ouv_id
         FROM  roe.usage  
@@ -1922,8 +1924,8 @@ SELECT
   FROM choix_bdoe_ice 
   FULL OUTER JOIN roe_presence_bypass on 'ROE'||roe_presence_bypass.ouv_id=id_original)
  
---INSERT INTO montepomi.dbeel_hpp(
-  INSERT INTO montepomi.titi(
+  INSERT INTO montepomi.dbeel_hpp(
+  --INSERT INTO montepomi.titi(
   hpp_id ,
   hpp_ob_id ,
   hpp_name ,
@@ -1943,15 +1945,16 @@ SELECT
   hpp_flow_trAShrack_bypass,
   hpp_max_power, 
   hpp_id_original,
-  hpp_source) SELECT * FROM final_insert; --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
--- 859 -->970(16/06)
-)
-
-SELECT count (*)  FROM montepomi.dbeel_hpp; --1502 -->970(16/06)
-SELECT count (*)  FROM montepomi.dbeel_hpp WHERE hpp_source ='ICE'; --859 -->970(16/06)
--- SELECT * FROM  montepomi.dbeel_hpp ;
+  hpp_source) SELECT * FROM final_insert;
+  --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
+-- 859 -->970(16/06) --> 915 after correction from Marion (remove duplicated values 29/06)
 
 
+--SELECT count (*)  FROM montepomi.dbeel_hpp; --1502 -->970(16/06)
+--SELECT count (*)  FROM montepomi.dbeel_hpp WHERE hpp_source ='ICE'; --859 -->970(16/06) 915 after correction from Marion (remove duplicated values 29/06)
+
+
+/*
   with doublon as(
   SELECT hpp_ob_id ,count(*) as compte
 FROM montepomi.titi
@@ -1959,7 +1962,9 @@ GROUP BY 1
 ORDER BY 2 desc
 )
 select * from montepomi.titi where hpp_ob_id in( select hpp_ob_id from doublon where compte>1) 
-  
+*/
+
+
 /*
  * CETTE TABLE CORRESPOND AUX OUVRAGES AYANT UN USAGE HYDROELECTRIQUE
  * QUI NE SONT PAS OBSOLETE DANS L'USAGE
@@ -2033,8 +2038,8 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstr
     JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
    ); --1532 => 5901 (AFTER SPAIN INSERTION)  ??? 2358 2020 (first run) 6687 don't forget to run this after the next chunk below
-	  --970 (16/06)
-SELECT count(*) FROM montepomi.view_dbeel_hpp;
+	  --970 (16/06) 915 (29/06)
+--SELECT count(*) FROM montepomi.view_dbeel_hpp;
 
 /*
 * 
@@ -2057,7 +2062,9 @@ WITH RECURSIVE linkeddams(op_id,op_op_id,profondeur,chemin,boucle) AS (
     WHERE op_op_id IS NOT NULL
   UNION ALL
     SELECT * FROM (
-    SELECT o.op_id,o.op_op_id, l.profondeur+1,
+    SELECT 
+    o.op_id,o.op_op_id, 
+    l.profondeur+1,
     array_append(chemin,id_original::TEXT) AS chemin,
     id_original::TEXT = ANY(chemin) AS boucle
     FROM linkeddams l JOIN
@@ -2087,6 +2094,7 @@ ouv_id_to_insert AS (
 	SELECT ouv_id FROM dams_already_integrated
 )),
 --SELECT count(*) FROM ouv_id_to_insert --3725  --(On enlève depuis 5393 des ouvrages déjà insérés ayant un usage Hydroélectrique)
+/*
 bdoe_montepomi AS (  
 	SELECT * 
 	FROM montepomi.dbeel_obstruction_place 
@@ -2094,6 +2102,7 @@ bdoe_montepomi AS (
 	JOIN montepomi.dbeel_physical_obstruction On ob_op_id=op_id
 	LEFT JOIN bdoe.ouvrage ON 'ROE'||ouvrage.ouv_id=ref_id_national 
          ),
+*/
 union_roe_pass AS (
   SELECT fty_code::numeric AS cdtypedisp, 
   fpi_ref_id AS ouv_id
@@ -2106,7 +2115,6 @@ roe_presence_bypass AS (
 	TRUE AS hpp_presence_bypass
 	FROM union_roe_pass 	
 )
-
 
 INSERT INTO montepomi.dbeel_hpp
   (hpp_id ,
@@ -2128,7 +2136,7 @@ INSERT INTO montepomi.dbeel_hpp
   hpp_flow_trAShrack_bypass,
   hpp_max_power, 
   hpp_id_original,
-   hpp_source) 
+   hpp_source)
 
 
 SELECT 
@@ -2140,15 +2148,15 @@ SELECT
   NULL AS hpp_total_flow_bypass, 
   NULL AS hpp_orient_flow_no_id,
   NULL AS hpp_presence_of_bar_rack,
-  bdoe_montepomi.ouv_ecartement_grille AS hpp_bar_rack_space ,
+  ouvrage.ouv_ecartement_grille AS hpp_bar_rack_space ,
   NULL AS  hpp_surface_bar_rack,
   NULL AS  hpp_inclination_bar_rack,
   NULL AS  hpp_orientation_bar_rack, 
   NULL AS  hpp_presence_bypass_trAShrack,
   NULL AS  hpp_nb_trAShrack_bypass,
-  bdoe_montepomi.ouv_debit_maximal AS hpp_turb_max_flow,
-  bdoe_montepomi.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pas une erreur voir explication plus bas
-  bdoe_montepomi.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
+  ouvrage.ouv_debit_maximal AS hpp_turb_max_flow,
+  ouvrage.ouv_debit_reserve AS hpp_reserved_flow, -- oui c'est pas une erreur voir explication plus bas
+  ouvrage.ouv_debit_devalaison AS hpp_flow_trAShrack_bypass,
   NULL AS hpp_max_power,
   ouv_id_to_insert.ouv_id AS hpp_id_original,
   'ROE' AS hpp_source
@@ -2156,11 +2164,28 @@ SELECT
   JOIN montepomi.dbeel_obstruction_place o ON ouv_id_to_insert.ouv_id=id_original
   JOIN montepomi.dbeel_physical_obstruction p ON ob_op_id=op_id
   JOIN roe.roesudo r ON ref_id_national=ouv_id_to_insert.ouv_id
-  LEFT JOIN bdoe_montepomi ON 'ROE'||bdoe_montepomi.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
-  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471 -->6241(16/06)
+  LEFT JOIN bdoe.ouvrage ON 'ROE'||ouvrage.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
+  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471 -->6241(16/06) --> 5053
 
-
+  
+/*
+-- 29/06 recherche de doublons....
 select * from montepomi.dbeel_hpp where hpp_ob_id='40fd7012-1a0f-4050-95a9-725372d8bcb0'
+-- avant il y avait des doublons maintenant il n'y en a plus
+
+WITH doublon AS(
+SELECT hpp_ob_id ,count(*) AS compte
+FROM montepomi.dbeel_hpp
+GROUP BY 1
+ORDER BY 2 desc
+)
+select * from montepomi.dbeel_hpp where hpp_ob_id in( select hpp_ob_id from doublon where compte>1) --2182
+-- Il me reste 4 lignes qui n'ont pas le même ouv_id ?
+ROE1030
+ROE1026
+ROE6704
+ROE6707
+*/
 /*
 THIS VIEW MUST BE RELAUNCHED NOW WE HAVE INTEGRATED NEW DATA
 */
@@ -2170,7 +2195,7 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstr
 	JOIN montepomi.dbeel_physical_obstruction on op_id=ob_op_id 
     JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
-   ); --5973 -->7211(27/06)
+   ); --5973 -->7211(27/06) --> 5968(29/06) apres dedoublonnage
 
 --SELECT country,count(*) FROM montepomi.view_dbeel_hpp group by country
 
@@ -2285,24 +2310,12 @@ SELECT
   tuh_nombre_pale AS turb_nb_blades,
   tuh_debit_max AS turb_max_turbine_flow,
   NULL AS turb_description
-  FROM final_insert; --343 ->647 (2020) -- 670 -->835(16/06)
+  FROM final_insert; --343 ->647 (2020) -- 670 -->835(16/06) 707(29/06)
 
 With uniques as (SELECT distinct on (turb_hpp_id) turb_hpp_id FROM montepomi.dbeel_turbine)
 SELECT  count(*) from uniques
 
 
--- TODO collecter les données vers R à l'aide d'un script, et prévoir les updates de la bASe.
-
-
--- Notes pour souffrir plus tard
-
------------ 
--- Aller chercher touts les usines hydroelctriques qui sont ouvrage filles, et les rajouter, mais pour les cumuls à la montée ne prendre que les ouvrages pères
--- si il y a une centrale sur l'ouvrage pere il faut que les cacluls de proportions de débit passant au niveau des deux centrales soient calculées comme si c'était un seul ouvrage.
------------
-
-
--- TODO dbeel_bypass
 
 
 
@@ -2310,6 +2323,7 @@ SELECT  count(*) from uniques
  * TEMPORARY CORRECTIONS THESE HAVE BEEN CORRECTED AT THE SOURCE REMOVE AT NEXT RUN
  **********************/
 --Three obstacles still wrong 
+/*
 UPDATE montepomi.dbeel_physical_obstruction  SET(author_last_update, po_obstruction_height) = 
 ('Cédric correction temporaire BDOE', 1.05) FROM (
 SELECT * 
@@ -2350,7 +2364,7 @@ JOIN montepomi.dbeel_physical_obstruction ON ob_op_id = op_id
 WHERE id_original='ROE45144') sub 
 WHERE dbeel_physical_obstruction.ob_id=sub.ob_id;
 
-
+*/
 
 
 -- Iffezheim (corrected now)
