@@ -1040,10 +1040,14 @@ datefin::date
 FROM hauteur_chute_roe
 LEFT JOIN hauteur_chute_par_periode
  ON hauteur_chute_roe.ouv_id = hauteur_chute_par_periode.ouv_id
-ORDER BY ouv_id,datedebut, CASE WHEN source_hchute = 'ice' THEN 1
-                                WHEN source_hchute = 'bdoe' THEN 2
-                                WHEN source_hchute = 'roe'  THEN 3
-                                END),
+ORDER BY 
+ouv_id,
+datedebut, 
+CASE WHEN source_hchute = 'ice' THEN 1
+    WHEN source_hchute = 'bdoe' THEN 2
+    WHEN source_hchute = 'roe'  THEN 3
+ END,
+ date_mesure desc),
                                 
 --SELECT * FROM  ordered_hauteur_chute_par_periode --95632 (   92253 pour ouvrages distincts)
 --where datedebut is not null;  --8002 avec une date  ( on en perd 80 par rapport au tableau hauteur chute par periode ==> restreint sur les ouvrages ROE selectionnés  
