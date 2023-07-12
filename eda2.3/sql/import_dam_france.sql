@@ -719,7 +719,7 @@ hauteur_chute_reordonne AS (
 	               WHEN sto_tso_id=7 THEN 6 -- prise d'eau 
 	               WHEN sto_tso_id=4 THEN 7 -- ouvrage routier
 	               WHEN sto_tso_id=6 THEN 8	  -- dispositif de franchissement piscicole             
-	               WHEN sto_tso_id=8 THEN 1 --voie sur berge
+	               WHEN sto_tso_id=8 THEN 9 --voie sur berge
 	               END AS order_sto_tso_id 
 	 FROM hauteur_chute_sto     
 	 WHERE pao_eco_id in (1,3) -- oui, ou discontinu
