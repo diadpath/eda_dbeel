@@ -21,6 +21,7 @@ filexml <- "EDAload23.xml"
 } else {
 filexml <- "EDAload.xml"	
 }
+stopifnot(file.exists(filexml))
 doc = xmlInternalTreeParse(filexml)
 doc=xmlRoot(doc)   # vire les infos d'ordre generales
 tableau_config = xmlSApply(doc, function(x) xmlSApply(x, xmlValue)) # renvoit une liste
