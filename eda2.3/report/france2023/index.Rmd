@@ -1,0 +1,132 @@
+---
+title: "ORE DiaPFC  \nObservatoire de recherche sur les poissons diadromes dans les petits fleuves côtiers"
+subtitle: "Rapport d’activités de L’Observatoire Long Terme de la Bresle"
+reportType: "`r params$annee_rapport`"
+author:
+  - name: JOSSET Quentin
+    id: "1,3"
+  - name: FLESSELLE Aurélie
+    id: "1,3"
+  - name: BERNARDIN Anaïs
+    id: "2,3"
+  - name: LECOEUR Lucie
+    id: "2,3"
+  - name: MACQUET Tony
+    id: "4"
+  - name: PETIT Laurent
+    id: "1,3"
+affiliation:
+  - name: OFB, Direction  Recherche et appui scientifique, Service « Conservation et Gestion Durable des Espèces Exploitées »
+    id: 1
+  - name: INRAE, Unité Expérimentale d’Ecologie et d’Ecotoxicologie aquatique
+    id: 2
+  - name: \affilPole
+    id: 3
+  - name: Syndicat mixte d’aménagement, de gestion et de valorisation de le Bresle
+    id: 4
+lang: fr
+date: "`r format(Sys.time(), '%Y %B %d')`"
+documentclass: report
+output:
+  bookdown::html_document2:
+    toc: true    
+    toc_float: true
+    number_sections: true
+    theme: cerulean
+    fig_caption: true
+    df_print: paged
+  bookdown::pdf_document2:
+    fig_caption: yes
+    template: template/model_rmd_pole.tex
+    latex_engine: xelatex
+    keep_tex: no
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+  bookdown::word_document2:
+    fig_caption: yes
+    template: template/ModeleRapportWord_2021.dotx
+    number_sections: yes
+    toc: yes 
+keep_md: no
+test: "`r paste('_metadata.yaml')`"
+geometry: top=2.4cm, bottom=2.1cm, outer=2cm, inner=4cm, headheight=40pt
+classoption: a4paper
+bibliography: Bresle.bib
+csl: "template/ICES Journal of Marine Science perso.csl"
+params:
+  annee_rapport: 2022
+  schema_base: bresle
+  site: BRESLE
+  debug: FALSE # mettre a TRUE pour afficher les messages d'erreurs, warnings, ...
+  chargement_donnees: FALSE # mettre à TRUE pour recharger les donnees depuis la base
+---
+
+```{r setup, include = FALSE, echo = FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, warnings=FALSE, eval.after = "fig.cap")
+
+# to test the output and adapt the type of table
+output <- rmarkdown::metadata$output
+
+```
+
+```{r packages, include=FALSE, echo=FALSE}
+
+source("../../scripts/fonctions_generales.R") 
+charger_bibliotheque(c('sqldf',  # for executing SQL queries 
+				'getPass',  # for asking a password
+				'RPostgreSQL',  # for DB interface for PostgreSQL 
+				'ggplot2',  # for producing good looking plots
+				'lubridate', # for wrangling with dates
+				'kableExtra', # for pub-ready tables
+				'RCurl',
+				'tidyverse')) # because tidyverse dude	
+```
+
+```{r donnees, include=FALSE, echo=FALSE}
+
+source("../../scripts/connection_base.R") 
+source("../../scripts/creation_champs.saison.R") # intégration de la variable saison par phénotype et espèce
+
+if(params$chargement_donnees)
+{	
+	v_captures<-sqldf(paste("select * from ", params$schema_base,".v_captures",sep=""))
+	t_campagne_cam<-sqldf(paste("select * from ", params$schema_base,".t_campagne_cam",sep=""))
+	tr_fonctionnement_nature_nfo<-sqldf("select * from public.tr_fonctionnement_nature_nfo")
+	t_espece<-sqldf("select * from public.tr_espece_tax")
+	tr_saison <- sqldf(paste0("SELECT * FROM ", params$schema_base, ".tr_saison_sai"))
+	colnames(tr_saison) <- c("id", "tax_code", "type", "date_deb", "date_fin", "secteur_id") # correction des colnames (- 'sai_') sinon, pbs en cascade !	
+	
+#	v_captures=variable.saison(site=site)
+	v_captures = cbind(v_captures, traitement_date(v_captures, tr_saison)) 
+	
+#	#test
+#	table(paste0(v_captures$tax_code, "-", substr(v_captures$phenotype, 1, 2) ), v_captures$mois, as.integer(v_captures$saison) - as.integer(v_captures$annee))
+#	with(v_captures[is.na(v_captures$saison), ], table(paste0(tax_code, "-", substr(phenotype, 1, 2)), mois))
+	
+	save(v_captures, t_campagne_cam, tr_fonctionnement_nature_nfo, t_espece, tr_saison, file = "svg_donnees_bre.RData")
+} else 
+	load("svg_donnees_bre.RData")
+
+donnees_env<-read.csv("../donnees_test/donnees_env.csv",header=TRUE, sep=";", dec=",")
+donnees_env$Date <- as.Date(donnees_env$Date, format="%d/%m/%Y")
+
+``` 
+
+```{r fonctions, include=FALSE, echo=FALSE}
+source("../../scripts/extraction_fonctionnement.R")
+source("../../scripts/definition_couleur_espece.R")
+source("../../scripts/palette_couleur_fonctionnement.R")
+source("../../scripts/graphe_fonctionnement.R")
+source("../../scripts/graph_structure_age.R")
+source("../../scripts/graphe_Effectif.Temps.R")
+source("../../scripts/graphe_Date.Capture.R")
+source("../../scripts/graphe_Distrib.Taille.R")
+source("../../scripts/graph_sexratio.R")
+source("../../scripts/get_fst_lst_date.R")
+source("../../scripts/get_data_civ.R")
+source("../../scripts/decompte_pichons.R")
+source("../../scripts/table_valeurs_reperes.R")
+```
+

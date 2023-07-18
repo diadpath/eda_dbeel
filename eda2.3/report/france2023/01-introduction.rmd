@@ -1,0 +1,104 @@
+# Introduction
+
+## ORE DiaPFC – Pôle MIAME
+
+L'[ORE DiaPFC](https://www6.inrae.fr/diapfc) combine des dispositifs de suivi à long terme *in natura* des
+populations de poissons migrateurs amphihalins et de leur environnement, avec
+des installations expérimentales et des outils de simulation in silico.
+
+D'un point de vue pratique, les activités de l’ORE DiaPFC sont organisées selon
+trois volets complémentaires :
+
+-	L’observation *in natura*
+    (figure \@ref(fig:carte-ore)) consiste en
+    l’acquisition de données sur le long terme (mission d'observatoire) avec
+    pour objectif une connaissance globale des dynamiques temporelles et des
+    sorties opérationnelles pour la gestion, la conservation et la restauration
+    des migrateurs amphihalins\ ; pour certaines espèces (anguille, saumon et truite), des programmes
+    de marquage-recapture individuel (PIT-tag) sont mis en œuvre.
+
+-	L'expérimentation consiste à la mise en œuvre d'actions de recherches plus
+    ponctuelles pour répondre à des questions plus ciblées ou lever des verrous
+    méthodologiques. Dans ce cas, les suivis à long terme sont complétés par des
+    expérimentations soit en milieu naturel, soit dans des installations
+    expérimentales (chenaux artificiels, mésocosmes lotiques, microcosmes,
+    etc.), soit in silico par simulation.
+
+-	La poursuite du développement d’outils de simulation démo-génétiques.
+
+L’ORE DiaPFC repose sur un noyau de 4 unités fondatrices : L’UMR INRAE-UPPA
+ECOBIOP (Saint-Pée sur Nivelle), l’U3E INRAE (Rennes, Eu, Ducey et Pt-Scorff),
+l’UMR INRAE-Institut Agro-Ifremer DECOD (Brest, Lorient, Nantes, Rennes) et la
+DRAS de l’OFB (Rennes, Eu, Ducey). 
+
+A ce noyau se rajoute un cercle d'unités partenaires et utilisatrices des
+données et/ou des installations de l'ORE, constitué d’unités de recherche
+françaises ou étrangères.
+
+A l’interface entre les opérateurs gestion et recherche, le pôle
+OFB-INRAE-Institut Agro-UPPA pour la gestion des MIgrateurs AMphihalins
+dans leur Environnement (Pôle MIAME), est un partenaire essentiel et fondateur
+de cet ORE.
+
+![(#fig:carte-ore) Carte des observatoires de l'ORE DiaPFC](image_fixe/carto_ore_sanslogo.jpg){height=43%}
+
+## Situation géographique du site
+
+La Bresle est un  fleuve côtier qui marque pour partie la frontière entre les
+départements de la Seine-Maritime (76) et de la Somme (80). Elle se jette dans la Manche, au niveau de la commune du
+Tréport et non loin de la Baie de Somme. Environ 70 km séparent en droite ligne
+sa source, sur la commune d’Abancourt dans l’Oise (60), de son embouchure.
+Cependant, l’hydrologie particulière des cours d’eau à substrat calcaires, ainsi
+que la multiplication à travers l’Histoire des moulins et autres ouvrages tout
+au long de son tracé, font que le linéaire de cours d’eau réel est plus que
+doublé.
+
+Le cours d’eau draine un bassin-versant de près de 748 km², composé majoritairement d’un substrat crayeux remontant au
+crétacé supérieur. Le bassin a été historiquement marqué par l’industrie du verre, mais aussi l’industrie papetière,
+ainsi que par l’extraction de gravier. Les pratiques agricoles autrefois principalement centrée sur l’élevage laitier et
+le paturage évoluent aujourd’hui vers une agriculture de production
+de maïs, protéagineux pour l’élevage, ainsi que de pommes de terre. 
+
+L’accès des salmonidés migrateurs est possible aujourd’hui
+jusqu’à la commune de Saint-Germain-sur-Bresle, soit à un peu plus de 50 km de
+la mer. En revanche, les espèces de plus faible capacité de nage sont bloquées
+dès la commune de Beauchamps, à environ 15 km de la mer. 
+
+## L’Observatoire Long Terme de la Bresle (OLTB)
+
+L’OLTB assure depuis 1981 le suivi des populations de poissons
+migrateurs de la Bresle au moyen de deux dispositifs de piégeage complémentaires, situés respectivement sur les communes
+d’Eu (76) et de Beauchamps (80). Ce suivi
+scientifique est assuré par l'OFB, depuis 2006 en partenariat avec le Syndicat
+Mixte d'Aménagement, de gestion et de valorisation du bassin de la Bresle (SMAB)
+et depuis 2009 avec l'INRAE. 
+
+Le suivi des poissons migrateurs réalisé sur la Bresle cible essentiellement
+les salmonidés migrateurs (truite de mer et saumon atlantique), avec
+comme objectifs majeurs : 
+
+- de définir les paramètres démographiques des populations de saumon et de
+  truite de mer (structure de taille et d'âge, potentiel reproducteur, survie en
+  mer et en rivière), et d’en modéliser le fonctionnement (modèles
+  stock-recrutement) sur ce bassin où les deux espèces vivent en sympatrie, 
+  
+- d’étudier les tendances, à moyen et long terme, des effectifs, mais aussi des
+  rythmes migratoires et des paramètres démographiques, 
+  
+- d’en comprendre les mécanismes et d’en identifier les facteurs explicatifs, avec un intérêt particulier porté aux
+  changements climatiques et, de façon plus générale, aux modifications de l’environnement, 
+  
+- de disposer de données objectives destinées à asseoir scientifiquement les politiques de gestion et de conservation de
+  ces espèces à haute valeur halieutique et patrimoniale. 
+
+## Intégration du site dans les réseaux nationaux et internationaux
+
+Depuis 2017, les données collectées sur le saumon et l'anguille dans le cadre de l’ORE DiaPFC sont inscrites dans le
+programme national pour la collecte des données en soutien aux avis scientifiques pour la politique commune de la pêche
+(Data Collection Framework DCF - Work Plan for data collection in the fisheries and
+aquaculture sectors) pour répondre aux obligations des règlements
+européens sur la gestion des pêcheries. Dans ce cadre, l’INRAE et l’OFB
+contribuent au Programme de Travail National piloté par la DPMA (Direction des
+Pêches Maritimes et de l'Aquaculture) du Ministère de l’Agriculture et de
+l'Alimentation. Ce programme est financièrement soutenu par le FEAMP (Fonds
+européen pour les affaires maritimes et la pêche). 

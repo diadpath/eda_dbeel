@@ -1,0 +1,134 @@
+\documentclass[]{template/RapportPole}
+
+\usepackage{lipsum}
+\usepackage{authblk}
+\usepackage{graphicx}
+%% pour les tables, cf https://github.com/rstudio/rmarkdown/issues/1384 et https://haozhu233.github.io/kableExtra/awesome_table_in_pdf.pdf
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{makecell}
+
+%% pour kable extra
+%\usepackage{booktabs}
+%\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+
+%% landscape mode
+\usepackage{lscape}
+\newcommand{\blandscape}{\begin{landscape}}
+\newcommand{\elandscape}{\end{landscape}}
+
+%% gestion des données de la page de titre
+\title{$title$}
+\subtitle{$subtitle$}
+\reportType{$reportType$}
+
+% gestion des auteurs https://github.com/drdanholmes/Affiliations
+%https://github.com/jolars/rmdplugr/blob/master/inst/latex-plugins/author-block.latex
+% Author block
+$if(author)$
+\IfFileExists{authblk.sty}{%
+  \usepackage[$for(author-options)$$author-options$$endfor$]{authblk}
+$for(author)$
+$if(author.id)$
+  \author[$author.id$]{$author.name$}
+$else$
+  \author{$author$}
+$endif$
+$endfor$
+$for(affiliation)$
+$if(affiliation.id)$
+  \affil[$affiliation.id$]{$affiliation.name$}
+$else$
+  \affil{$affiliation$}
+$endif$
+$endfor$
+}{
+$for(author)$
+  \author{$author$}
+$endfor$
+}
+$endif$
+
+%% gestion du CSL pour pandoc >= 2.8
+%description du pb https://github.com/rstudio/rmarkdown/issues/1649
+%code repris de https://github.com/jgm/pandoc/blob/master/data/templates/default.latex
+$if(csl-refs)$
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newlength{\cslentryspacingunit} % times entry-spacing
+\setlength{\cslentryspacingunit}{\parskip}
+\newenvironment{CSLReferences}[2] % #1 hanging-ident, #2 entry spacing
+ {% don't indent paragraphs
+  \setlength{\parindent}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+  \let\oldpar\par
+  \def\par{\hangindent=\cslhangindent\oldpar}
+  \fi
+  % set entry spacing
+  \setlength{\parskip}{#2\cslentryspacingunit}
+ }%
+ {}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+$endif$
+
+
+%% Autres
+% gestion de l'erreur shaded https://stackoverflow.com/questions/41052687/rstudio-pdf-knit-fails-with-environment-shaded-undefined-error
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+% gestion des listes avec les * (cf https://tex.stackexchange.com/questions/257418/error-tightlist-converting-md-file-into-pdf-using-pandoc)
+\providecommand{\tightlist}{%
+  \setlength{\leftskip}{3em}\setlength{\itemsep}{\leftskip}\setlength{\parskip}{0pt}}
+
+\usepackage{hyperref} % nécessaire pour Rmd doit être mis en dernier (https://github.com/tabu-issues-for-future-maintainer/tabu/issues/24)
+\hypersetup{
+    colorlinks = true, % make the links colored
+    linkcolor = black, % color TOC links in blue
+    urlcolor = blue, % color URLs in red
+    linktoc = all % 'all' will create links for everything in the TOC
+}
+
+\urlstyle{same}  % permet d'avoir la police des url identique au reste du texte
+
+\begin{document}
+%% Table des matières
+$if(toc)$
+{
+$if(colorlinks)$
+\hypersetup{linkcolor=$if(toccolor)$$toccolor$$else$black$endif$}
+$endif$
+\setcounter{tocdepth}{$toc-depth$}
+\tableofcontents
+}
+$endif$
+
+\PageSuivanteStandard
+\setcounter{page}{1}
+
+%% Reste du documents
+$body$
+
+\PageDerniere
+
+\end{document}
