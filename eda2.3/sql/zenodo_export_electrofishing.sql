@@ -10,7 +10,7 @@ JOIN sudoang."references" AS r  ON r.idref = s.idref
 --SELECT count(*) FROM species_location_uk --10678
 station AS (
 SELECT op_id, -- identifier OF OBservation_place
-CASE WHEN institution IS NULL AND op_gis_layername =  'ANBIOTEK' THEN 'Basque Water Agency (URA)' 
+CASE WHEN institution IS NULL AND op_gis_layername ilike  '%ANBIOTEK%' THEN 'Basque Water Agency (URA)' 
 WHEN institution IS NULL AND op_gis_layername = 'Valencia Council (VAERSA)' THEN 'Servicio de Caza y Pesca de la Generalitat Valenciana'
 WHEN institution IS NULL AND op_gis_layername ilike 'Xunta' THEN 'Xunta de Galicia, Consellería de Medio Ambiente, Territorio e Vivenda'
 WHEN institution IS NULL THEN op_gis_layername
@@ -46,9 +46,9 @@ ve.id,
 ve.op_id,
 ve.op_gis_layername,
 CASE WHEN et_establishment_name = 'Valencia Council (VAERSA)' THEN 'Servicio de Caza y Pesca de la Generalitat Valenciana'
-     WHEN et_establishment_name = 'ANBIOTEK' THEN 'Basque Water Agency (URA)'
+     WHEN et_establishment_name ilike '%ANBIOTEK%' THEN 'Basque Water Agency (URA)'
      WHEN et_establishment_name ilike 'Xunta' THEN 'Xunta de Galicia, Consellería de Medio Ambiente, Territorio e Vivenda'
-ELSE et_establishment_name END AS "data_provider",
+ELSE et_establishment_name END AS data_provider,
 ve.op_placename,
 ve.ob_id,
 ve.ob_starting_date,
