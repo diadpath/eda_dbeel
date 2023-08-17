@@ -551,7 +551,6 @@ LES TYPES DE DISPOSTIF DU ROE
 On dit qu'il y a une passe "compatible anguille" si un seul des deux référentiels présente une passe compatible anguille
 
 --SELECT count(*), fishway_type, po_presence_eel_pass FROM roe_presence_eel_pass WHERE fishway_type is not null GROUP BY fishway_type,po_presence_eel_pass ; --3843 (en ajoutant tous les types de disp, 
-/*
 count;fishway_type;po_presence_eel_pass
 426;279;f
 509;273;f
@@ -1186,8 +1185,17 @@ total AS (
 SELECT sum("N") as "N", 'Height:Total'::text as type_height from counts_france)
 SELECT type_height, "N" from counts_france UNION SELECT type_height, "N" FROM total
 */
-/*countme AS (SELECT count (*)  over (partition by op_id), * FROM final )
-SELECT * FROM countme WHERE count>1*/
+WITH countme AS (
+SELECT count (*)  over (partition by ob_op_id) c, * FROM montepomi.dbeel_physical_obstruction AS dpo  )
+SELECT avg(c) FROM countme 
+
+WITH countme AS (
+SELECT count (*)  over (partition by ob_op_id) c, * FROM montepomi.dbeel_physical_obstruction AS dpo  )
+SELECT count(*) N, c FROM countme group by c ORDER BY c
+
+WITH uq AS (SELECT DISTINCT ob_op_id FROM montepomi.dbeel_physical_obstruction )
+SELECT count(*) FROM uq; 
+*/
 -- traiter les ouvrages liés
 
 
