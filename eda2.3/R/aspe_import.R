@@ -9,8 +9,14 @@ library(RPostgres)
 library(aspeQual)
 library(rnaturalearth)
 library(rnaturalearthdata)
+library(leafsync)
+library(ggplot2)
+library(maps)
 
 # remotes::install_github("PascalIrz/aspeQual")
+#ou
+#devtools::install_github("PascalIrz/aspeQual")
+#devtools::install_github("PascalIrz/aspe")
 rivernetwork <- "RIOS"
 
 #--------------------- Load data---------------------#
@@ -28,27 +34,30 @@ con = dbConnect(Postgres(),
 
 # Load Rdata tables sent by OFB (Pascal Irz),
 # Remember to ask if/when data set will be integrated in hub'eau API 
+# 
+# load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_09_07_09_38_09.RData")) # all data except biometry
+# load(str_c(datawd,"/loire/data/mei_2022_09_07_09_38_09.RData")) # biometry
 
-load(str_c(datawd,"/loire/data/tables_sauf_mei_2022_09_07_09_38_09.RData")) # all data except biometry
-load(str_c(datawd,"/loire/data/mei_2022_09_07_09_38_09.RData")) # biometry
-
+load(str_c("data/tables_sauf_mei_2023_06_25_21_31_13.RData")) # all data except biometry
+load(str_c("data/mei_2023_06_25_21_31_13.RData")) # biometry
 
 
 #--------------- Create tables to be written in the database-------------------#
 
+##############################################
 # Station table
+##############################################
 
 station_aspe <- station %>%
-		left_join(y = ref_type_projection,
-				by = c("sta_typ_id" = "typ_id")) %>%
-		filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France. Spatial join
-# will be performed to filter wrong coordinates later on
+		left_join(y = ref_type_projection, by = c("sta_typ_id" = "typ_id")) %>%
+		filter(typ_code_epsg==2154) %>%  # filter data from metropolitan France only (no overseas french territories). 
+    #Spatial join will be performed to filter wrong coordinates later on
 		filter(sta_coordonnees_x > 0)
 
 # TODO LATER recuperer les stations historiques pour voir les manques d'import depuis bd_map
 
 # reproject coordinates in European system
-
+# from 2154_Lambert-93_France to 3035_LAEA Europe
 coords <- aspe::geo_convertir_coords_df(df = station_aspe,
 		var_x = sta_coordonnees_x,
 		var_y = sta_coordonnees_y,
@@ -56,9 +65,11 @@ coords <- aspe::geo_convertir_coords_df(df = station_aspe,
 		var_crs_initial = "typ_code_epsg",
 		crs_sortie = 3035) 
 
+# add reprojected coordinates to station_aspe table
 station_aspe <- station_aspe %>%
-		left_join(y = coords) %>% # add reprojected coordinates
-		dplyr::select(-(sta_geometrie)) %>%
+		left_join(y = coords) %>% 
+    # dplyr::select(-(sta_geometrie)) %>%
+		dplyr::select(-(sta_geometrie),-(starts_with("typ"))) %>% #discard unused column
 		mutate(typ_code_epsg=3035) 
 
 station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove all column starting with "typ"
@@ -66,58 +77,151 @@ station_aspe <- station_aspe[,	!grepl("typ",colnames(station_aspe))] # remove al
 
 # nrow(station_aspe)  #32727 => 32720
 
-# Converting table as a sf object to get functionning geometry (the one in the 
-# table is stored as text and not recognized by postgis)
+# Converting table as a sf object to get functionning geometry 
+# (the one in the table is stored as text and not recognized by postgis)
 station_aspe_sf <- st_as_sf(station_aspe, coords=c("X","Y"),crs=3035) 
 
 
 # Spatial filtering
-
+#Get France polygons, projected in 3035_LAEA Europe
 france_polygone <- rnaturalearth::ne_countries(type = "countries", 
 				country = "france", 
 				returnclass = "sf") %>% 
-		select(name_sort) %>% # import only france on remove all col except name
+		select(name_sort) %>% # keeps only name of country('France") and its geometry
 		st_transform(3035) # reproject in the same crs as stations
 
+#visualisation du polygone France sur fond de carte 
+# mapview::mapview(station_aspe_france, color = "green",alpha.regions = 0.2,alpha=0.1,legend=FALSE) 
+# --> attention : au niveau des frontières la coupe est grossière
+
+#to insure that all coordinate are correcly within France territory
+#intersect of stations dataset with france polygons
 station_aspe_france <- sf::st_intersection( # filter stations in France
 				station_aspe_sf, france_polygone) %>% 
 		select(-name_sort) # remove extra column from france polygone 31734
+# nrow(station_aspe_sf)
+# [1] 33231
+# nrow(station_aspe_france)
+# [1] 32208 --> 1023 stations supprimées
+#20/07 : Attention il semble que l'on supprime des stations qui sont pourtant bien en France Métropolitaine
+# exemple : station_aspe_sf[station_aspe_sf$sta_id==6,], cf https://www.sandre.eaufrance.fr/geo/StationMesureEauxSurface/01000390
+##### Quelles sont ces stations supprimées #######
+station_aspe_france_diff <- sf::st_difference(
+  station_aspe_sf, france_polygone)
+#visualisation sur la map France polygonisée
+mapview::mapview(france_polygone, alpha.regions = 0.2, aplha = 1,legend=FALSE) +
+  mapview::mapview(station_aspe_france_diff, color="red",alpha.regions = 0.1, aplha = 0.1,legend=FALSE,cex =1)
 
-# some biometry data are wrong for Brittany. We identify station located in the region
+# solution 1 : on augmente le buffer de la France de 20km
+france_polygone_buff <- st_buffer(france_polygone,dist=20000)  
+#visualisation nouveau buffer vs ancien
+mapview::mapview(france_polygone, alpha.regions = 0.1, aplha = 0.1,legend=FALSE) +
+  mapview::mapview(france_polygone_buff, alpha.regions = 0.1, aplha = 0.4,legend=FALSE)
+#listes des stations françaises dans la française + 20km
+station_aspe_france_buff <- sf::st_intersection( # filter stations in France
+  station_aspe_sf, france_polygone_buff) %>% 
+  select(-name_sort)#33202 stations (33985 avec nouveaux fichiers)
+#listes des stations non françaises dans la française + 20km
+# il manque toujours une dizaine de sites français (ouessant, belle île + quelques sites au NE) 
+# on a récupéré 10 sites en Allemagne+Luxembourg.
+station_aspe_france_buff_diff <- sf::st_difference(
+  station_aspe_sf, france_polygone_buff)#55 stations perdues (30 stations avec nouveau fichier)
 
-passerelle <- aspe::mef_creer_passerelle()
+#solution 2 : on utilise une projection de la France plus précise (geojson, issue de l'IGN)
+#geojson files downloaded from : https://github.com/gregoiredavid/france-geojson/tree/master
+france_map_json <- read_sf("data/metropole.geojson")
+# france_map_json <- read_sf("data/regions-version-simplifiee.geojson")
+france_map_json <- st_transform(france_map_json,crs = 3035)
+#check intersection
+station_aspe_france_json <- sf::st_intersection( # filter stations in France
+  station_aspe_sf, france_map_json)
+#33036 stations = 195 stations perdues (mais difficultés pour les afficher)
+#avec nv fichiers : 33819 stations = 196 stations perdues 
+#nb : bufferiser cette solution 2 ne fonctionne pas. on duplique des résultats.
 
-url_gadm <- "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_FRA_1_sf.rds"
-download.file(url_gadm, "/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds")
-reg_france <- readRDS("/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds") %>% 
-  st_transform(3035) # reproject in the same crs as stations
 
-station_aspe_bretagne <- sf::st_intersection(
-  # select stations in Britanny
-  station_aspe_sf, reg_france %>% filter(NAME_1 == "Bretagne")) %>% 
-  select(sta_id)
+# # some biometry data are wrong for Brittany. We identify station located in the region
+# # 20/07 : attention car le package ASPE utilise un dump ancien de la base ASPE (?) et donc ne peut pas avoir toutes les stations...
+# passerelle <- aspe::mef_creer_passerelle()
+# 
+# url_gadm <- "https://biogeo.ucdavis.edu/data/gadm3.6/Rsf/gadm36_FRA_1_sf.rds"
+# download.file(url_gadm, paste0(datawd,"reg_fr.rds"))#"/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds")
+# reg_france <- readRDS(paste0(datawd,"reg_fr.rds"))%>% #"/home/denis/Documents/workspace/EDAdata/loire/reg_fr.rds") 
+#   st_transform(3035) # reproject in the same crs as stations
+# 
+# station_aspe_bretagne <- sf::st_intersection(
+#   # select stations in Britanny
+#   station_aspe_sf, reg_france %>% filter(NAME_1 == "Bretagne")) %>% 
+#   select(sta_id)
+# 
+# passerelle_aspe_bretagne <- passerelle %>% 
+#   filter(sta_id %in% station_aspe_bretagne$sta_id)
+#   
+# ope_bretagne <- unique(passerelle_aspe_bretagne$ope_id)
+#20/07 : ok on remonte la liste des opé de Bretagne mais on en fait rien ?
 
-passerelle_aspe_bretagne <- passerelle %>% 
-  filter(sta_id %in% station_aspe_bretagne$sta_id)
-  
-ope_bretagne <- unique(passerelle_aspe_bretagne$ope_id)
-  
 # Just checking that everything works fine
-mapview::mapview(station_aspe_france, color = "green")
+#map with initial stations (France without extended buffer) and added stations (France with extended buffer)
 
+#plot with stations (solution 1)
+ggplot() +
+  geom_sf(data = france_map_json) +
+  geom_sf(data = station_aspe_france_buff,alpha=0.1,cex=0.2,color="darkred") +
+  geom_sf(data = station_aspe_france,alpha=0.1,cex=0.2,color="darkgreen") +
+  coord_sf(crs = st_crs(3035)) +
+  theme_bw()
+#other map (less options but with zoom in/out possibilities)
+mapview::mapview(station_aspe_france_buff, color="purple",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
+mapview::mapview(station_aspe_france, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
+
+#plot with stations (solution 2)
+ggplot() +
+  geom_sf(data = france_map_json) +
+  geom_sf(data = station_aspe_france_json,alpha=0.05,cex=0.2,color="darkred") +
+  geom_sf(data = station_aspe_france,alpha=0.05,cex=0.2,color="darkgreen") +
+  coord_sf(crs = st_crs(3035)) +
+  theme_bw()
+#other map (less options but with zoom in/out possibilities)
+mapview::mapview(station_aspe_france_json, color="red",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
+  mapview::mapview(station_aspe_france, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
+
+#plot solution 1 vs 2 (avec zoom possible)
+# solution 1 : il manque toujours une dizaine de sites français (ouessant, belle île + quelques sites au NE) 
+# solution 2 : on perd plusieurs sites dans les estuaires (ex dans le finistère)
+# ************ -->  la solution 1 semble meilleure **************
+
+mapview::mapview(station_aspe_france_buff, color="red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1) +
+  mapview::mapview(station_aspe_france_json, color="darkgreen",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
+
+
+station_aspe_france <- station_aspe_france_buff
 
 # Write station table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
 DBI::dbWriteTable(con, "station_aspe", station_aspe_france) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
+#############################################
 # Sampling locations
+#############################################
+#COMMENT 18/08/2023 : J. RAITIF : après vérification dans le fichier import_aspe_dbeel.sql, il apparaît que la table point_prelevement_aspe n'est pas utilisée. 
+# Cette étape semble donc inutile ?
 
-# Some sampling locations do not have sta_id : we need to import their coordinates
-# from point_prelevement
+#COMMENT 20/07:2023 : J.RAITIF : ici il me semble qu'il faut faire un inner join avec la table station_aspe_france que l'on a généré avant
+#pour s'assurer que l'on ne va remonter que les prélèvements réalisées sur les stations "françaises" ?
+#rappel : on remonte les variables env grâce aux RHT, donc potentiellement on les filtre après coup
+#(car pas raccroché en terme de distance à la mer, altitude issus du RHT) 
+#--> à vérifier dans le modèle EDA, 
+#on doit s'assurer que les segments de cours d'eau ont toutes les données env.
+#il est intéressant de savoir quelles opérations de pêches on perd au moment du modèle (car hors RHT mais pourtant en France)
 
-point_prelevement[point_prelevement$pop_id==100971,] # 136346
-point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
+# Some sampling locations do not have sta_id : we need to import their coordinates from point_prelevement
+# TODO 20/07 and then intersect them with the nearest station ? ces prélèvements sans sta_id sont ils redondants (coord, nom ? code_insee) ?
+# aller recherche les stations proches sur un buffer de 500m maxi : pas utile car pas d'autocorrélation dans le modèle EDA
+# --> solution idéale, mettre un nouveau sta_id. Numéroter à partir du pop_id en additionnant une valeur bien supérieure aux sta_id existants.
+
+# point_prelevement[point_prelevement$pop_id==100971,] # 136346
+# point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
@@ -174,10 +278,17 @@ DBI::dbExecute(con, "DROP TABLE if exists france.point_prelevement_aspe;")
 DBI::dbWriteTable(con, "point_prelevement_aspe", point_prelevement_aspe_sf) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 
-
+##############################################
 # Table operation
+##############################################
 
+# Cette étape a pour objectif de récupérer les opérations de pêches réalisées sur chaque point de prélèvement/stations.
+# On notera qu'à cette étape la jointure avec le dataset nouvellement créé station_aspe_france n'est pas effectué. 
+# On travaille avec station et un left join... donc on prend tous les prélèvements, même ceux n'ayant pas de sta_id ou ne figurant pas dans la table station.
+# ce qui n'est pas optimale puisque certaines stations ne sont pas sélectionnées.
+# Toutefois la jointure avec station_aspe est faite plus tard en SQL (fichier import_aspe_dbeel.sql)
 
+# 18/08 : 45589 opérations avec station
 # Based on the code from aspe::mef_creer_passerelle() without lots
 operation_aspe <- 
 		point_prelevement %>%
@@ -216,6 +327,8 @@ operation_aspe <-
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)
 
+# nrow(operation_aspe[is.na(operation_aspe$sta_id),])#18/08 : 10391 lignes sans sta_id
+
 # write operation table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
 DBI::dbWriteTable(con, "operation_aspe", operation_aspe) # written in public scheme
@@ -223,9 +336,9 @@ DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
 
 
-
-# lots
-
+##############################################
+# Table batch
+##############################################
 
 # the left join ensures that operations with no eels have zero after replace_na
 batch_aspe <- operation %>%   # 48387
@@ -248,16 +361,23 @@ batch_aspe <- operation %>%   # 48387
 						summarize(nb_eel_per_pass=sum(lop_effectif)),
 				by=c("ope_id"="pre_ope_id")
 		) %>%
-		mutate(pas_numero=replace_na(pas_numero,1))  %>% # on fait un join entre prelevement elt et lot_poisson, certains prelevements n'ont pas de passage (p?che grand milieu) on consid?re que le passage c'est 1
+  # on fait un join entre prelevement elt et lot_poisson, 
+  # certains prelevements n'ont pas de passage (peche grand milieu) 
+  # on consid?re que le passage c'est 1
+		mutate(pas_numero=replace_na(pas_numero,1))  %>% 
 		pivot_wider(id_cols=c(ope_id, nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
-		mutate("pas_1"=replace_na(pas_1,0))   # remplace les passages NULLs (protocole peche par point) par un
+  # remplace les passages NULLs (protocole peche par point) par "0"
+		mutate("pas_1"=replace_na(pas_1,0))   
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
 DBI::dbWriteTable(con, "batch_aspe", batch_aspe) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 
 
+##############################################
 # ------------------------------ Biometry--------------------------------------#
+##############################################
+
 # When there are too many fish people usually group them and will only mesure a 
 # subsample (usually 30 individuals).
 # Here we use the function qta_ajouter_mei_taille_alt() to randomly sample sizes
@@ -294,17 +414,15 @@ data <- operation %>%   # 48387
 				esp_code_alternatif
 		) # 17127311
 
-# keep only eels
+# keep only eels and remove unlikely small sizes (<50mm)
 data_ang <- data %>% 
-		filter(esp_code_alternatif == "ANG" & mei_taille > 49) # remove unlikely sizes
+		filter(esp_code_alternatif == "ANG" & mei_taille > 49) 
 rm(data)
 
-# Remove wrong measurements (systematic 350mm) in Brittany
-
-test <- data_ang %>% 
-  filter(ope_id %in% ope_bretagne & mei_taille == 350)
-
-# TODO : finish cleaning
+# 18/08 : JRT : following code has been disabled because ope_bretagne doesn't exist
+# Remove wrong measurements in Brittany with systematic size at 350mm
+# test <- data_ang %>% 
+#   filter(ope_id %in% ope_bretagne & mei_taille == 350)
 
 # count sample mesures to use the function only when the sample is large enough
 # TRIAL => recalculation of size structure, does not really work. ... generates missing values
@@ -328,8 +446,8 @@ data_lots_corrected <-data_ang %>%
 	filter(lop_id %in% mes_lots) %>%
 	qta_ajouter_mei_taille_alt() %>%
 	mutate(is_taille_alt=TRUE) %>%
-	select(-mei_taille) %>%
-	rename(mei_taille=mei_taille_alt)
+	select(-mei_taille) #%>%
+	# rename(mei_taille=mei_taille_alt)
 
 
 data_lots_not_corrected <-
@@ -338,10 +456,12 @@ data_lots_not_corrected <-
 	mutate(is_taille_alt=FALSE)
 
 data_lot2 <- bind_rows(data_lots_corrected,
-	data_lots_not_corrected) # 403623
+	data_lots_not_corrected) # 428417
 
 # TODO consider using data_lot2 instead of data_ang as there isn't NAs anymore
 
+# 18/08 JRT : la taille recalculée par qta_ajouter_mei_taille_alt() n'est pas utilisée. Pkoi ?
+# n'a pas été fait faute de temps, à utiliser pour la prochaine version. 
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
 DBI::dbWriteTable(con, "batch_fish_aspe", data_ang) # written in public scheme
@@ -349,10 +469,12 @@ DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
 
 
-#-------------------------------------
+##############################################
 # Import missing (from ASPE) silvering data
+##############################################
 
-
+# 18/08 : Ces données doivent elles êtres mises à jour ? qui fournit ces fichiers ?
+# non il n'existe pas de nouveau fichier d'argenture pour ASPE. On se base sur le même fichier table_silv_final.Rdata
 ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
 load( file = str_c(ddatawd,"table_silv_final.Rdata")) # table_silv, synthese
 

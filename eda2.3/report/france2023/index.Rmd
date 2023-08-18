@@ -1,19 +1,15 @@
 ---
-title: "ORE DiaPFC  \nObservatoire de recherche sur les poissons diadromes dans les petits fleuves côtiers"
-subtitle: "Rapport d’activités de L’Observatoire Long Terme de la Bresle"
+title: "Eel density analysis (EDA 2.3) : Modélisation de la biomasse des anguilles à l'échelle du territoire Français"
+subtitle: "Rapport technique sur la préparation des données de pêches et la modélisation"
 reportType: "`r params$annee_rapport`"
 author:
-  - name: JOSSET Quentin
+  - name: Raitif Julien
     id: "1,3"
-  - name: FLESSELLE Aurélie
-    id: "1,3"
-  - name: BERNARDIN Anaïs
-    id: "2,3"
-  - name: LECOEUR Lucie
-    id: "2,3"
-  - name: MACQUET Tony
-    id: "4"
-  - name: PETIT Laurent
+  - name: BEAULATON Laurent
+    id: "1,2,3"
+  - name: BRIAND Cédric
+    id: "3,4"
+  - name: ANDRE Guirec
     id: "1,3"
 affiliation:
   - name: OFB, Direction  Recherche et appui scientifique, Service « Conservation et Gestion Durable des Espèces Exploitées »
@@ -22,17 +18,20 @@ affiliation:
     id: 2
   - name: \affilPole
     id: 3
-  - name: Syndicat mixte d’aménagement, de gestion et de valorisation de le Bresle
+  - name: Etablissement Public Territorial de Bassin de la Vilaine
     id: 4
 lang: fr
 date: "`r format(Sys.time(), '%Y %B %d')`"
+# site: bookdown::bookdown_site
 documentclass: report
+#https://bookdown.org/yihui/bookdown/rstudio-ide.html  : 
+#cf When you click the Knit button to compile an R Markdown document in the RStudio IDE, the default function called by RStudio is rmarkdown::render(), which is not what we want for books. To call the function bookdown::render_book() instead, you can set the site field to be bookdown::bookdown_site in the YAML metadata of the R Markdown document index.Rmd
 output:
   bookdown::pdf_document2:
     fig_caption: yes
     template: template/model_rmd_pole.tex
     latex_engine: xelatex
-    keep_tex: no
+    keep_tex: yes
     number_sections: yes
     toc: yes
     toc_depth: 3
@@ -55,16 +54,17 @@ classoption: a4paper
 bibliography: france2023.bib
 csl: "template/ICES Journal of Marine Science perso.csl"
 params:
-  annee_rapport: 2022
-  schema_base: bresle
-  site: BRESLE
+  annee_rapport: 2023
+  schema_base: eda
+  site: EDA
   debug: FALSE # mettre a TRUE pour afficher les messages d'erreurs, warnings, ...
   chargement_donnees: FALSE # mettre à TRUE pour recharger les donnees depuis la base
 ---
 
 ```{r setup, include = FALSE, echo = FALSE}
 
-knitr::opts_chunk$set(echo = FALSE, warnings=FALSE, eval.after = "fig.cap")
+knitr::opts_chunk$set(echo = FALSE, warnings=FALSE, eval.after = "fig.cap", results = 'asis')
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 
 # to test the output and adapt the type of table
 output <- rmarkdown::metadata$output
@@ -90,4 +90,3 @@ load_library(c('sqldf',  # for executing SQL queries
 				'RCurl',
 				'tidyverse')) # because tidyverse dude	
 ```
-

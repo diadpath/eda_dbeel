@@ -76,7 +76,7 @@
   \url{www.ofb.gouv.fr}
   \hspace{0.7cm}\url{www.inrae.fr}
   \hspace{0.7cm}\url{www.institut-agro-rennes-angers.fr}
-  \hspace{0.7cm}\url{www.univ-pau.fr} 
+  \hspace{0.7cm}\url{www.univ-pau.fr}
   }
   
 }

@@ -1,40 +1,31 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
 # Introduction
 
-## ORE DiaPFC – Pôle MIAME
+Dans ce document, nous présenterons les différentes étapes qui sont réalisées afin de récupérer et préparer les données nécessaires.
 
-L'[ORE DiaPFC](https://www6.inrae.fr/diapfc) combine des dispositifs de suivi à long terme *in natura* des
-populations de poissons migrateurs amphihalins et de leur environnement, avec
-des installations expérimentales et des outils de simulation in silico.
+## Source des données
 
-D'un point de vue pratique, les activités de l’ORE DiaPFC sont organisées selon
-trois volets complémentaires :
+Le modèle EDA s'appuie aujourd'hui sur des données provenant de 2 sources différentes : - ASPE (Application de Saisie des données Piscicoles et Environnementales) - RSA (Réseau de Surveillance Anguilles)
 
--	L’observation *in natura* consiste en
-    l’acquisition de données sur le long terme (mission d'observatoire) avec
-    pour objectif une connaissance globale des dynamiques temporelles et des
-    sorties opérationnelles pour la gestion, la conservation et la restauration
-    des migrateurs amphihalins\ ; pour certaines espèces (anguille, saumon et truite), des programmes
-    de marquage-recapture individuel (PIT-tag) sont mis en œuvre.
+### ASPE
 
--	L'expérimentation consiste à la mise en œuvre d'actions de recherches plus
-    ponctuelles pour répondre à des questions plus ciblées ou lever des verrous
-    méthodologiques. Dans ce cas, les suivis à long terme sont complétés par des
-    expérimentations soit en milieu naturel, soit dans des installations
-    expérimentales (chenaux artificiels, mésocosmes lotiques, microcosmes,
-    etc.), soit in silico par simulation.
+La base de données ASPE (Application de Saisie des données Piscicoles et Environnementales) est une base de données accessible en ligne (<https://aspe.eaufrance.fr/aspe-web/>).Elle permet aux personnes habilitées (personnel OFB essentiellement) de saisir les données techniques, environnementales,biologiques (effectifs capturés notamment) des opérations de pêches scientifiques. L'import de cette base peut se réaliser de deux façons :
 
--	La poursuite du développement d’outils de simulation démo-génétiques.
+-   **Dump**
 
-L’ORE DiaPFC repose sur un noyau de 4 unités fondatrices : L’UMR INRAE-UPPA
-ECOBIOP (Saint-Pée sur Nivelle), l’U3E INRAE (Rennes, Eu, Ducey et Pt-Scorff),
-l’UMR INRAE-Institut Agro-Ifremer DECOD (Brest, Lorient, Nantes, Rennes) et la
-DRAS de l’OFB (Rennes, Eu, Ducey). 
+L'import des données ASPE se réalise grâce au fichier aspe_import.R à partir d'un dump de la base de données ASPE fourni par XXXX. Ce dump  est fourni ponctuellement (et à la demande) par XXXX. Cette version du rapportage anguille 2024 se base sur un dump en date du `25/06/2023`.
 
-A ce noyau se rajoute un cercle d'unités partenaires et utilisatrices des
-données et/ou des installations de l'ORE, constitué d’unités de recherche
-françaises ou étrangères.
+-   **API Poisson**
 
-A l’interface entre les opérateurs gestion et recherche, le pôle
-OFB-INRAE-Institut Agro-UPPA pour la gestion des MIgrateurs AMphihalins
-dans leur Environnement (Pôle MIAME), est un partenaire essentiel et fondateur
-de cet ORE.
+Une autre technique d'accès aux données a été développée en se basant sur l'API Poisson (<https://hubeau.eaufrance.fr/page/api-poisson>) exploitée dans le fichier \*\*test_API_JRT.R. Une requête est envoyée aux serveurs ASPE (maintenus par le BRGM) pour chaque année souhaitée. L'API est exploitée dans sa version paginée pour contourner la limitation de 20000 résultats par requête. Les résultats de la requête sont ainsi "découpés" en pages dont le nombre d'occurences est limité à 1000 pour optimiser les performances. Chaque page de résultats est ainsi parcouru et les occurrences sont compilées dans un dataset commun. L'avantage apportée par cette solution est l'autonomie d'accès aux données. L'inconvénient majeur et bloquant est qu'une grande partie des données nécessaire à l'exécution du modèle EDA (taille des stations notamment) est indisponible. Une version ultérieure (livraison fin 2023) pourrait potentiellement corriger cette limitation. Cette solution est donc abandonnée pour la mise à jour du rapport anguille 2024.
+
+### RSA
+
+La base de données RSA est complémentaire de la base de données ASPE et accessible à un plus grand nombre d'utilisateurs, notamment les associations de pêches et autres partenaires des réseaux de surveillance des amphihalins. L'accès à ces données se fait par un dump de la base fourni par XXXX.
+
+Cette version du rapportage anguille 2024 se base sur un dump en date du `07/07/2023`.
