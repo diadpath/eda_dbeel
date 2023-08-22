@@ -1,0 +1,26 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+# Insertion des données dans les tables de la dbeel
+
+A cette étape, et quelle que soit la source de données, l'objectif est d'insérer les données préparées depuis ASPE et RSA et de les insérer dans les tables finales de la base EDA - **dbeel**.
+
+## ASPE
+
+Les principales étapes de l'insertion des données ASPE se déroulent dans le fichier _import_aspe_dbeel.sql_. Les tables majeures de la **dbeel** qui vont être alimentées sont :
+
+-   **dbeel_station_aspe**, ensemble des stations
+
+-   **dbeel_electrofishing_aspe**, liste les opérations de pêches
+
+-   **dbeel_batch_ope_aspe**, détails des résultats de pêches
+
+-   **dbeel_batch_fish_aspe**, détails des résultats de pêches par individus
+
+-   **dbeel_mensurationindiv_biol_charac_aspe**, données biométriques par individus
+
+### Préambule : Etablissements et provider de données
+
+Dbeel_station_aspe
