@@ -270,6 +270,7 @@ SELECT
 
 ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
+
 UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
  france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --31919
  

@@ -2,7 +2,7 @@
 # pour executer sur linux / eclipse executer a partir du index.rmd: bookdown::render_book(input= ".", output_format = "bookdown::pdf_document2", output_dir= "${container_loc:${out_file_path}}", encoding= "${resource_enc}")
 
 # Phase de test
-rmd_files: ["index.Rmd", "01-introduction.rmd" , "02-prep_donnees.rmd"]
+rmd_files: ["index.Rmd", "01-introduction.rmd" , "02-prep_donnees.rmd", "03-insert_dans_eda.rmd"]
 
 # Rapport Bresle
 #rmd_files: ["index_bre.Rmd", "01-introduction_bre.rmd", "02-donnees_environnementales_bre.rmd", "03-piegeage_bre.rmd", "04-peches_elec_bre.rmd", "06-estimations_bre.rmd", "07-faits_notables_bre.rmd", "08-references_bre.rmd", "09-annexes_bre.rmd"] # defini les fichiers a inclure dans la compilaton

@@ -194,7 +194,7 @@ mapview::mapview(station_aspe_france_buff, color="red",alpha.regions = 0.2, aplh
   mapview::mapview(station_aspe_france_json, color="darkgreen",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
 
 
-station_aspe_france <- station_aspe_france_buff
+station_aspe_france <- station_aspe_france_buff#33985 stations, 21/08/2023
 
 # Write station table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.station_aspe;")
@@ -204,6 +204,8 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 #############################################
 # Sampling locations
 #############################################
+#Comment 21/08/2023 : J. RAITIF : cf plus bas dans le code sur les opérations. Je propose de rattacher les opérations sans station avec la station la plus proche.
+
 #COMMENT 18/08/2023 : J. RAITIF : après vérification dans le fichier import_aspe_dbeel.sql, il apparaît que la table point_prelevement_aspe n'est pas utilisée. 
 # Cette étape semble donc inutile ?
 
@@ -267,6 +269,7 @@ point_prelevement_aspe <- point_prelevement_aspe %>%
 		mutate(typ_code_epsg=3035) 
 
 nrow(point_prelevement_aspe)  #115355
+#120427 au 21/08
 
 point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),crs=3035)
 
@@ -327,13 +330,39 @@ operation_aspe <-
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)
 
-# nrow(operation_aspe[is.na(operation_aspe$sta_id),])#18/08 : 10391 lignes sans sta_id
+# nrow(operation_aspe[is.na(operation_aspe$sta_id),])
+#nrow(operation_aspe[is.na(operation_aspe$pop_id),])
 
+#18/08 : 10391 lignes sans sta_id
+
+# nrow(operation_aspe)
+#21/08 : 45589 lignes
 # write operation table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
 DBI::dbWriteTable(con, "operation_aspe", operation_aspe) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
+#How many ASPE operation are recorded without station id 
+#(point of prelevement is not properly attached to station)
+lost_pop <- point_prelevement_aspe %>%
+  inner_join(operation_aspe, by=c("pop_id"="pop_id")) %>%
+  filter(is.na(sta_id))
+#21/08 : 24 operations (same as previous EDA runs in 2020) without proper sta_id
+lost_pop_sf <- st_as_sf(lost_pop, coords=c("X","Y"),crs=3035)
+
+mapview::mapview(lost_pop_sf, color = "red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1)
+
+# show the nearest actual station
+lost_near <- st_nearest_feature(lost_pop_sf,station_aspe_france_buff)
+near_station <- station_aspe_france_buff[lost_near,]
+
+mapview::mapview(near_station, color="green",alpha.regions = 0.2, aplha = 0.4,legend=FALSE,cex =2) +
+  mapview::mapview(lost_pop_sf, color="purple",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
+
+#compute the distance between the unregistered pop and the nearest station
+dist <- st_distance(lost_pop_sf, station_aspe_france_buff[lost_near,], by_element=TRUE)
+min(dist) #minimal distance is 25m
+max(dist) #maximal distance is 1711m
 
 
 ##############################################
@@ -447,24 +476,32 @@ data_lots_corrected <-data_ang %>%
 	qta_ajouter_mei_taille_alt() %>%
 	mutate(is_taille_alt=TRUE) %>%
 	select(-mei_taille) #%>%
-	# rename(mei_taille=mei_taille_alt)
+
+data_lots_corrected <- data_lots_corrected %>%	
+  rename(mei_taille=mei_taille_alt_ta_integral) %>%
+  select(order(colnames(data_lots_corrected)))
 
 
 data_lots_not_corrected <-
 	data_ang %>%
 	filter(!lop_id %in% mes_lots) %>%
 	mutate(is_taille_alt=FALSE)
+data_lots_not_corrected <- data_lots_not_corrected %>%
+  select(order(colnames(data_lots_not_corrected)))
 
 data_lot2 <- bind_rows(data_lots_corrected,
 	data_lots_not_corrected) # 428417
 
-# TODO consider using data_lot2 instead of data_ang as there isn't NAs anymore
 
 # 18/08 JRT : la taille recalculée par qta_ajouter_mei_taille_alt() n'est pas utilisée. Pkoi ?
-# n'a pas été fait faute de temps, à utiliser pour la prochaine version. 
+# réponse : N'a pas été fait faute de temps, à utiliser pour la prochaine version. 
+
+# TODO consider using data_lot2 instead of data_ang as there isn't NAs anymore
+## --> 18/08 : DONE
+
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_fish_aspe;")
-DBI::dbWriteTable(con, "batch_fish_aspe", data_ang) # written in public scheme
+DBI::dbWriteTable(con, "batch_fish_aspe", data_lot2) 
 DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
 
@@ -475,17 +512,19 @@ DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
 # 18/08 : Ces données doivent elles êtres mises à jour ? qui fournit ces fichiers ?
 # non il n'existe pas de nouveau fichier d'argenture pour ASPE. On se base sur le même fichier table_silv_final.Rdata
-ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
-load( file = str_c(ddatawd,"table_silv_final.Rdata")) # table_silv, synthese
+# ddatawd <- "C:/workspace/EDAdata/report2.3/data/"
+load( file = str_c("data/table_silv_final.Rdata")) # table_silv, synthese
 
 # French data use "code_wama" as "ob_id"
 # the remining data are from Spain 
 options(scipen=999) # prevent R to convert lorge numbers as scientific notation
 
 # Collect operations from the database
-operation_aspe_silver <- DBI::dbGetQuery(con, "SELECT * FROM france.operation_aspe;") %>% 
+operation_aspe_silver <- DBI::dbGetQuery(con, 
+                                         "SELECT * FROM france.operation_aspe;") %>% 
   mutate(ope_code_wama = as.character(ope_code_wama)) %>% # necessary for joins
   filter(!is.na(ope_code_wama))  # silvering data only "joinable" with code_wama
+#18/08 : 37691 lines
   
 # Keep only french data
 table_silv <- table_silv[table_silv$country=='FR',]
@@ -504,8 +543,15 @@ exclusion_finale <- batch_silver_wama$a_exclure_taille  |
 		batch_silver_wama$a_exclure_diah | 
 		batch_silver_wama$a_exclure_diav | 
 		batch_silver_wama$a_exclure_excentricite 
-batch_silver_wama = batch_silver_wama[!is.na(exclusion_finale) & !exclusion_finale,] # 14575
+batch_silver_wama = batch_silver_wama[!is.na(exclusion_finale) & 
+                                        !exclusion_finale,] # 14575
 
+batch_silver_wama$ope_dbeel_ob_id <- ''
+
+#21/08 : ope_dbeel_ob_id is a foreign key to ob_id in dbeel_electrofishing_aspe table 
+# which is generated in import_aspe_dbeel.sql
+# must be further updated with a link with operation_aspe-'ope_code_wama'
+# cf line 274/275
 batch_silver_wama <- 
 		batch_silver_wama[,
 		c("ope_dbeel_ob_id",
@@ -525,5 +571,5 @@ batch_silver_wama <-
 				)]
 
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_silver_wama;")
-DBI::dbWriteTable(con, "batch_silver_wama", batch_silver_wama) # written in public scheme
+DBI::dbWriteTable(con, "batch_silver_wama", batch_silver_wama) 
 DBI::dbExecute(con, "ALTER TABLE batch_silver_wama set schema france")
