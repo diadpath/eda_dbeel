@@ -3,6 +3,7 @@ output:
   html_document: default
   pdf_document: default
 ---
+
 # Préparation des données
 
 A cette étape, et quelle que soit la source de données, l'objectif est de s'assurer de l'intégrité des données.
@@ -42,7 +43,7 @@ load(str_c("data/mei_2023_06_25_21_31_13.RData"))
 
 \newpage
 
-### Stations en France métropolitaine
+### Stations en France métropolitaine {#stations-en-france-métropolitaine}
 
 A cette étape du processus, un ensemble d'opérations de pêches sont présentes dans les différentes tables ASPE mais certaines concernent des stations se situant dans des pays frontaliers (Suisse, Allemagne, ...). Il convient de ne conserver que les stations françaises.
 
@@ -118,13 +119,11 @@ mapview::mapview(france_polygone,
                    aplha = 0.1,legend=FALSE,cex =1)
 ```
 
-
 ![(#fig:carte-france_v1) Visualisation des stations "filtrées" v1.](images/stations_france_v1bis.png)
 
 \newpage
 
 Pour améliorer cette étape de filtre, le polygone "France" a été bufferisé de 20km et une nouvelle étape d'intersection a été réalisée. Le résultat est la suppression d'uniquement 55 stations qui sont pour la plupart hors France métropolitaine. Il reste toutefois quelques stations (\<10) à la marge (sur les îles bretonnes et au NE) et qui sont supprimées par ce filtre. La figure ci-dessous présente en \textcolor{green}{vert} les stations récupérées avec la version v1 et en \textcolor{purple}{violet} les stations supplémentaires récupérées grâce au polygone France bufferisé.
-
 
 ```{r filtre_v2, eval = FALSE, echo = TRUE}
 france_polygone_buff <- st_buffer(france_polygone,dist=20000)  
@@ -153,8 +152,7 @@ mapview::mapview(station_aspe_france, color="darkgreen",
 
 ```
 
-
-![(#fig:carte-france_v2) Visualisation des stations "récupérées" par v2.](images/stations_france_v2bis.png){}
+![(#fig:carte-france_v2) Visualisation des stations "récupérées" par v2.](images/stations_france_v2bis.png)
 
 \newpage
 
@@ -174,9 +172,7 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
 ### Points de prélèvements
 
-Dans ASPE, les opérations de pêche sont associées à des couples points de prélèvements/stations. Un point de prélèvement est associé à une station.
-Lors de l'importation des données pour le run du modèle EDA, les données des points de prélèvements ne sont pas nécessaires dans l'absolu. Toutefois, il existe dans ASPE des opérations qui sont associées à des points de prélèvements mais sans station. Nous allons voir ci-dessous ce cas particulier (cf [Opérations](#opérations) 
-) après avoir présenté le cas général.
+Dans ASPE, les opérations de pêche sont associées à des couples points de prélèvements/stations. Un point de prélèvement est associé à une station. Lors de l'importation des données pour le run du modèle EDA, les données des points de prélèvements ne sont pas nécessaires dans l'absolu. Toutefois, il existe dans ASPE des opérations qui sont associées à des points de prélèvements mais sans station. Nous allons voir ci-dessous ce cas particulier (cf [Opérations](#opérations) ) après avoir présenté le cas général.
 
 Dans un premier temps, les points de prélèvement français sont récupérés puis leur coordonnées dans le système de coordonnées 3035 est calculé.
 
@@ -227,6 +223,7 @@ point_prelevement_aspe <- point_prelevement_aspe %>%
 				))%>%
 		mutate(typ_code_epsg=3035) 
 ```
+
 La dernière étape est l'ajout de ces points de prélèvements dans la base EDA.
 
 ```{r write_pop_EDA, eval = FALSE, echo = TRUE}
@@ -239,9 +236,9 @@ DBI::dbWriteTable(con, "point_prelevement_aspe", point_prelevement_aspe_sf)
 DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 ```
 
-
 \newpage
-### Opérations
+
+### Opérations {#opérations}
 
 A cet étape on récupère l'ensemble des opérations qui sont stockées dans ASPE. Elles sont au nombre de 45589 (au 21/08/23). Une opération sera caractérisée par des mesures physicochimiques sur le point de prélèvement et des informations techniques sur l'opération de pêche.
 
@@ -287,13 +284,14 @@ operation_aspe <-
 ```
 
 La dernière étape est l'ajout de ces opérations dans la base EDA.
+
 ```{r write_ope_EDA, eval = FALSE, echo = TRUE}
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
 DBI::dbWriteTable(con, "operation_aspe", operation_aspe) 
 DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 ```
 
-A ce stade on insère donc 45589 ligne d'opérations dans la base EDA mais dont 24 opérations sont attachés à des points de prélèvement sans identifiant de station (sta_id). Le code ci-dessous permet de charger ces opérations sans station puis de les visualiser avec la station la plus proche connu dans le dataset [Station ASPE](#stations-en-france-métropolitaine) 
+A ce stade on insère donc 45589 ligne d'opérations dans la base EDA mais dont 24 opérations sont attachés à des points de prélèvement sans identifiant de station (sta_id). Le code ci-dessous permet de charger ces opérations sans station puis de les visualiser avec la station la plus proche connu dans le dataset [Station ASPE](#stations-en-france-métropolitaine)
 
 ```{r ope_without_sta, eval = FALSE, echo = TRUE}
 #How many ASPE operation are recorded without station id 
@@ -320,13 +318,14 @@ min(dist) #minimal distance is 25m
 max(dist) #maximal distance is 1711m
 ```
 
-Sur la carte ci-dessous figure l'ensemble des opération sans identifiant de station en \textcolor{purple}{violet} avec les stations connues les plus proches en \textcolor{green}{vert}. A noter que le rapprochement le plus efficace se fait avec une distance opération <-> station de 25m, alors que le plus éloigné est de 1711m.
+Sur la carte ci-dessous figure l'ensemble des opération sans identifiant de station en \textcolor{purple}{violet} avec les stations connues les plus proches en \textcolor{green}{vert}. A noter que le rapprochement le plus efficace se fait avec une distance opération \<-\> station de 25m, alors que le plus éloigné est de 1711m.
 
-![(#fig:carte-france_ope_station) Visualisation des opérations sans station.](images/ope_sans_station.png){}
+![(#fig:carte-france_ope_station) Visualisation des opérations sans station.](images/ope_sans_station.png)
 
-Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.
+Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.**Au 22/08 : Attente de validation Cédric/Laurent.**
 
 \newpage
+
 ### Batch
 
 Le batch est lié à une opération de pêche et recense les effectifs de poissons ayant été capturés, éventuellement par numéro de passage. Lors d'une pêche en grand milieu, l'ensemble des captures est stocké dans la colonne du premier passage.
@@ -372,9 +371,10 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 ```
 
 ### Données de Biométrie
+
 Des données biométriques telles que la taille et le poids des individus capturés sont nécessaires pour le modèle EDA. Ces données existent dans ASPE. Au 21/08, 428417 mesures d'anguilles sont comptabilisées.
 
-Pour certaines opérations de pêches, lorsque les effectifs capturés étaient de 30 individus ou +, la taille n'était pas mesurée individuellement mais par lot de 30 généralement. Un poids moyen était ainsi attribué à chaque individu. Pour améliorer l'estimation du modèle et réinjecter de la variabilité, nous utilisons dans ce cas la méthode *qta_ajouter_mei_taille_alt()* intégré au package R *ASPE*. Extrait de la documentation du package : _"Elle affecte à chaque individu d'un lot "S/L" qui n'a pas été mesuré une longueur tirée aléatoirement parmi celles des individus du sous-lot qui a été mesuré. Deux méthodes sont proposées."_
+Pour certaines opérations de pêches, lorsque les effectifs capturés étaient de 30 individus ou +, la taille n'était pas mesurée individuellement mais par lot de 30 généralement. Un poids moyen était ainsi attribué à chaque individu. Pour améliorer l'estimation du modèle et réinjecter de la variabilité, nous utilisons dans ce cas la méthode *qta_ajouter_mei_taille_alt()* intégré au package R *ASPE*. Extrait de la documentation du package : *"Elle affecte à chaque individu d'un lot"S/L" qui n'a pas été mesuré une longueur tirée aléatoirement parmi celles des individus du sous-lot qui a été mesuré. Deux méthodes sont proposées."*
 
 ```{r get_bio_ASPE, eval = FALSE, echo = TRUE}
 data <- operation %>%   # 48387
@@ -458,10 +458,9 @@ DBI::dbWriteTable(con, "batch_fish_aspe", data_lot2)
 DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 ```
 
-
 ### Données d'argenture
 
-Enfin pour l'estimation des biomasses par différents stades de maturité des anguilles, il est nécessaire de disposer des données d'argenture (taille pectorale, diamètre oculaire, ...). Ces données ne sont pas disponibles dans la base ASPE mais uniquement dans une ancienne version de cette base de données. L'insertion de ces données se fait donc via la prise en compte d'un fichier externe nommé _table_silv_final.Rdata_. Une jointure est faite entre ce fichier de données et les opérations préalablement sauvegardées dans la table _france.operation_aspe_ grâce au code WAMA _ope_code_wama_ correspondant à l'ID dans l'ancienne base. Certaines données sont à exclure.
+Enfin pour l'estimation des biomasses par différents stades de maturité des anguilles, il est nécessaire de disposer des données d'argenture (taille pectorale, diamètre oculaire, ...). Ces données ne sont pas disponibles dans la base ASPE mais uniquement dans une ancienne version de cette base de données. L'insertion de ces données se fait donc via la prise en compte d'un fichier externe nommé *table_silv_final.Rdata*. Une jointure est faite entre ce fichier de données et les opérations préalablement sauvegardées dans la table *france.operation_aspe* grâce au code WAMA *ope_code_wama* correspondant à l'ID dans l'ancienne base. Certaines données sont à exclure.
 
 ```{r get_silv_wama, eval = FALSE, echo = TRUE}
 load( file = str_c("data/table_silv_final.Rdata")) # table_silv, synthese
@@ -498,7 +497,8 @@ batch_silver_wama = batch_silver_wama[!is.na(exclusion_finale) &
                                         !exclusion_finale,] # 14575
 ```
 
-Avant insertion en base, il est nécessaire d'initialiser la colonne _ope_dbeel_ob_id_ à vide. Elle sera mise à jour après la génération de l'identifiant dans _dbeel_electrofishing_aspe_ (voir script *import_aspe_dbeel.sql*)
+Avant insertion en base, il est nécessaire d'initialiser la colonne *ope_dbeel_ob_id* à vide. Elle sera mise à jour après la génération de l'identifiant dans *dbeel_electrofishing_aspe* (voir script *import_aspe_dbeel.sql*)
+
 ```{r prep_silv_wama, eval = FALSE, echo = TRUE}
 batch_silver_wama$ope_dbeel_ob_id <- ''
 
@@ -526,6 +526,7 @@ batch_silver_wama <-
 ```
 
 Enfin, les données d'argenture sont insérées dans la base EDA.
+
 ```{r write_Silv_EDA, eval = FALSE, echo = TRUE}
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_silver_wama;")
 DBI::dbWriteTable(con, "batch_silver_wama", batch_silver_wama) 

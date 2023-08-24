@@ -364,6 +364,9 @@ dist <- st_distance(lost_pop_sf, station_aspe_france_buff[lost_near,], by_elemen
 min(dist) #minimal distance is 25m
 max(dist) #maximal distance is 1711m
 
+#####
+#### Au 22/08 : Attente de validation Cédric/Laurent.
+#####
 
 ##############################################
 # Table batch

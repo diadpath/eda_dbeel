@@ -159,7 +159,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="3.1" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#aspe-2"><i class="fa fa-check"></i><b>3.1</b> ASPE</a>
 <ul>
-<li class="chapter" data-level="3.1.1" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#préambule-etablissements-et-provider-de-données"><i class="fa fa-check"></i><b>3.1.1</b> Préambule : Etablissements et provider de données</a></li>
+<li class="chapter" data-level="3.1.1" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#préambule-etablissement-et-provider-de-données"><i class="fa fa-check"></i><b>3.1.1</b> Préambule : Etablissement et provider de données</a></li>
+<li class="chapter" data-level="3.1.2" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_station_aspe"><i class="fa fa-check"></i><b>3.1.2</b> Dbeel_station_aspe</a></li>
+<li class="chapter" data-level="3.1.3" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_electrofishing_aspe"><i class="fa fa-check"></i><b>3.1.3</b> dbeel_electrofishing_aspe</a></li>
 </ul></li>
 </ul></li>
 </ul>
@@ -188,13 +190,200 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li><p><strong>dbeel_station_aspe</strong>, ensemble des stations</p></li>
 <li><p><strong>dbeel_electrofishing_aspe</strong>, liste les opérations de pêches</p></li>
-<li><p><strong>dbeel_batch_ope_aspe</strong>, détails des résultats de pêches</p></li>
+<li><p><strong>dbeel_batch_ope_aspe</strong>, détails des résultats de pêches (par lots d’individus)</p></li>
 <li><p><strong>dbeel_batch_fish_aspe</strong>, détails des résultats de pêches par individus</p></li>
 <li><p><strong>dbeel_mensurationindiv_biol_charac_aspe</strong>, données biométriques par individus</p></li>
 </ul>
-<div id="préambule-etablissements-et-provider-de-données" class="section level3 hasAnchor" number="3.1.1">
-<h3><span class="header-section-number">3.1.1</span> Préambule : Etablissements et provider de données<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#préambule-etablissements-et-provider-de-données" class="anchor-section" aria-label="Anchor link to header"></a></h3>
-<p>Dbeel_station_aspe</p>
+<div id="préambule-etablissement-et-provider-de-données" class="section level3 hasAnchor" number="3.1.1">
+<h3><span class="header-section-number">3.1.1</span> Préambule : Etablissement et provider de données<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#préambule-etablissement-et-provider-de-données" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>Dans la dbeel, chaque nouvel enregistrement de pêche électrique ajouté dans <strong>dbeel_electrofishing_aspe</strong> doit référencer un fournisseur de données (data provider) présent dans la table <strong>data_provider</strong> et lui même rattaché à un établissement référencé dans la table <strong>establishment</strong>.</p>
+<p>Les données issues de ASPE sont stockés comme provenant de <strong>Pascal Irz</strong>, rattaché à l’<strong>OFB</strong>.</p>
+<p><strong>Attention</strong>, au 21/08/2023 ces données sont déjà présentent dans la base dbeel, il ne semble pas donc pas nécessaire d’exécuter à nouveau cette partie du script.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb21-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-1" tabindex="-1"></a><span class="co">-- select * from dbeel.establishment;</span></span>
+<span id="cb21-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-2" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span>  dbeel.establishment (et_establishment_name) <span class="kw">VALUES</span> (<span class="st">&#39;OFB&#39;</span>);</span>
+<span id="cb21-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-3" tabindex="-1"></a><span class="co">--select * from dbeel.data_provider</span></span>
+<span id="cb21-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-4" tabindex="-1"></a><span class="co">--select max(dp_id) from dbeel.data_provider; -- 25</span></span>
+<span id="cb21-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-5" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span>  dbeel.data_provider (dp_id, dp_name, dp_et_id) <span class="kw">VALUES</span> (<span class="dv">30</span>, <span class="st">&#39;Pascal Irz&#39;</span>,<span class="dv">27</span>);</span>
+<span id="cb21-6"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb21-6" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">SEQUENCE</span> dbeel.data_provider_dp_id_seq RESTART <span class="kw">WITH</span> <span class="dv">31</span>;</span></code></pre></div>
+</div>
+<div id="dbeel_station_aspe" class="section level3 hasAnchor" number="3.1.2">
+<h3><span class="header-section-number">3.1.2</span> Dbeel_station_aspe<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_station_aspe" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>Dans le schéma France, la table <strong>dbeel_station_aspe</strong> hérite de la table <strong>observation_places</strong> du schéma dbeel. Cette table va regrouper l’ensemble des stations référencées dans les opérations de pêches ASPE. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb22-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-1" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> <span class="cf">if</span> <span class="kw">exists</span> france.dbeel_station_aspe <span class="kw">CASCADE</span>;</span>
+<span id="cb22-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-2" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> france.dbeel_station_aspe (</span>
+<span id="cb22-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-3" tabindex="-1"></a>    sta_id <span class="dt">integer</span>,</span>
+<span id="cb22-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-4" tabindex="-1"></a>    sta_code_sandre TEXT,</span>
+<span id="cb22-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-5" tabindex="-1"></a>  country <span class="dt">character</span> <span class="dt">varying</span>(<span class="dv">2</span>),     </span>
+<span id="cb22-6"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-6" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> pk_so_op_id <span class="kw">PRIMARY</span> <span class="kw">KEY</span> (op_id),</span>
+<span id="cb22-7"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-7" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_so_observation_place_type_id <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (op_no_observationplacetype) </span>
+<span id="cb22-8"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-8" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.observation_place_type (no_id) </span>
+<span id="cb22-9"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-9" tabindex="-1"></a>        MATCH SIMPLE <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span></span>
+<span id="cb22-10"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb22-10" tabindex="-1"></a>) INHERITS (dbeel.observation_places);</span></code></pre></div>
+<p>Ensuite, l’ensemble des stations récupérées depuis ASPE est inséré dans la table en générant un identifiant unique, via <strong>uuid_generate_v4()</strong> pour chaque station.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb23-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-1" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_station_aspe </span>
+<span id="cb23-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-2" tabindex="-1"></a>    <span class="kw">SELECT</span>  uuid_generate_v4() <span class="kw">AS</span> op_id, <span class="co">-- UNIQUE identifier</span></span>
+<span id="cb23-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-3" tabindex="-1"></a>    <span class="st">&#39;3035&#39;</span> <span class="kw">AS</span> op_gis_systemname ,</span>
+<span id="cb23-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-4" tabindex="-1"></a>    <span class="st">&#39;ASPE&#39;</span> <span class="kw">AS</span> op_gis_layername, </span>
+<span id="cb23-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-5" tabindex="-1"></a>    <span class="kw">NULL</span> <span class="kw">AS</span> op_gislocation, </span>
+<span id="cb23-6"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-6" tabindex="-1"></a>    sta_libelle_sandre <span class="kw">AS</span> op_placename,</span>
+<span id="cb23-7"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-7" tabindex="-1"></a>    <span class="dv">10</span> <span class="kw">AS</span> op_no_observationplacetype, <span class="co">-- Sampling station</span></span>
+<span id="cb23-8"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-8" tabindex="-1"></a>    <span class="kw">NULL</span> <span class="kw">AS</span>  op_op_id,</span>
+<span id="cb23-9"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-9" tabindex="-1"></a>    geometry  <span class="kw">as</span> the_geom, <span class="co">-- already 3035</span></span>
+<span id="cb23-10"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-10" tabindex="-1"></a>   sta_id,</span>
+<span id="cb23-11"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-11" tabindex="-1"></a>   sta_code_sandre,</span>
+<span id="cb23-12"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-12" tabindex="-1"></a>  <span class="st">&#39;FR&#39;</span> <span class="kw">AS</span> country </span>
+<span id="cb23-13"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb23-13" tabindex="-1"></a>    <span class="kw">FROM</span> france.station_aspe;</span></code></pre></div>
+<p>Au 24/08, il existe 33985 stations à insérer.</p>
+</div>
+<div id="dbeel_electrofishing_aspe" class="section level3 hasAnchor" number="3.1.3">
+<h3><span class="header-section-number">3.1.3</span> dbeel_electrofishing_aspe<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_electrofishing_aspe" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>Dans le schéma France, la table <strong>dbeel_electrofishing_aspe</strong> hérite de la table <strong>electrofishing</strong> du schéma dbeel. Cette table va regrouper l’ensemble des opérations de pêches électriques référencées dans ASPE avec certaines informations techniques ainsi que des références externes vers la station, le point de prélèvement (<strong>est ce encore utile ?</strong>), etc…. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb24-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-1" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> <span class="cf">if</span> <span class="kw">exists</span> france.dbeel_electrofishing_aspe <span class="kw">CASCADE</span>;</span>
+<span id="cb24-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-2" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-3" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> france.dbeel_electrofishing_aspe(</span>
+<span id="cb24-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-4" tabindex="-1"></a>  odp_nombre_anodes <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-5" tabindex="-1"></a>  odp_nombre_epuisettes <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-6"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-6" tabindex="-1"></a>  odp_maille_epuisette <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-7"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-7" tabindex="-1"></a>  odp_tension <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-8"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-8" tabindex="-1"></a>  odp_intensite <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-9"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-9" tabindex="-1"></a>  odp_puissance <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-10"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-10" tabindex="-1"></a>  odp_nombre_points_anguilles <span class="dt">INTEGER</span>,</span>
+<span id="cb24-11"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-11" tabindex="-1"></a>  nb_point <span class="dt">INTEGER</span>,</span>
+<span id="cb24-12"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-12" tabindex="-1"></a>  odp_duree_peche <span class="dt">NUMERIC</span>,</span>
+<span id="cb24-13"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-13" tabindex="-1"></a>  op_typ TEXT,</span>
+<span id="cb24-14"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-14" tabindex="-1"></a>  mom_libelle TEXT,</span>
+<span id="cb24-15"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-15" tabindex="-1"></a>  ope_id <span class="dt">INTEGER</span>,</span>
+<span id="cb24-16"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-16" tabindex="-1"></a>  pop_id <span class="dt">INTEGER</span>,</span>
+<span id="cb24-17"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-17" tabindex="-1"></a>  sta_id <span class="dt">INTEGER</span>,</span>
+<span id="cb24-18"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-18" tabindex="-1"></a>  sta_code_sandre TEXT,  </span>
+<span id="cb24-19"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-19" tabindex="-1"></a>  pop_code_sandre TEXT, <span class="co">-- </span><span class="al">ATTENTION</span><span class="co"> CONVERTIT EN NUMERIQUE DANS LE RDATA</span></span>
+<span id="cb24-20"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-20" tabindex="-1"></a>  pop_code_wama TEXT, </span>
+<span id="cb24-21"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-21" tabindex="-1"></a>  ope_code_wama TEXT, <span class="co">-- </span><span class="al">ATTENTION</span><span class="co"> CONVERTIT EN NUMERIQUE DANS LE RDATA</span></span>
+<span id="cb24-22"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-22" tabindex="-1"></a>  ope_id_wama <span class="dt">INTEGER</span>,</span>
+<span id="cb24-23"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-23" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> pk_oo_ob_id <span class="kw">PRIMARY</span> <span class="kw">KEY</span> (ob_id),</span>
+<span id="cb24-24"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-24" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_op_id <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ob_op_id)   </span>
+<span id="cb24-25"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-25" tabindex="-1"></a>        <span class="kw">REFERENCES</span> france.dbeel_station_aspe (op_id) MATCH SIMPLE</span>
+<span id="cb24-26"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-26" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb24-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-27" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_dp_id <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ob_dp_id)   </span>
+<span id="cb24-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-28" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel.data_provider (dp_id) MATCH SIMPLE</span>
+<span id="cb24-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-29" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb24-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-30" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_electrofishing_mean <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ef_no_electrofishing_mean)</span>
+<span id="cb24-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-31" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.electrofishing_mean (no_id) MATCH SIMPLE</span>
+<span id="cb24-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-32" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb24-33"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-33" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_electrofishing_method <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ef_no_fishingmethod)</span>
+<span id="cb24-34"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-34" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.scientific_observation_method (no_id) MATCH SIMPLE</span>
+<span id="cb24-35"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-35" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb24-36"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-36" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_ob_no_origin <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ob_no_origin)</span>
+<span id="cb24-37"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-37" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.observation_origin (no_id) MATCH SIMPLE</span>
+<span id="cb24-38"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-38" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb24-39"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-39" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_ob_no_period <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ob_no_period)</span>
+<span id="cb24-40"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-40" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.period_type (no_id) MATCH SIMPLE</span>
+<span id="cb24-41"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-41" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span>,</span>
+<span id="cb24-42"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-42" tabindex="-1"></a>    <span class="kw">CONSTRAINT</span> fk_oo_ob_no_type <span class="kw">FOREIGN</span> <span class="kw">KEY</span> (ob_no_type)</span>
+<span id="cb24-43"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-43" tabindex="-1"></a>        <span class="kw">REFERENCES</span> dbeel_nomenclature.observation_type (no_id) MATCH SIMPLE</span>
+<span id="cb24-44"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-44" tabindex="-1"></a>        <span class="kw">ON</span> <span class="kw">UPDATE</span> <span class="kw">CASCADE</span> <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">RESTRICT</span></span>
+<span id="cb24-45"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb24-45" tabindex="-1"></a>) INHERITS (dbeel.electrofishing);</span></code></pre></div>
+<p>Ensuite, l’ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via <strong>uuid_generate_v4()</strong> pour chaque station.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb25-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-1" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_electrofishing_aspe (</span>
+<span id="cb25-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-2" tabindex="-1"></a>    ob_id,</span>
+<span id="cb25-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-3" tabindex="-1"></a>    ob_no_origin,</span>
+<span id="cb25-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-4" tabindex="-1"></a>    ob_no_type,</span>
+<span id="cb25-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-5" tabindex="-1"></a>    ob_no_period,</span>
+<span id="cb25-6"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-6" tabindex="-1"></a>    ob_starting_date,</span>
+<span id="cb25-7"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-7" tabindex="-1"></a>    ob_ending_date,</span>
+<span id="cb25-8"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-8" tabindex="-1"></a>    ob_dp_id,</span>
+<span id="cb25-9"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-9" tabindex="-1"></a>    ef_no_fishingmethod,</span>
+<span id="cb25-10"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-10" tabindex="-1"></a>    ef_no_electrofishing_mean,</span>
+<span id="cb25-11"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-11" tabindex="-1"></a>    ef_wetted_area,</span>
+<span id="cb25-12"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-12" tabindex="-1"></a>    ef_fished_length,</span>
+<span id="cb25-13"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-13" tabindex="-1"></a>    ef_fished_width,</span>
+<span id="cb25-14"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-14" tabindex="-1"></a>    ef_duration,</span>
+<span id="cb25-15"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-15" tabindex="-1"></a>    ef_nbpas,</span>
+<span id="cb25-16"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-16" tabindex="-1"></a>    ob_op_id,</span>
+<span id="cb25-17"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-17" tabindex="-1"></a>    odp_tension,</span>
+<span id="cb25-18"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-18" tabindex="-1"></a>    odp_intensite,</span>
+<span id="cb25-19"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-19" tabindex="-1"></a>    odp_puissance,</span>
+<span id="cb25-20"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-20" tabindex="-1"></a>    odp_nombre_anodes ,</span>
+<span id="cb25-21"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-21" tabindex="-1"></a>  odp_nombre_epuisettes,</span>
+<span id="cb25-22"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-22" tabindex="-1"></a>  odp_maille_epuisette,</span>
+<span id="cb25-23"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-23" tabindex="-1"></a>  odp_nombre_points_anguilles,</span>
+<span id="cb25-24"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-24" tabindex="-1"></a>  nb_point,</span>
+<span id="cb25-25"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-25" tabindex="-1"></a>  odp_duree_peche,</span>
+<span id="cb25-26"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-26" tabindex="-1"></a>  op_typ,</span>
+<span id="cb25-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-27" tabindex="-1"></a>  mom_libelle,</span>
+<span id="cb25-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-28" tabindex="-1"></a>  ope_id,</span>
+<span id="cb25-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-29" tabindex="-1"></a>  pop_id,</span>
+<span id="cb25-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-30" tabindex="-1"></a>  sta_id,</span>
+<span id="cb25-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-31" tabindex="-1"></a>  sta_code_sandre,</span>
+<span id="cb25-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-32" tabindex="-1"></a>  pop_code_wama,</span>
+<span id="cb25-33"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-33" tabindex="-1"></a>  ope_code_wama,</span>
+<span id="cb25-34"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-34" tabindex="-1"></a>  ope_id_wama</span>
+<span id="cb25-35"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-35" tabindex="-1"></a>    )</span>
+<span id="cb25-36"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-36" tabindex="-1"></a><span class="kw">SELECT</span> </span>
+<span id="cb25-37"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-37" tabindex="-1"></a>    uuid_generate_v4() <span class="kw">AS</span> ob_id ,</span>
+<span id="cb25-38"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-38" tabindex="-1"></a>    observation_origin.no_id <span class="kw">AS</span> ob_no_origin,</span>
+<span id="cb25-39"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-39" tabindex="-1"></a>    observation_type.no_id <span class="kw">AS</span> ob_no_type, </span>
+<span id="cb25-40"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-40" tabindex="-1"></a>    period_type.no_id <span class="kw">AS</span> ob_no_period,</span>
+<span id="cb25-41"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-41" tabindex="-1"></a>    ope.ope_date:<span class="ch">:date</span> <span class="kw">AS</span> ob_starting_date,</span>
+<span id="cb25-42"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-42" tabindex="-1"></a>    <span class="fu">CAST</span>(<span class="kw">NULL</span> <span class="kw">AS</span> <span class="dt">date</span>) <span class="kw">as</span> ob_ending_date,</span>
+<span id="cb25-43"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-43" tabindex="-1"></a>    data_provider.dp_id <span class="kw">AS</span> ob_dp_id, </span>
+<span id="cb25-44"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-44" tabindex="-1"></a>    <span class="cf">CASE</span> <span class="cf">WHEN</span> (op_typ ILIKE <span class="st">&#39;%compl%&#39;</span> <span class="kw">OR</span> op_typ ILIKE <span class="st">&#39;%partielle sur berge%&#39;</span>) <span class="kw">AND</span> objectif ILIKE <span class="st">&#39;%anguilles%&#39;</span> <span class="cf">THEN</span> <span class="dv">302</span></span>
+<span id="cb25-45"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-45" tabindex="-1"></a>         <span class="cf">WHEN</span> op_typ ILIKE <span class="st">&#39;%compl%&#39;</span> <span class="cf">THEN</span> <span class="dv">62</span></span>
+<span id="cb25-46"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-46" tabindex="-1"></a>         <span class="cf">WHEN</span> op_typ ILIKE <span class="st">&#39;%partielle par points%&#39;</span> <span class="cf">THEN</span> <span class="dv">301</span></span>
+<span id="cb25-47"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-47" tabindex="-1"></a>         <span class="cf">WHEN</span> op_typ ILIKE <span class="st">&#39;%ambiance%&#39;</span> <span class="cf">THEN</span> <span class="dv">301</span> <span class="co">-- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams</span></span>
+<span id="cb25-48"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-48" tabindex="-1"></a>         <span class="cf">WHEN</span> op_typ ILIKE <span class="st">&#39;%partielle sur berge%&#39;</span> <span class="cf">THEN</span> <span class="dv">63</span></span>
+<span id="cb25-49"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-49" tabindex="-1"></a>       <span class="cf">WHEN</span> op_typ ILIKE <span class="st">&#39;%anguille%&#39;</span> <span class="cf">THEN</span> <span class="dv">303</span>  </span>
+<span id="cb25-50"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-50" tabindex="-1"></a>       <span class="cf">ELSE</span> <span class="dv">61</span> <span class="co">-- si y a des des 61 se m�fier</span></span>
+<span id="cb25-51"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-51" tabindex="-1"></a>    <span class="cf">END</span> <span class="kw">AS</span> ef_no_fishingmethod,</span>
+<span id="cb25-52"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-52" tabindex="-1"></a>    <span class="cf">CASE</span> <span class="cf">WHEN</span> mop_libelle ILIKE <span class="st">&#39;%pied%&#39;</span>  <span class="cf">THEN</span> <span class="dv">71</span></span>
+<span id="cb25-53"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-53" tabindex="-1"></a>         <span class="cf">WHEN</span> mop_libelle ILIKE <span class="st">&#39;%bateau%&#39;</span> <span class="cf">THEN</span> <span class="dv">72</span></span>
+<span id="cb25-54"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-54" tabindex="-1"></a>         <span class="cf">WHEN</span> mop_libelle ILIKE <span class="st">&#39;%mixte%&#39;</span> <span class="cf">THEN</span> <span class="dv">73</span></span>
+<span id="cb25-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-55" tabindex="-1"></a>         <span class="cf">ELSE</span> <span class="dv">70</span> <span class="co">-- unknown</span></span>
+<span id="cb25-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-56" tabindex="-1"></a>    <span class="cf">END</span> <span class="kw">AS</span> ef_no_electrofishing_mean,   </span>
+<span id="cb25-57"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-57" tabindex="-1"></a>    ope.ope_surface_calculee <span class="kw">AS</span> ef_wetted_area, </span>
+<span id="cb25-58"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-58" tabindex="-1"></a>    odp_longueur <span class="kw">AS</span> ef_fished_length,</span>
+<span id="cb25-59"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-59" tabindex="-1"></a>    odp_largeur_lame_eau <span class="kw">AS</span> ef_fished_width,</span>
+<span id="cb25-60"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-60" tabindex="-1"></a>    odp_duree_peche <span class="kw">AS</span> ef_duration,</span>
+<span id="cb25-61"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-61" tabindex="-1"></a>    <span class="cf">CASE</span> <span class="cf">WHEN</span> nb_pas <span class="kw">IS</span> <span class="kw">NULL</span> <span class="cf">THEN</span> <span class="dv">1</span> <span class="cf">ELSE</span> nb_pas <span class="cf">END</span> <span class="kw">AS</span> ef_nbpas,         </span>
+<span id="cb25-62"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-62" tabindex="-1"></a>    sta.op_id <span class="kw">as</span> ob_op_id,</span>
+<span id="cb25-63"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-63" tabindex="-1"></a>    ope.odp_tension,</span>
+<span id="cb25-64"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-64" tabindex="-1"></a>  ope.odp_intensite,</span>
+<span id="cb25-65"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-65" tabindex="-1"></a>  ope.odp_puissance,</span>
+<span id="cb25-66"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-66" tabindex="-1"></a>  ope.odp_nombre_anodes ,</span>
+<span id="cb25-67"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-67" tabindex="-1"></a>  ope.odp_nombre_epuisettes,</span>
+<span id="cb25-68"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-68" tabindex="-1"></a>  ope.odp_maille_epuisette,</span>
+<span id="cb25-69"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-69" tabindex="-1"></a>  ope.odp_nombre_points_anguilles,</span>
+<span id="cb25-70"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-70" tabindex="-1"></a>  ope.nb_point,</span>
+<span id="cb25-71"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-71" tabindex="-1"></a>  ope.odp_duree_peche,</span>
+<span id="cb25-72"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-72" tabindex="-1"></a>  ope.op_typ,</span>
+<span id="cb25-73"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-73" tabindex="-1"></a>  ope.mom_libelle,</span>
+<span id="cb25-74"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-74" tabindex="-1"></a>  ope.ope_id,</span>
+<span id="cb25-75"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-75" tabindex="-1"></a>  ope.pop_id,</span>
+<span id="cb25-76"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-76" tabindex="-1"></a>  ope.sta_id,</span>
+<span id="cb25-77"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-77" tabindex="-1"></a>  ope.sta_code_sandre,</span>
+<span id="cb25-78"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-78" tabindex="-1"></a>  ope.pop_code_wama,</span>
+<span id="cb25-79"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-79" tabindex="-1"></a>  ope.ope_code_wama,</span>
+<span id="cb25-80"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-80" tabindex="-1"></a>  ope.ope_id_wama</span>
+<span id="cb25-81"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-81" tabindex="-1"></a>    <span class="kw">FROM</span>    </span>
+<span id="cb25-82"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-82" tabindex="-1"></a>        france.dbeel_station_aspe sta</span>
+<span id="cb25-83"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-83" tabindex="-1"></a>   <span class="kw">JOIN</span> france.operation_aspe ope <span class="kw">ON</span> sta.sta_id<span class="op">=</span>ope.sta_id,  </span>
+<span id="cb25-84"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-84" tabindex="-1"></a>   <span class="co">-- JRT, 24/08 : ça ne me semble pas correct</span></span>
+<span id="cb25-85"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-85" tabindex="-1"></a>   <span class="co">-- si on veut toutes les opérations même celles qui n&#39;ont pas de sta_id, </span></span>
+<span id="cb25-86"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-86" tabindex="-1"></a>   <span class="co">-- il faudrait un right join</span></span>
+<span id="cb25-87"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-87" tabindex="-1"></a>   <span class="co">-- </span></span>
+<span id="cb25-88"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-88" tabindex="-1"></a>   <span class="co">-- old comment : JOIN donc les operations sans sta_id sont gardées</span></span>
+<span id="cb25-89"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-89" tabindex="-1"></a>   <span class="co">-- nomenclatures      </span></span>
+<span id="cb25-90"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-90" tabindex="-1"></a>     dbeel_nomenclature.observation_origin,</span>
+<span id="cb25-91"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-91" tabindex="-1"></a>     dbeel_nomenclature.observation_type,</span>
+<span id="cb25-92"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-92" tabindex="-1"></a>     dbeel_nomenclature.period_type,</span>
+<span id="cb25-93"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-93" tabindex="-1"></a>     dbeel.data_provider            </span>
+<span id="cb25-94"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-94" tabindex="-1"></a>    <span class="kw">WHERE</span> observation_origin.no_name<span class="op">=</span><span class="st">&#39;Raw data&#39;</span> </span>
+<span id="cb25-95"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-95" tabindex="-1"></a>    <span class="kw">AND</span> observation_type.no_name<span class="op">=</span><span class="st">&#39;Electro-fishing&#39;</span> </span>
+<span id="cb25-96"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-96" tabindex="-1"></a>    <span class="kw">AND</span> period_type.no_name<span class="op">=</span><span class="st">&#39;Daily&#39;</span> </span>
+<span id="cb25-97"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-97" tabindex="-1"></a>    <span class="kw">AND</span> data_provider.dp_name<span class="op">=</span><span class="st">&#39;Pascal Irz&#39;</span></span>
+<span id="cb25-98"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb25-98" tabindex="-1"></a>    ;</span></code></pre></div>
+<p>Au 24/08, il existe 35154 opérations à insérer.</p>
+<p><strong>Attention</strong>, il existe dans la base ASPE 24 opérations référencées sur des points de prélèvements connus qui ne sont associées à aucune station. Aussi, une solution est proposée dans le fichier <strong>import_aspe.R</strong> pour rattacher ces 24 opérations de pêches électriques aux stations de pêches les plus proches géographiquement (cf <a href=".\préparation-des-données.html#opérations">Préparations des données</a>).</p>
 
 </div>
 </div>

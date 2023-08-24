@@ -13,4 +13,6 @@ données-de-biométrie
 données-dargenture
 insertion-des-données-dans-les-tables-de-la-dbeel
 aspe-2
-préambule-etablissements-et-provider-de-données
+préambule-etablissement-et-provider-de-données
+dbeel_station_aspe
+dbeel_electrofishing_aspe

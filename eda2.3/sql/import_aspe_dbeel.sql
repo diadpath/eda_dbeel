@@ -1,16 +1,34 @@
+---------------------------------------------
+-- SCRIPT INTEGRATION ASPE => DBEEL
+---------------------------------------------
+-- TABLES FOR IMPORT will be created IN France AND IN loire schema 
+-- (for electrofishing from federations de peche)
+-- script for creating is in eda_dbeel/eda2.3/R/aspe_import.R
+
+
+-- **************************************
+-- UPDATES :
 -- updated TABLES 04/04 => Maria
-
-/*
-dbeel.establishment
-dbeel.data_provider
-*/
-
-
----------------------------------------------
--- SCRIPT INTEGRATION SIBIC => DBEEL
----------------------------------------------
+	/*
+	dbeel.establishment
+	dbeel.data_provider
+	*/
+-- Julien RAITIF, 24/08/23 : add comments in file to give detailed information for users
+-- **************************************
 
 
+
+-- *************************************************
+-- TABLE OF CONTENTS
+-- 1) ONLY IF NECESSARY : Create establishement and provider of ASPE DATA
+-- 2) Station
+-- 3) Electrofishing details
+-- *************************************************
+
+
+-- *************************************************
+-- 1) ONLY IF NECESSARY : Create establishement and provider of ASPE DATA
+-- *************************************************
 -- select * from dbeel.establishment;
 INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('OFB');
 --select * from dbeel.data_provider
@@ -19,18 +37,13 @@ INSERT INTO  dbeel.data_provider (dp_id, dp_name, dp_et_id) VALUES (30, 'Pascal 
 ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
 
 
--- TABLES FOR IMPORT will be created IN France AND IN loire schema (for electrofishing from f�d�rations de p�che)
--- script for creating station is in eda_dbeel/eda2.3/R/aspe_import.R
 
-
-select * from dbeel.observation_places limit 10;
-
-
-
-
+-- *************************************************
+-- 2) Station
+-- *************************************************
+/* select * from dbeel.observation_places limit 10; */
 -- select * from france.station_aspe limit 10;
-
-SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 31734 true
+/* SELECT DISTINCT  count(*), sta_statut FROM france.station_aspe GROUP BY sta_statut; -- 31734 true */
 
 -- Create the stationdbeel table from dbeel
 DROP TABLE if exists france.dbeel_station_aspe CASCADE;
@@ -65,27 +78,27 @@ INSERT INTO france.dbeel_station_aspe
    sta_id,
    sta_code_sandre,
   'FR' AS country 
-	FROM france.station_aspe;  --32720 17s => 31734 après filtre contour france
+	FROM france.station_aspe;  
 
-------------------------------
---retour des identifiants dans la TABLE mère
---------------------------------
+--2020 : 31734 après filtre contour france
+-- 24/08/2023 : 33985 stations après nouveau filtre contour France.
+
+
 	
 	
-	ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
+/* 	--retour des identifiants dans la TABLE mère
+
+ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
 	UPDATE france.station_aspe SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; --31734
+ france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; --31734 */
 
 	
 
-/*--------------------------------------------------
--- ASPE.electrofishing
-	https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/blob/develop/eda2.3/R/aspe_import.R#L69
--------------------------------------------------*/
-	
+-- *************************************************
+-- 3) Electrofishing details
+-- *************************************************
+
 -- SELECT * FROM france.operation_aspe oa ;
-
-
 --SELECT * from dbeel.electrofishing limit 10;
 
 
@@ -135,21 +148,19 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 		ON UPDATE CASCADE ON DELETE RESTRICT
 ) INHERITS (dbeel.electrofishing);
 
------------------------------
--- I electrofishing 
-----------------------------
-
 /*
-For the moment we set the type of electrofishing to unknown (61), later for some fishing we with use whole (62)
+For the moment we set the type of electrofishing to unknown (61), 
+later for some fishing we will use whole (62)
 */
-select * from france.dbeel_station_aspe limit 10;
+/* select * from france.dbeel_station_aspe limit 10;
 select * from france.operation_aspe limit 10; --43695
 SELECT * FROM  france.dbeel_station_aspe sta
-   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id */
 
--- The import is done in two times as some operations do not have sta_id, it must be loaded from point_prelevement_aspe
+-- The import is done in two times as some operations do not have sta_id, 
+-- it must be loaded from point_prelevement_aspe
 
-DELETE FROM france.dbeel_electrofishing_aspe;
+/* DELETE FROM france.dbeel_electrofishing_aspe; */
 /*
 electrofishing mean
 70    Electrofishing mean Unknown 
@@ -255,7 +266,12 @@ SELECT
   ope.ope_id_wama
 	FROM 	
         france.dbeel_station_aspe sta
-   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  -- JOIN donc les operations sans sta_id sont gardées
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  
+   -- JRT, 24/08 : ça ne me semble pas correct
+   -- si on veut toutes les opérations même celles qui n'ont pas de sta_id, 
+   -- il faudrait un right join, mais voir fichier impart_aspe.R pour solution proposée
+   -- 
+   -- old comment : JOIN donc les operations sans sta_id sont gardées
    -- nomenclatures 	 
 	 dbeel_nomenclature.observation_origin,
 	 dbeel_nomenclature.observation_type,
@@ -268,37 +284,40 @@ SELECT
 	; --31919 ROWS 28s
 	
 
-ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
+/* ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE france.operation_aspe SET ope_dbeel_ob_id = NULL; --43695
 
 UPDATE france.operation_aspe SET ope_dbeel_ob_id = ob_id FROM
  france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id; --31919
  
  
- SELECT  * FROM france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id
+ SELECT  * FROM france.dbeel_electrofishing_aspe WHERE dbeel_electrofishing_aspe.ope_id=operation_aspe.ope_id */
 	
 -- INSERT DES OPERATIONS MANQUANTES A PARTIR DES POINTS DE PRELEVEMENT
 -- IL N'en reste que 24 après jointure.... on oublie....
 /*	
 	
-SELECT * FROM   france.dbeel_station_aspe sta WHERE sta_id IS NULL; --0
-SELECT *  FROM france.point_prelevement_aspe
-SELECT count(*)  FROM france.point_prelevement_aspe;--115323
 SELECT count(*) FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; --10394
-
-
-SELECT * FROM  france.operation_aspe ope WHERE ope.sta_id IS NULL; 
-
 SELECT *  FROM france.point_prelevement_aspe pop
 JOIN  france.operation_aspe ope ON ope.pop_id=pop.pop_id
 WHERE ope.sta_id IS NULL; --10394 => 24
 
-SELECT * FROM france.point_prelevement_aspe WHERE pop_id=100971
+--> cf import_aspe.R pour proposition de solution en 
+rattachant le point de prélèvement à la station la plus proche connue
 */
 
 -- Some verifs
 	
 /*	
+
+SELECT DISTINCT ef_no_fishingmethod FROM france.dbeel_electrofishing_aspe
+303
+63
+301
+62
+302
+
+
 SELECT * FROM france.dbeel_electrofishing_aspe LIMIT 10;
 
 -- no duplicate for operations
@@ -311,14 +330,14 @@ SELECT * FROM count_ope WHERE nb > 1
 SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ;
 /*
 op_typ  count
-Peche partielle par points (grand milieu) 8759
-Peche par ambiances 2232
-Peche partielle sur berge 3033
-Peche complete à un ou plusieurs passages 18189
-Indice Abondance Anguille 1088
+Pêche partielle par points (grand milieu)	9428
+Pêche par ambiances	2239
+Pêche partielle sur berge	3023
+Pêche complète à un ou plusieurs passages	19219
+Indice Abondance Anguille	1245
 */
-SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY mom_libelle;
-SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ
+/* SELECT mom_libelle, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY mom_libelle;
+SELECT op_typ, count(*) FROM france.dbeel_electrofishing_aspe GROUP BY op_typ */
 /*
  FEG 1700 381
 FEG 8000  2613
@@ -340,7 +359,7 @@ FEG 3000S 263
 AIGRETTE  129
  */
 
-select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --0
+/* select count(*) from france.dbeel_electrofishing_aspe where ob_starting_date is null; --0
 
 
 SELECT ef_no_fishingmethod, no_name, count(*) FROM france.dbeel_electrofishing_aspe
@@ -355,10 +374,12 @@ GROUP BY ef_no_fishingmethod, no_name;
 |301                |Deep habitat      |10991|
 |62                 |Whole             |18166|
 */
-select * from france.dbeel_electrofishing_aspe  where ope_id=85705
-*/
-	
+/* select * from france.dbeel_electrofishing_aspe  where ope_id=85705 */
 
+
+-- *************************************************
+-- 3) Batch informations
+-- *************************************************
 
 --------------------------------------------	
 -- NUMBER PER PASS... AND TOTAL NUMBER
@@ -371,7 +392,7 @@ select * from france.dbeel_electrofishing_aspe  where ope_id=85705
 -- SELECT  * FROM france.batch_aspe 
 
  
--- DROP TABLE france.dbeel_batch_ope_aspe;
+DROP TABLE france.dbeel_batch_ope_aspe CASCADE;
 CREATE TABLE france.dbeel_batch_ope_aspe (
   ope_id int4 NULL,
   CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
@@ -384,8 +405,7 @@ CREATE TABLE france.dbeel_batch_ope_aspe (
 )
 INHERITS (dbeel.batch);
 
--- nbeel
-DELETE FROM france.dbeel_batch_ope_aspe;
+-- Total quantity of eels captured
 INSERT INTO france.dbeel_batch_ope_aspe
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
@@ -414,7 +434,7 @@ INSERT INTO france.dbeel_batch_ope_aspe
   ; -- 31919 rows
 
   
--- number p1
+-- Quantity of eels captured at the 1st pass
 INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
@@ -442,10 +462,7 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 31919 ROWS
 
--- number p2
-	
---	SELECT * FROM france.dbeel_electrofishing_aspe
-	
+-- Quantity of eels captured at the 2nd pass (if exists)
 INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
@@ -474,8 +491,7 @@ SELECT uuid_generate_v4() AS ba_id,
   AND ef_nbpas > 1 
   ; -- 8745 ROWS
   
- -- number p3
-  
+-- Quantity of eels captured at the 3rd pass (if exists)  
 INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
@@ -504,9 +520,8 @@ SELECT uuid_generate_v4() AS ba_id,
   AND ef_nbpas > 2
   ; -- 154 ROWS => 150 WITH nbpas = 3
   
- -- number p4   
-  
- INSERT INTO france.dbeel_batch_ope_aspe
+ -- Quantity of eels captured at the 4th pass (if exists)
+INSERT INTO france.dbeel_batch_ope_aspe
 SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,

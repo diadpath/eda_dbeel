@@ -3,24 +3,410 @@ output:
   html_document: default
   pdf_document: default
 ---
+
 # Insertion des données dans les tables de la dbeel
 
 A cette étape, et quelle que soit la source de données, l'objectif est d'insérer les données préparées depuis ASPE et RSA et de les insérer dans les tables finales de la base EDA - **dbeel**.
 
 ## ASPE
 
-Les principales étapes de l'insertion des données ASPE se déroulent dans le fichier _import_aspe_dbeel.sql_. Les tables majeures de la **dbeel** qui vont être alimentées sont :
+Les principales étapes de l'insertion des données ASPE se déroulent dans le fichier *import_aspe_dbeel.sql*. Les tables majeures de la **dbeel** qui vont être alimentées sont :
 
 -   **dbeel_station_aspe**, ensemble des stations
 
 -   **dbeel_electrofishing_aspe**, liste les opérations de pêches
 
--   **dbeel_batch_ope_aspe**, détails des résultats de pêches
+-   **dbeel_batch_ope_aspe**, détails des résultats de pêches (par lots d'individus)
 
 -   **dbeel_batch_fish_aspe**, détails des résultats de pêches par individus
 
 -   **dbeel_mensurationindiv_biol_charac_aspe**, données biométriques par individus
 
-### Préambule : Etablissements et provider de données
+### Préambule : Etablissement et provider de données
+Dans la dbeel, chaque nouvel enregistrement de pêche électrique ajouté dans **dbeel_electrofishing_aspe** doit référencer un fournisseur de données (data provider) présent dans la table **data_provider** et lui même rattaché à un établissement référencé dans la table **establishment**.
 
-Dbeel_station_aspe
+Les données issues de ASPE sont stockés comme provenant de __Pascal Irz__, rattaché à l'__OFB__.
+
+**Attention**, au 21/08/2023 ces données sont déjà présentent dans la base dbeel, il ne semble pas donc pas nécessaire d'exécuter à nouveau cette partie du script.
+```{sql set_esta_provid, eval = FALSE, echo = TRUE}
+-- select * from dbeel.establishment;
+INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('OFB');
+--select * from dbeel.data_provider
+--select max(dp_id) from dbeel.data_provider; -- 25
+INSERT INTO  dbeel.data_provider (dp_id, dp_name, dp_et_id) VALUES (30, 'Pascal Irz',27);
+ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
+
+```
+
+### dbeel_station_aspe
+Dans le schéma France, la table **dbeel_station_aspe** hérite de la table **observation_places** du schéma dbeel. Cette table va regrouper l'ensemble des stations référencées dans les opérations de pêches ASPE. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+
+```{sql drop_create_stations, eval = FALSE, echo = TRUE}
+DROP TABLE if exists france.dbeel_station_aspe CASCADE;
+CREATE TABLE france.dbeel_station_aspe (
+	sta_id integer,
+	sta_code_sandre TEXT,
+  country character varying(2),		
+	CONSTRAINT pk_so_op_id PRIMARY KEY (op_id),
+	CONSTRAINT fk_so_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
+		REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
+		MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.observation_places);
+```
+
+Ensuite, l'ensemble des stations récupérées depuis ASPE est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque station.
+
+```{sql insert_stations, eval = FALSE, echo = TRUE}
+INSERT INTO france.dbeel_station_aspe 
+	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
+	'3035' AS op_gis_systemname ,
+	'ASPE' AS op_gis_layername, 
+	NULL AS op_gislocation, 
+	sta_libelle_sandre AS op_placename,
+	10 AS op_no_observationplacetype, -- Sampling station
+	NULL AS  op_op_id,
+	geometry  as the_geom, -- already 3035
+   sta_id,
+   sta_code_sandre,
+  'FR' AS country 
+	FROM france.station_aspe;
+```
+
+Au 24/08, il existe 33985 stations à insérer. 
+
+### dbeel_electrofishing_aspe
+
+Dans le schéma France, la table **dbeel_electrofishing_aspe** hérite de la table **electrofishing** du schéma dbeel. Cette table va regrouper l'ensemble des opérations de pêches électriques référencées dans ASPE avec certaines informations techniques ainsi que des références externes vers la station, le point de prélèvement (__est ce encore utile ?__), etc.... Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+
+```{sql drop_create_elec_aspe, eval = FALSE, echo = TRUE}
+DROP TABLE if exists france.dbeel_electrofishing_aspe CASCADE;
+
+CREATE TABLE france.dbeel_electrofishing_aspe(
+  odp_nombre_anodes NUMERIC,
+  odp_nombre_epuisettes NUMERIC,
+  odp_maille_epuisette NUMERIC,
+  odp_tension NUMERIC,
+  odp_intensite NUMERIC,
+  odp_puissance NUMERIC,
+  odp_nombre_points_anguilles INTEGER,
+  nb_point INTEGER,
+  odp_duree_peche NUMERIC,
+  op_typ TEXT,
+  mom_libelle TEXT,
+  ope_id INTEGER,
+  pop_id INTEGER,
+  sta_id INTEGER,
+  sta_code_sandre TEXT,  
+  pop_code_sandre TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  pop_code_wama TEXT, 
+  ope_code_wama TEXT, -- ATTENTION CONVERTIT EN NUMERIQUE DANS LE RDATA
+  ope_id_wama INTEGER,
+	CONSTRAINT pk_oo_ob_id PRIMARY KEY (ob_id),
+	CONSTRAINT fk_oo_op_id FOREIGN KEY (ob_op_id)	
+		REFERENCES france.dbeel_station_aspe (op_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT fk_oo_dp_id FOREIGN KEY (ob_dp_id)	
+		REFERENCES dbeel.data_provider (dp_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_electrofishing_mean FOREIGN KEY (ef_no_electrofishing_mean)
+		REFERENCES dbeel_nomenclature.electrofishing_mean (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_electrofishing_method FOREIGN KEY (ef_no_fishingmethod)
+		REFERENCES dbeel_nomenclature.scientific_observation_method (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_origin FOREIGN KEY (ob_no_origin)
+		REFERENCES dbeel_nomenclature.observation_origin (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_period FOREIGN KEY (ob_no_period)
+		REFERENCES dbeel_nomenclature.period_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_oo_ob_no_type FOREIGN KEY (ob_no_type)
+		REFERENCES dbeel_nomenclature.observation_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.electrofishing);
+```
+
+Ensuite, l'ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque station.
+
+```{sql insert_elec_aspe, eval = FALSE, echo = TRUE}
+INSERT INTO france.dbeel_electrofishing_aspe (
+	ob_id,
+	ob_no_origin,
+	ob_no_type,
+	ob_no_period,
+	ob_starting_date,
+	ob_ending_date,
+	ob_dp_id,
+	ef_no_fishingmethod,
+	ef_no_electrofishing_mean,
+	ef_wetted_area,
+	ef_fished_length,
+	ef_fished_width,
+	ef_duration,
+	ef_nbpas,
+	ob_op_id,
+	odp_tension,
+	odp_intensite,
+	odp_puissance,
+	odp_nombre_anodes ,
+  odp_nombre_epuisettes,
+  odp_maille_epuisette,
+  odp_nombre_points_anguilles,
+  nb_point,
+  odp_duree_peche,
+  op_typ,
+  mom_libelle,
+  ope_id,
+  pop_id,
+  sta_id,
+  sta_code_sandre,
+  pop_code_wama,
+  ope_code_wama,
+  ope_id_wama
+	)
+SELECT 
+	uuid_generate_v4() AS ob_id ,
+	observation_origin.no_id AS ob_no_origin,
+	observation_type.no_id AS ob_no_type, 
+	period_type.no_id AS ob_no_period,
+	ope.ope_date::date AS ob_starting_date,
+	CAST(NULL AS date) as ob_ending_date,
+	data_provider.dp_id AS ob_dp_id, 
+	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
+	     WHEN op_typ ILIKE '%compl%' THEN 62
+	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
+	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
+       WHEN op_typ ILIKE '%anguille%' THEN 303	
+       ELSE 61 -- si y a des des 61 se m�fier
+	END AS ef_no_fishingmethod,
+	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
+	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
+	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
+	     ELSE 70 -- unknown
+	END AS ef_no_electrofishing_mean,	
+	ope.ope_surface_calculee AS ef_wetted_area, 
+	odp_longueur AS ef_fished_length,
+	odp_largeur_lame_eau AS ef_fished_width,
+	odp_duree_peche AS ef_duration,
+	CASE WHEN nb_pas IS NULL THEN 1 ELSE nb_pas END AS ef_nbpas,	     
+	sta.op_id as ob_op_id,
+	ope.odp_tension,
+  ope.odp_intensite,
+  ope.odp_puissance,
+  ope.odp_nombre_anodes ,
+  ope.odp_nombre_epuisettes,
+  ope.odp_maille_epuisette,
+  ope.odp_nombre_points_anguilles,
+  ope.nb_point,
+  ope.odp_duree_peche,
+  ope.op_typ,
+  ope.mom_libelle,
+  ope.ope_id,
+  ope.pop_id,
+  ope.sta_id,
+  ope.sta_code_sandre,
+  ope.pop_code_wama,
+  ope.ope_code_wama,
+  ope.ope_id_wama
+	FROM 	
+        france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  
+   -- JRT, 24/08 : ça ne me semble pas correct
+   -- si on veut toutes les opérations même celles qui n'ont pas de sta_id, 
+   -- il faudrait un right join
+   -- 
+   -- old comment : JOIN donc les operations sans sta_id sont gardées
+   -- nomenclatures 	 
+	 dbeel_nomenclature.observation_origin,
+	 dbeel_nomenclature.observation_type,
+	 dbeel_nomenclature.period_type,
+	 dbeel.data_provider  			
+	WHERE observation_origin.no_name='Raw data' 
+	AND observation_type.no_name='Electro-fishing' 
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Pascal Irz'
+	;
+```
+
+Au 24/08, il existe 35154 opérations à insérer. 
+
+**Attention**, il existe dans la base ASPE 24 opérations référencées sur des points de prélèvements connus qui ne sont associées à aucune station. Aussi, une solution est proposée dans le fichier **import_aspe.R** pour rattacher ces 24 opérations de pêches électriques aux stations de pêches les plus proches géographiquement (cf [Préparations des données](.\préparation-des-données.html#opérations)).
+
+### dbeel_batch_ope_aspe
+
+Dans le schéma France, la table **dbeel_batch_ope_aspe** hérite de la table **batch** du schéma dbeel. Cette table va regrouper l'ensemble des opérations de pêches électriques référencées dans ASPE avec certaines informations liées aux nombres de poissons pêchés. Dans cette table, chaque opération de pêche donnera lieu à au moins 2 lignes. Une première ligne stocke le nombre total de poisson pêché lors la pêche. Les suivantes (avec le même __ope_id__) stockeront les quantités pêchées à chaque passage (le numéro de passage est stocké dans le champs __ba_no_biological_characteristic_type__). Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+
+```{sql drop_create_batch_aspe, eval = FALSE, echo = TRUE}
+DROP TABLE france.dbeel_batch_ope_aspe CASCADE;
+CREATE TABLE france.dbeel_batch_ope_aspe (
+  ope_id int4 NULL,
+  CONSTRAINT pk_batch_ba_id PRIMARY KEY (ba_id),
+  CONSTRAINT c_fk_ba_ob_id FOREIGN KEY (ba_ob_id) REFERENCES france.dbeel_electrofishing_aspe(ob_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_biological_characteristic_type FOREIGN KEY (ba_no_biological_characteristic_type) REFERENCES dbeel_nomenclature.biological_characteristic_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_individual_status FOREIGN KEY (ba_no_individual_status) REFERENCES dbeel_nomenclature.individual_status(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_species_id FOREIGN KEY (ba_no_species) REFERENCES dbeel_nomenclature.species(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_no_stage_id FOREIGN KEY (ba_no_stage) REFERENCES dbeel_nomenclature.stage(no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_batch_ope_ba_value_type FOREIGN KEY (ba_no_value_type) REFERENCES dbeel_nomenclature.value_type(no_id) ON DELETE RESTRICT ON UPDATE CASCADE
+)
+INHERITS (dbeel.batch)
+```
+
+Ensuite, le détail des opérations de pêche depuis ASPE est inséré dans la table en générant un identifiant unique __ba_id__, via __uuid_generate_v4()__ pour chaque station. A noter que cette opération sera répétée 5 fois afin d'insérer dans un premier temps la total des anguilles capturées pour une opération puis la quantité d'anguilles à chaque passage (de 1 à 4).
+
+```{sql insert_batch_aspe, eval = FALSE, echo = TRUE}
+-- Total quantity of eels captured
+INSERT INTO france.dbeel_batch_ope_aspe
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.nb_eel AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; -- 31919 rows
+
+  
+-- Quantity of eels captured at the 1st pass
+INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p1' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; -- 31919 ROWS
+
+-- Quantity of eels captured at the 2nd pass (if exists)
+INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_2 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p2' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 1
+  ; -- 8745 ROWS
+  
+-- Quantity of eels captured at the 3rd pass (if exists)  
+INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_3 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p3' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 2
+  ; -- 154 ROWS => 150 WITH nbpas = 3
+  
+ -- Quantity of eels captured at the 4th pass (if exists)
+INSERT INTO france.dbeel_batch_ope_aspe
+SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  ba.pas_4 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ba.ope_id
+  FROM 
+  france.dbeel_electrofishing_aspe ee JOIN
+  france.batch_aspe ba ON ba.ope_id=ee.ope_id,
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+        WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p4' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  AND ef_nbpas > 3
+  ; -- 4 ROWS
+```
+
+Au 24/08/2023, les résultats des INSERT sont les suivants :
+- 35154 enreg. pour les totaux par pêches
+- 35154 enreg. pour le premier passage
+- 9230 enreg. pour le second passage
+- 179 enreg. pour le troisième passage
+- 4 enreg. pour le quatrième passage
+
+### dbeel_batch_fish_aspe
+
+
