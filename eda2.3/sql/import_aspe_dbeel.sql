@@ -23,6 +23,7 @@
 -- 1) ONLY IF NECESSARY : Create establishement and provider of ASPE DATA
 -- 2) Station
 -- 3) Electrofishing details
+-- 4) Batch informations
 -- *************************************************
 
 
@@ -378,7 +379,7 @@ GROUP BY ef_no_fishingmethod, no_name;
 
 
 -- *************************************************
--- 3) Batch informations
+-- 4) Batch informations
 -- *************************************************
 
 --------------------------------------------	
@@ -552,9 +553,9 @@ SELECT uuid_generate_v4() AS ba_id,
   
   
   
-----------------------------------------------------------------------
--- Batch integration, the second level will reference the fish table
-----------------------------------------------------------------------
+-- *************************************************
+-- 4) Batch informations, fish level
+-- *************************************************
   
 DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
 CREATE TABLE france.dbeel_batch_fish_aspe (
@@ -584,7 +585,7 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 		) INHERITS (dbeel.batch);
 
 
-SELECT * FROM france.batch_fish_aspe baf 
+/* SELECT * FROM france.batch_fish_aspe baf  */
 
 -- test il manque des poissons on comprend pas pourquoi 12/04
 /*
@@ -716,13 +717,13 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
 		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
 
 )INHERITS (dbeel.biological_characteristic); --0
-
+/* 
 select * from france.batch_fish_aspe limit 10;
 
 
 
 SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
-  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812 */
 
 
 -- Insert WEIGHT (gr)

@@ -409,4 +409,33 @@ Au 24/08/2023, les résultats des INSERT sont les suivants :
 
 ### dbeel_batch_fish_aspe
 
+Dans le schéma France, la table **dbeel_batch_fish_aspe** hérite de la table **batch** du schéma dbeel. Cette table va regrouper l'ensemble des mesures de poissons réalisées lors des opérations de pêches. Elle fait ainsi référence à une opération de pêche et aux valeurs mesurées (et stockées ultérieurement dans la table **dbeel_mensurationindiv_biol_charac_aspe**. Chaque mesure donnera lieu à une ligne et ce pour tous les passages réalisés. Les mesures de poids et de tailles sont stockées sur deux lignes différentes. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
 
+```{sql drop_create_batch_fish, eval = FALSE, echo = TRUE}
+DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
+CREATE TABLE france.dbeel_batch_fish_aspe (
+  ope_id INTEGER,
+  mei_id INTEGER,
+  lop_id INTEGER,
+  tyl_libelle TEXT, 
+	CONSTRAINT pk_fish_fi_id PRIMARY KEY (ba_id),
+	CONSTRAINT fk_fish_fi_ba_no_species_id FOREIGN KEY (ba_no_species) 
+		REFERENCES dbeel_nomenclature.species (no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_fish_fi_ba_no_stage_id FOREIGN KEY (ba_no_stage) 
+		REFERENCES dbeel_nomenclature.stage (no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,	
+	CONSTRAINT fk_fish_fi_ba_value_type FOREIGN KEY (ba_no_value_type)
+		REFERENCES dbeel_nomenclature.value_type (no_id)
+		ON DELETE RESTRICT ON UPDATE CASCADE,	
+	CONSTRAINT fk_fish_fi_ba_no_biological_characteristic_type 	FOREIGN KEY (ba_no_biological_characteristic_type)
+		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id)
+		ON DELETE RESTRICT ON UPDATE CASCADE,			
+	CONSTRAINT fk_fish_fi_ba_no_individual_status FOREIGN KEY (ba_no_individual_status)
+		REFERENCES dbeel_nomenclature.individual_status(no_id) 
+		ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT c_fk_fi_ob_id FOREIGN KEY (ba_ob_id) 
+		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
+		ON DELETE CASCADE ON UPDATE CASCADE
+		) INHERITS (dbeel.batch);
+```
