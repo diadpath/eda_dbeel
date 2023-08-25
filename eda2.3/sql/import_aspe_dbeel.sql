@@ -19,16 +19,31 @@
 
 
 -- *************************************************
+-- *************************************************
+-- *************************************************
 -- TABLE OF CONTENTS
 -- 1) ONLY IF NECESSARY : Create establishement and provider of ASPE DATA
 -- 2) Station
 -- 3) Electrofishing details
--- 4) Batch informations
+-- 4) Batch informations 
+-- 5) Batch informations (fish level)
+-- 6) Silvering data
+-- *************************************************
+-- *************************************************
 -- *************************************************
 
 
+
+
+
+
+
+-- *************************************************
+-- *************************************************
 -- *************************************************
 -- 1) ONLY IF NECESSARY : Create establishement and provider of ASPE DATA
+-- *************************************************
+-- *************************************************
 -- *************************************************
 -- select * from dbeel.establishment;
 INSERT INTO  dbeel.establishment (et_establishment_name) VALUES ('OFB');
@@ -39,8 +54,15 @@ ALTER SEQUENCE dbeel.data_provider_dp_id_seq RESTART WITH 31;
 
 
 
+
+
+
+-- *************************************************
+-- *************************************************
 -- *************************************************
 -- 2) Station
+-- *************************************************
+-- *************************************************
 -- *************************************************
 /* select * from dbeel.observation_places limit 10; */
 -- select * from france.station_aspe limit 10;
@@ -95,8 +117,18 @@ ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
 
 	
 
+
+
+
+
+
+
+-- *************************************************
+-- *************************************************
 -- *************************************************
 -- 3) Electrofishing details
+-- *************************************************
+-- *************************************************
 -- *************************************************
 
 -- SELECT * FROM france.operation_aspe oa ;
@@ -378,8 +410,19 @@ GROUP BY ef_no_fishingmethod, no_name;
 /* select * from france.dbeel_electrofishing_aspe  where ope_id=85705 */
 
 
+
+
+
+
+
+
+
+-- *************************************************
+-- *************************************************
 -- *************************************************
 -- 4) Batch informations
+-- *************************************************
+-- *************************************************
 -- *************************************************
 
 --------------------------------------------	
@@ -553,8 +596,18 @@ SELECT uuid_generate_v4() AS ba_id,
   
   
   
+  
+  
+  
+  
+  
+  
 -- *************************************************
--- 4) Batch informations, fish level
+-- *************************************************
+-- *************************************************
+-- 5) Batch informations, fish level
+-- *************************************************
+-- *************************************************
 -- *************************************************
   
 DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
@@ -585,6 +638,23 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 		) INHERITS (dbeel.batch);
 
 
+-- To integrate length and weight of fish, we need the "ba_id" 
+-- that corresponds to the batch (each line must be different) 
+
+
+DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_aspe CASCADE;
+CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
+	mei_id integer,
+	ope_id integer,
+	CONSTRAINT pk_mensindivbiocho_id PRIMARY KEY (bc_id),
+	CONSTRAINT fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
+		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
+		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
+		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+
+)INHERITS (dbeel.biological_characteristic); --0
 /* SELECT * FROM france.batch_fish_aspe baf  */
 
 -- test il manque des poissons on comprend pas pourquoi 12/04
@@ -663,6 +733,7 @@ SELECT distinct (ope_id) FROM france.dbeel_batch_fish_aspe;--13785
 SELECT distinct (ope_id) FROM france.batch_fish_aspe; --16888
 */
 
+-- Fish caught during 1st pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap1 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -698,25 +769,8 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 285 096 poissons mesurés au premier passage -> 284812
+	;
 
--- To integrate length and weight of fish, we need the "ba_id" 
--- that corresponds to the batch (each line must be different) 
-
-
-DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_aspe CASCADE;
-CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
-	mei_id integer,
-	ope_id integer,
-	CONSTRAINT pk_mensindivbiocho_id PRIMARY KEY (bc_id),
-	CONSTRAINT fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
-		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
-		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
-		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
-
-)INHERITS (dbeel.biological_characteristic); --0
 /* 
 select * from france.batch_fish_aspe limit 10;
 
@@ -726,6 +780,7 @@ SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812 */
 
 
+-- Measures of fish caught during 1st pass
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
@@ -754,36 +809,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
-	AND biological_characteristic_type.no_name = 'Weight'; --142654
+	AND biological_characteristic_type.no_name = 'Weight';
 
 -- Insert LENGTH (mm)
-	
--- checks
-	/*
-  WITH TEST AS (
-SELECT 
-  uuid_generate_v4() AS bc_id, 
-  ba_id AS bc_ba_id, 
-  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
-        ELSE 54 -- Unknown 
-        END AS bc_no_value_type,
-  mei_taille AS  bc_numvalue,
-  baf.mei_id,
-  baf.ope_id
-  FROM 
-  france.dbeel_batch_fish_aspe dbaf JOIN
-  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
-  dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length')
-  
-  SELECT * FROM test WHERE bc_numvalue IS NULL
-  SELECT * FROM france.dbeel_batch_fish_aspe WHERE mei_id='5527401'
- */ 	
-	
-	
-	
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
@@ -807,13 +835,33 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length'; -- 285 096 -> 284812
+  WHERE biological_characteristic_type.no_name = 'Length'; 
 
+-- checks
+	/*
+  WITH TEST AS (
+SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+        ELSE 54 -- Unknown 
+        END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type
+  WHERE biological_characteristic_type.no_name = 'Length')
+  
+  SELECT * FROM test WHERE bc_numvalue IS NULL
+  SELECT * FROM france.dbeel_batch_fish_aspe WHERE mei_id='5527401'
+ */ 
 
-
--- SECOND PASS
-
-
+-- Fish caught during 2nd pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap2 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -849,9 +897,10 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 34 292 p2 -> 34241
+  ;
 
 
+-- Measures of fish caught during 2nd pass
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
@@ -881,11 +930,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=2
-  AND biological_characteristic_type.no_name = 'Weight'; --19272
+  AND biological_characteristic_type.no_name = 'Weight'; 
 
 -- Insert LENGTH (mm)
-  
-  
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
@@ -910,11 +957,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=2; -- 34 292 -> 34241
+    AND baf.pas_numero=2;
 
--- THIRD PASS
-
-
+-- Fish caught during 3rd pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap3 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -950,9 +995,9 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 143 fish measured with infinite delicacy on the third pass -> 284
+  ; 
 
-
+-- Measures of fish caught during 3rd pass
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
@@ -982,11 +1027,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=3
-  AND biological_characteristic_type.no_name = 'Weight'; --35 -> 68
+  AND biological_characteristic_type.no_name = 'Weight'; 
 
 -- Insert LENGTH (mm)
-  
-  
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
@@ -1011,12 +1054,10 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=3; -- 143 -> 284
+    AND baf.pas_numero=3; 
     
     
--- FOURTH PASS
-
-
+-- Fish caught during 4th pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap4 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -1052,9 +1093,9 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p4' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 4 fish measured WITH a lot OF effort IN fourth pass
+  ; 
 
-
+-- Measures of fish caught during 4th pass
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
@@ -1087,8 +1128,6 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   AND biological_characteristic_type.no_name = 'Weight'; --4
 
 -- Insert LENGTH (mm)
-  
-  
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
   bc_ba_id,
@@ -1114,20 +1153,40 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=4; -- 4  
-    
--- TODO weight 350 Britany
--- TODO probable size & weight    
 
 --  11/04/2022 for code commit #e9572d44da8c96c1fceff7b2f4f45ab940817b0a
-    
+
+
+
+
+
+
+
+
+-- *************************************************
+-- *************************************************
+-- *************************************************
+-- 6) Silvering data
+-- *************************************************
+-- *************************************************
+-- *************************************************
+
 /*----------------------
- * SILVERING DATA 12/04/2022
- * Imported from Laurent's treatment and further explorted in eda2.3 chunk silvering_analysis line 8409 in EDA_build.rnw
+ * Imported from Laurent's treatment and further explorted in eda2.3 chunk silvering_analysis 
+ line 8409 in EDA_build.rnw
  * Currently not available in the database ASPE (only size and weight)
  * The import to db is done in aspe_import.R line 323
  * The table copied is  batch_silver_wama with column ope_dbeel_ob_id corresponding to current ob_id 
  * ----------------------- */
 
+
+/* 
+Before any operations, batch_silver_wama must be updated at ope_dbeel_ob_id column 
+with ob_id imported from dbeel_electrofishing_aspe 
+ 
+ TODO
+ */
+ 
  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39

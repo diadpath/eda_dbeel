@@ -22,6 +22,8 @@ Les principales étapes de l'insertion des données ASPE se déroulent dans le f
 
 -   **dbeel_mensurationindiv_biol_charac_aspe**, données biométriques par individus
 
+En dernier lieu la table **batch_silver_wama**, listant les données d'argenture connues, est mise à jour pour référencer un identifiant uniquement généré pour **dbeel_electrofishing_aspe**.
+
 ### Préambule : Etablissement et provider de données
 Dans la dbeel, chaque nouvel enregistrement de pêche électrique ajouté dans **dbeel_electrofishing_aspe** doit référencer un fournisseur de données (data provider) présent dans la table **data_provider** et lui même rattaché à un établissement référencé dans la table **establishment**.
 
@@ -407,9 +409,9 @@ Au 24/08/2023, les résultats des INSERT sont les suivants :
 - 179 enreg. pour le troisième passage
 - 4 enreg. pour le quatrième passage
 
-### dbeel_batch_fish_aspe
+### dbeel_batch_fish_aspe et dbeel_mensurationindiv_biol_charac_aspe
 
-Dans le schéma France, la table **dbeel_batch_fish_aspe** hérite de la table **batch** du schéma dbeel. Cette table va regrouper l'ensemble des mesures de poissons réalisées lors des opérations de pêches. Elle fait ainsi référence à une opération de pêche et aux valeurs mesurées (et stockées ultérieurement dans la table **dbeel_mensurationindiv_biol_charac_aspe**. Chaque mesure donnera lieu à une ligne et ce pour tous les passages réalisés. Les mesures de poids et de tailles sont stockées sur deux lignes différentes. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+Dans le schéma France, la table **dbeel_batch_fish_aspe** hérite de la table **batch** du schéma dbeel. Cette table va regrouper l'ensemble des mesures de poissons réalisées lors des opérations de pêches. Elle fait ainsi référence à une opération de pêche et aux valeurs mesurées (et stockées ultérieurement dans la table **dbeel_mensurationindiv_biol_charac_aspe**. Chaque mesure donnera lieu à une ligne et ce pour tous les passages réalisés. Les mesures de poids et de tailles sont stockées sur deux lignes différentes. Dans un premier temps, les tables sont supprimées (ainsi que toutes ces dépendances) puis recréées. 
 
 ```{sql drop_create_batch_fish, eval = FALSE, echo = TRUE}
 DROP TABLE if exists france.dbeel_batch_fish_aspe CASCADE;
@@ -438,4 +440,438 @@ CREATE TABLE france.dbeel_batch_fish_aspe (
 		REFERENCES france.dbeel_electrofishing_aspe (ob_id) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 		) INHERITS (dbeel.batch);
+		
+DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_aspe CASCADE;
+CREATE TABLE france.dbeel_mensurationindiv_biol_charac_aspe  (
+	mei_id integer,
+	ope_id integer,
+	CONSTRAINT pk_mensindivbiocho_id PRIMARY KEY (bc_id),
+	CONSTRAINT fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
+		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_value_type FOREIGN KEY (bc_no_value_type)
+		REFERENCES dbeel_nomenclature.value_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+	CONSTRAINT fk_mensindivbiocho_bc_ba_id FOREIGN KEY (bc_ba_id)
+		REFERENCES france.dbeel_batch_fish_aspe (ba_id) ON DELETE CASCADE ON UPDATE CASCADE
+
+)INHERITS (dbeel.biological_characteristic); --0	
 ```
+
+Ensuite, les références des mesures individuelles sont intégrées dans **dbeel_batch_fish_aspe**, une ligne pour chaque poisson de chaque passage (x 4) de chaque opération de pêche. Les mesures sont insérées dans **dbeel_mensurationindiv_biol_charac_aspe**, à raison de 1 ligne pour chaque type de mesure (longueur et poids).
+
+```{sql insert_batch_fish_1, eval = FALSE, echo = TRUE}
+-- Fish caught during 1st pass
+INSERT INTO france.dbeel_batch_fish_aspe
+  WITH bap1 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p1'  
+    ),
+    bafp1 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 1 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample
+    SELECT uuid_generate_v4() AS ba_id,
+	species.no_id AS ba_no_species,
+	stage.no_id AS ba_no_stage,
+	value_type.no_id AS ba_no_value_type,
+	biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+	1 AS ba_quantity,
+	individual_status.no_id AS ba_no_individual_status,
+	2 AS ba_batch_level,
+	bap1.ba_ob_id as ba_ob_id, 
+	ba_id as ba_ba_id,
+	bap1.ope_id ,
+    bafp1.mei_id ,
+    bafp1.lop_id ,
+    bafp1.tyl_libelle
+	FROM 
+	bafp1
+	JOIN bap1 ON (bap1.ope_id=bafp1.ope_id),
+	dbeel_nomenclature.species, 
+	dbeel_nomenclature.stage, 
+	dbeel_nomenclature.biological_characteristic_type,
+	dbeel_nomenclature.value_type,
+	dbeel_nomenclature.individual_status 
+	WHERE species.no_name='Anguilla anguilla' 
+	AND stage.no_name='Yellow eel' 
+	AND biological_characteristic_type.no_name='Number p1' 
+	AND individual_status.no_name='Alive' 
+	AND value_type.no_name='Raw data or Individual data'
+	; 
+
+/* 
+select * from france.batch_fish_aspe limit 10;
+
+
+
+SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812 */
+
+
+-- Measures of fish caught during 1st pass
+-- Insert WEIGHT (gr)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+	SELECT 
+	uuid_generate_v4() AS bc_id, 
+	ba_id AS bc_ba_id, 
+	biological_characteristic_type.no_id AS bc_no_characteristic_type,	
+   CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN 54 -- Unkown
+       WHEN mei_poids >0 THEN 55 --'Raw data or Individual data'
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN 58 -- elaborated DATA
+  END AS bc_no_value_type,
+	CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN NULL 
+	     WHEN mei_poids >0 THEN mei_poids
+	     WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN mei_poids_estime
+	ELSE NULL END AS bc_numvalue,	
+  baf.mei_id,
+  baf.ope_id
+	FROM 
+	france.dbeel_batch_fish_aspe dbaf JOIN
+	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+	dbeel_nomenclature.biological_characteristic_type 
+	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
+	AND biological_characteristic_type.no_name = 'Weight'; 
+
+-- Insert LENGTH (mm)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+        ELSE 54 -- Unknown 
+        END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type
+  WHERE biological_characteristic_type.no_name = 'Length'; 
+```
+
+Au 25/08/2023, 324484 anguilles capturées au 1er passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 154541 mesures de poids et 324484 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
+
+```{sql insert_batch_fish_2, eval = FALSE, echo = TRUE}
+-- Fish caught during 2nd pass
+INSERT INTO france.dbeel_batch_fish_aspe
+  WITH bap2 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p2'  
+  ),
+  bafp2 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 2 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  bap2.ba_ob_id as ba_ob_id, 
+  ba_id as ba_ba_id,
+  bap2.ope_id ,
+  bafp2.mei_id ,
+  bafp2.lop_id ,
+  bafp2.tyl_libelle
+  FROM 
+  bafp2
+  JOIN bap2 ON (bap2.ope_id=bafp2.ope_id),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla' 
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p2' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; 
+
+
+-- Measures of fish caught during 2nd pass
+-- Insert WEIGHT (gr)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type,  
+   CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN 54 -- Unkown
+       WHEN mei_poids >0 THEN 55 --'Raw data or Individual data'
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN 58 -- elaborated DATA
+  END AS bc_no_value_type,
+  CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN NULL 
+       WHEN mei_poids >0 THEN mei_poids
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN mei_poids_estime
+  ELSE NULL END AS bc_numvalue, 
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type 
+  WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
+  AND baf.pas_numero=2
+  AND biological_characteristic_type.no_name = 'Weight'; 
+
+-- Insert LENGTH (mm)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+        ELSE 54 -- Unknown 
+        END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type
+  WHERE biological_characteristic_type.no_name = 'Length'
+    AND baf.pas_numero=2; 
+
+```
+
+Au 25/08/2023, 36522 anguilles capturées au 2nd passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 19570 mesures de poids et 36522 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
+
+```{sql insert_batch_fish_3, eval = FALSE, echo = TRUE}
+-- Fish caught during 3rd pass
+INSERT INTO france.dbeel_batch_fish_aspe
+  WITH bap3 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p3'  
+  ),
+  bafp3 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 3 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  bap3.ba_ob_id as ba_ob_id, 
+  ba_id as ba_ba_id,
+  bap3.ope_id ,
+  bafp3.mei_id ,
+  bafp3.lop_id ,
+  bafp3.tyl_libelle
+  FROM 
+  bafp3
+  JOIN bap3 ON (bap3.ope_id=bafp3.ope_id),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla' 
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p3' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; 
+
+-- Measures of fish caught during 3rd pass
+-- Insert WEIGHT (gr)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type,  
+   CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN 54 -- Unkown
+       WHEN mei_poids >0 THEN 55 --'Raw data or Individual data'
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN 58 -- elaborated DATA
+  END AS bc_no_value_type,
+  CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN NULL 
+       WHEN mei_poids >0 THEN mei_poids
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN mei_poids_estime
+  ELSE NULL END AS bc_numvalue, 
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type 
+  WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
+  AND baf.pas_numero=3
+  AND biological_characteristic_type.no_name = 'Weight'; 
+
+-- Insert LENGTH (mm)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+        ELSE 54 -- Unknown 
+        END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type
+  WHERE biological_characteristic_type.no_name = 'Length'
+    AND baf.pas_numero=3; 
+```
+
+Au 25/08/2023, 142 anguilles capturées au 3eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 34 mesures de poids et 142 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**
+
+```{sql insert_batch_fish_4, eval = FALSE, echo = TRUE}
+-- Fish caught during 4th pass
+INSERT INTO france.dbeel_batch_fish_aspe
+  WITH bap4 AS (
+    SELECT * FROM france.dbeel_batch_ope_aspe boa 
+    JOIN dbeel_nomenclature.biological_characteristic_type bc ON bc.no_id=boa.ba_no_biological_characteristic_type
+    WHERE bc.no_name='Number p4'  
+  ),
+  bafp4 AS (SELECT * FROM france.batch_fish_aspe
+          WHERE pas_numero = 4 OR pas_numero IS NULL) -- AS we entered ALL fish AS p1 even IF they ARE point sample        
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  1 AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  2 AS ba_batch_level,
+  bap4.ba_ob_id as ba_ob_id, 
+  ba_id as ba_ba_id,
+  bap4.ope_id ,
+  bafp4.mei_id ,
+  bafp4.lop_id ,
+  bafp4.tyl_libelle
+  FROM 
+  bafp4
+  JOIN bap4 ON (bap4.ope_id=bafp4.ope_id),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla' 
+  AND stage.no_name='Yellow eel' 
+  AND biological_characteristic_type.no_name='Number p4' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; 
+
+-- Measures of fish caught during 4th pass
+-- Insert WEIGHT (gr)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type,  
+   CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN 54 -- Unkown
+       WHEN mei_poids >0 THEN 55 --'Raw data or Individual data'
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN 58 -- elaborated DATA
+  END AS bc_no_value_type,
+  CASE WHEN (mei_poids =0 OR mei_poids IS NULL) AND mei_poids_estime IS NULL THEN NULL 
+       WHEN mei_poids >0 THEN mei_poids
+       WHEN (mei_poids =0 OR mei_poids IS NULL)  AND mei_poids_estime IS NOT NULL THEN mei_poids_estime
+  ELSE NULL END AS bc_numvalue, 
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type 
+  WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
+  AND baf.pas_numero=4
+  AND biological_characteristic_type.no_name = 'Weight'; --4
+
+-- Insert LENGTH (mm)
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 
+  ba_id AS bc_ba_id, 
+  biological_characteristic_type.no_id AS bc_no_characteristic_type, 
+  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+        ELSE 54 -- Unknown 
+        END AS bc_no_value_type,
+  mei_taille AS  bc_numvalue,
+  baf.mei_id,
+  baf.ope_id
+  FROM 
+  france.dbeel_batch_fish_aspe dbaf JOIN
+  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
+  dbeel_nomenclature.biological_characteristic_type
+  WHERE biological_characteristic_type.no_name = 'Length'
+    AND baf.pas_numero=4; -- 4  
+```
+
+Au 25/08/2023, 4 anguilles capturées au 4eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 4 mesures de poids et 4 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
+
+Au final, au 25/08/2023, il existe 361152 anguilles référencées dans **dbeel_batch_fish_aspe**, donnant lieu à 174149 mesures de poids et 361152 mesures de taille dans  **dbeel_mensurationindiv_biol_charac_aspe**.
+
+
+### batch_silver_wama
