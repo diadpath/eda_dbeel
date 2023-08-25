@@ -875,3 +875,37 @@ Au final, au 25/08/2023, il existe 361152 anguilles référencées dans **dbeel_
 
 
 ### batch_silver_wama
+
+Les données d'argenture stockées dans cette table doivent être reliées aux opérations de pêches enregistrées dans **dbeel_electrofishing_aspe**, colonne __ob_id__. Un update de la table **batch_silver_wama** est donc nécessaire en jointure avec **dbeel_electrofishing_aspe** sur la colonne __ope_code_wama__.
+
+Dans un premier temps on contrôle le nombre d'enregistrement qu'il y a dans **batch_silver_wama** pour lesquels on va récupérer l' __ob_id__ dans la table  **dbeel_electrofishing_aspe**.
+
+```{sql get_wama_count, eval = FALSE, echo = TRUE}
+-- how many lines in batch_silver_wama
+select count(*) from batch_silver_wama bsw 
+
+--How many records in batch_silver_wama will be updated
+select count(bsw.*) from batch_silver_wama bsw 
+join dbeel_electrofishing_aspe dea  
+on bsw.ope_code_wama = dea.ope_code_wama 
+```
+Au 25/08, il y a 14575 enregistrement d'argentures et 14351 lignes pour lesquels on va pouvoir récupérer un id de **dbeel_electrofishing_aspe**. Il en résulte que 224 données d'argentures vont être perdues.
+
+Nous en apprenons un peu plus sur ces données perdues.
+
+```{sql get_wama_miss, eval = FALSE, echo = TRUE}
+-- what are the missing ope_code_wama
+select bsw2.ope_code_wama, count(*) from batch_silver_wama bsw2 where bsw2.ope_code_wama  not in 
+	(select bsw.ope_code_wama from batch_silver_wama bsw 
+	join dbeel_electrofishing_aspe dea on dea.ope_code_wama = bsw.ope_code_wama )
+	group by bsw2.ope_code_wama
+
+-- all 18 ope_code_wama ref are associated with a non existent sta_id.
+select cast(oa.ope_code_wama as text),oa.sta_id  from operation_aspe oa 
+where cast(oa.ope_code_wama as text) in (select distinct bsw2.ope_code_wama from batch_silver_wama bsw2 
+where bsw2.ope_code_wama  not in 
+	(select bsw.ope_code_wama from batch_silver_wama bsw 
+	join dbeel_electrofishing_aspe dea on dea.ope_code_wama = bsw.ope_code_wama ))
+```
+
+Ces données perdues sont rattachées à 18 code WAMA qui font références à des opérations de pêches dont l'identifiant de la station __sta_id__ n'est pas connu (NULL en base). Ce problème a été évoqué dans la [Préparations des données](.\préparation-des-données.html#opérations) et est en attente de décision.

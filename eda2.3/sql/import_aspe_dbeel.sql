@@ -1180,14 +1180,42 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
  * ----------------------- */
 
 
-/* 
-Before any operations, batch_silver_wama must be updated at ope_dbeel_ob_id column 
-with ob_id imported from dbeel_electrofishing_aspe 
  
- TODO
+-- how many lines in batch_silver_wama
+select count(*) from batch_silver_wama bsw 
+--25/08 : 14575
+
+--How many records in batch_silver_wama will be updated
+select count(bsw.*) from batch_silver_wama bsw 
+join dbeel_electrofishing_aspe dea  
+on bsw.ope_code_wama = dea.ope_code_wama 
+--25/08 : 14351 --> 224 silvering data lost
+
+-- what are the missing ope_code_wama
+select bsw2.ope_code_wama, count(*) from batch_silver_wama bsw2 where bsw2.ope_code_wama  not in 
+	(select bsw.ope_code_wama from batch_silver_wama bsw 
+	join dbeel_electrofishing_aspe dea on dea.ope_code_wama = bsw.ope_code_wama )
+	group by bsw2.ope_code_wama
+-- 25/08 : 18 missing codes for the 224 missing lines
+
+-- all 18 ope_code_wama ref are associated with a non existent sta_id.
+select cast(oa.ope_code_wama as text),oa.sta_id  from operation_aspe oa 
+where cast(oa.ope_code_wama as text) in (select distinct bsw2.ope_code_wama from batch_silver_wama bsw2 
+where bsw2.ope_code_wama  not in 
+	(select bsw.ope_code_wama from batch_silver_wama bsw 
+	join dbeel_electrofishing_aspe dea on dea.ope_code_wama = bsw.ope_code_wama ))
+-- waiting for decision to the operation without sta_id (cf aspe_import.R)
+
+--update of batch_silver_wama
+UPDATE batch_silver_wama
+SET ope_dbeel_ob_id = subquery.ob_id 
+FROM (select ob_id,bsw.ope_code_wama  from batch_silver_wama bsw 
+join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama 
+) AS subquery
+WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
  */
  
- WITH bc_size AS (
+/*  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
@@ -1200,14 +1228,14 @@ SELECT bc_size.*, weight FROM bc_size LEFT JOIN bc_weight ON bc_size.bc_ba_id=bc
 
 bcop AS (        
  SELECT ba_ob_id AS ob_id, bc.* FROM bc
-JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id)
+JOIN france.dbeel_batch_fish_aspe dboa ON dboa.ba_id=bc.bc_ba_id) */
 /*
 SELECT * FROM bcop
 FULL OUTER JOIN france.batch_silver_wama wam
  ON (bcop.ob_id::TEXT, bcop.size, bcop.weight)=(wam.ope_dbeel_ob_id,wam.length,wam.weight)
  */
  
-SELECT DISTINCT bcop.ob_id FROM bcop
+/* SELECT DISTINCT bcop.ob_id FROM bcop
 JOIN france.batch_silver_wama wam
  ON (bcop.ob_id::TEXT)=(wam.ope_dbeel_ob_id) 
 
@@ -1218,8 +1246,8 @@ SELECT * FROM france.batch_silver_wama  WHERE ope_dbeel_ob_id='c4991ed3-714c-4f7
 c4991ed3-714c-4f74-9619-0d873efb8783 79990004133 448.0 3 - [300-450[ 121.0 OK
 c4991ed3-714c-4f74-9619-0d873efb8783  79990004133 449.0 3 - [300-450[ 120.0 OK
 
-
-WITH bc_size AS (
+ */
+/* WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
 ),
@@ -1347,5 +1375,5 @@ SELECT * FROM bcop  WHERE bcop.ob_id='26290e2d-ee52-42c7-9787-4573f795bd22'
 
 
 SELECT *  FROM france.dbeel_batch_fish_aspe dboa WHERE ba_ob_id= '26290e2d-ee52-42c7-9787-4573f795bd22'; => ope_id==4609
-
+ */
 --TODO FINISH DATA INPUT
