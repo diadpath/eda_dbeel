@@ -128,7 +128,7 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 ) INHERITS (dbeel.electrofishing);
 ```
 
-Ensuite, l'ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque station.
+Ensuite, l'ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque opération.
 
 ```{sql insert_elec_aspe, eval = FALSE, echo = TRUE}
 INSERT INTO france.dbeel_electrofishing_aspe (
@@ -909,3 +909,131 @@ where bsw2.ope_code_wama  not in
 ```
 
 Ces données perdues sont rattachées à 18 code WAMA qui font références à des opérations de pêches dont l'identifiant de la station __sta_id__ n'est pas connu (NULL en base). Ce problème a été évoqué dans la [Préparations des données](.\préparation-des-données.html#opérations) et est en attente de décision.
+
+Il reste à ce stade uniquement à mettre à jour le __ope_dbeel_ob_id__ comme suit.
+
+```{sql update_wama_id, eval = FALSE, echo = TRUE}
+UPDATE batch_silver_wama
+SET ope_dbeel_ob_id = subquery.ob_id 
+FROM (select ob_id,bsw.ope_code_wama  from batch_silver_wama bsw 
+join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama 
+) AS subquery
+WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
+```
+## RSA
+
+Les principales étapes de l'insertion des données RSA se déroulent dans le fichier *import_rsa_dbeel.sql*. Les tables majeures de la **dbeel** qui vont être alimentées sont :
+
+-   **dbeel_station_rsa**, ensemble des stations
+
+-   **dbeel_electrofishing_rsa**, liste les opérations de pêches
+
+-   **dbeel_batch_ope_rsa**, détails des résultats de pêches (par lots d'individus)
+
+-   **dbeel_batch_fish_rsa**, détails des résultats de pêches par individus
+
+-   **dbeel_mensurationindiv_biol_charac_rsa**, données biométriques par individus
+
+A ce jour (28/08/2023), les données d'argenture ne sont pas intégralement remontées/exploitées depuis la base RSA.
+
+### Préambule : Etablissement et provider de données
+
+Contrairement à la base ASPE, on ne référence pas la source de données __RSA__ dans les différentes table de la dbeel.
+
+**Attention réponse au 28/08/2023 : Est ce voulu ?**
+
+### dbeel_station_rsa
+
+Dans le schéma France, la table **dbeel_station_rsa** hérite de la table **observation_places** du schéma dbeel. Cette table va regrouper l'ensemble des stations référencées dans les opérations de pêches RSA. Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+
+```{sql drop_create_stations_rsa, eval = FALSE, echo = TRUE}
+DROP TABLE if exists france.dbeel_station_rsa CASCADE;
+CREATE TABLE france.dbeel_station_rsa (
+  sta_id INTEGER,
+	sta_cod TEXT, 
+	sta_code TEXT,
+	sta_zone TEXT,
+	fleuve_lib TEXT,
+	sta_reseau  TEXT,
+  country character varying(2),
+	CONSTRAINT pk_rsa_op_id PRIMARY KEY (op_id),
+	CONSTRAINT c_uk_rsa_sta_id_sta_cod UNIQUE (sta_id,sta_zone),
+	CONSTRAINT fk_rsa_observation_place_type_id FOREIGN KEY (op_no_observationplacetype) 
+		REFERENCES dbeel_nomenclature.observation_place_type (no_id) 
+		MATCH SIMPLE ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.observation_places);
+
+COMMENT ON  COLUMN france.dbeel_station_rsa.sta_cod IS 'Code opérateur original avec dièses de wama remplacés par des underscore';
+COMMENT ON  COLUMN  france.dbeel_station_rsa.sta_code IS 'Code opérateur original';
+```
+
+Ensuite, l'ensemble des stations récupérées depuis RSA est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque station.
+
+```{sql insert_stations, eval = FALSE, echo = TRUE}
+INSERT INTO france.dbeel_station_rsa 
+	SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
+	'3035' AS op_gis_systemname ,
+	'RSA' AS op_gis_layername, 
+	NULL AS op_gislocation, 
+	sta_lib AS op_placename,
+	10 AS op_no_observationplacetype, -- Sampling station
+	NULL AS  op_op_id,
+	st_transform(geom,3035)  as the_geom,
+	sta_id,
+	sta_cod, 
+  sta_code,
+  sta_zone,
+  fleuve_lib,
+  sta_reseau,
+  'FR' AS country 
+	FROM rsa.station LEFT JOIN rsa.bassin_bas ON station.sta_bas_id=bassin_bas.bas_id
+	;
+
+```
+
+Au 28/08, il existe 1766 stations à insérer. 
+
+### dbeel_electrofishing_rsa
+
+Dans le schéma France, la table **dbeel_electrofishing_rsa** hérite de la table **electrofishing** du schéma dbeel. Cette table va regrouper l'ensemble des opérations de pêches électriques référencées dans RSA avec certaines informations techniques ainsi que des références externes vers la station, le point de prélèvement (__est ce encore utile ?__), etc.... Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée. 
+
+```{sql drop_create_elec_rsa, eval = FALSE, echo = TRUE}
+DROP TABLE if exists france.dbeel_electrofishing_rsa CASCADE;
+
+CREATE TABLE france.dbeel_electrofishing_rsa(
+ op_id INTEGER,
+ op_zone TEXT,
+ op_typ TEXT,
+ op_sta_id INTEGER,
+	CONSTRAINT pk_rsa_ob_id PRIMARY KEY (ob_id),
+	CONSTRAINT fk_rsa_op_id FOREIGN KEY (ob_op_id)	
+		REFERENCES france.dbeel_station_rsa (op_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE CASCADE,
+	CONSTRAINT fk_rsa_dp_id FOREIGN KEY (ob_dp_id)	
+		REFERENCES dbeel.data_provider (dp_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_rsa_electrofishing_mean FOREIGN KEY (ef_no_electrofishing_mean)
+		REFERENCES dbeel_nomenclature.electrofishing_mean (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_rsa_electrofishing_method FOREIGN KEY (ef_no_fishingmethod)
+		REFERENCES dbeel_nomenclature.scientific_observation_method (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_rsa_ob_no_origin FOREIGN KEY (ob_no_origin)
+		REFERENCES dbeel_nomenclature.observation_origin (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_rsa_ob_no_period FOREIGN KEY (ob_no_period)
+		REFERENCES dbeel_nomenclature.period_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT fk_rsa_ob_no_type FOREIGN KEY (ob_no_type)
+		REFERENCES dbeel_nomenclature.observation_type (no_id) MATCH SIMPLE
+		ON UPDATE CASCADE ON DELETE RESTRICT
+) INHERITS (dbeel.electrofishing);
+```
+
+Ensuite, l'ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via __uuid_generate_v4()__ pour chaque opération.
+
+```{sql insert_elec_rsa, eval = FALSE, echo = TRUE}
+
+```
+
+Au 24/08, il existe 35154 opérations à insérer.

@@ -6,8 +6,6 @@ output:
 
 # Préparation des données
 
-A cette étape, et quelle que soit la source de données, l'objectif est de s'assurer de l'intégrité des données.
-
 ## ASPE
 
 La base de données ASPE contient un ensemble de données détaillant les opérations de pêches, les stations et points de prélèvements, les effectifs pêchés. Toutes ces informations ne sont pas nécessaires pour EDA.
@@ -532,3 +530,32 @@ DBI::dbExecute(con, "DROP TABLE if exists france.batch_silver_wama;")
 DBI::dbWriteTable(con, "batch_silver_wama", batch_silver_wama) 
 DBI::dbExecute(con, "ALTER TABLE batch_silver_wama set schema france")
 ```
+
+## RSA
+
+La base de données RSA contient un ensemble de données détaillant les opérations de pêches, les stations et points de prélèvements, les effectifs pêchés. Toutes ces informations ne sont pas nécessaires pour EDA.
+
+Cette base, contrairement à la base ASPE, est stockée en local au sein du pôle MIAME. Il est donc nécessaire nécessaire dans un premier temps d'effectuer un backup de cette base (opération à effectuer avec XXXX) puis de transférer ce backup dans la base EDA.
+
+L'intégration des données de la base RSA dans EDA nécessite l'ensemble des tables qui sont présentent dans le schéma __rsa__ de la base RSA (cf image ci-dessous)
+
+![(#fig:schema_rsa) Schéma RSA](images/backup_RSA.png)
+
+### Connexion à la base EDA et visualisation des stations
+
+La connexion à la base EDA pour la visualisation des stations RSA est similaire à celle effectuée dans le chapitre [Connexion à la base EDA et import des données brutes](#connexion-à-la-base-eda-et-import-des-données-brutes).
+```{r connexion_eda_rsa, eval = FALSE, echo = TRUE}
+
+options("width")
+
+con = dbConnect(Postgres(),
+		dbname=baseODBCrios[1],
+		host="localhost",
+		port=5432,
+		user=baseODBCrios[2], 
+		password=baseODBCrios[3])
+
+```
+La carte des stations provenant de RSA est visible ci-dessous.
+
+![(#fig:carte_rsa) Carte des stations RSA](images/stations_france_rsa.png)

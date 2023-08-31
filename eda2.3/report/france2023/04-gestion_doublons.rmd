@@ -1,0 +1,8 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Gestion des doublons éventuels RSA/ASPE
+

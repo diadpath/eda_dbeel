@@ -1213,7 +1213,7 @@ FROM (select ob_id,bsw.ope_code_wama  from batch_silver_wama bsw
 join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama 
 ) AS subquery
 WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
- */
+
  
 /*  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
