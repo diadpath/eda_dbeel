@@ -903,7 +903,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
-  ope.op_id
+  ope.op_id,
+  ope.op_zone-- JRT, 31/08 : correctif, il manquait la zone pour ce type de pêche. Ce problème est présent en prod également
   FROM 
   france.dbeel_electrofishing_rsa ee 
     JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
@@ -1447,7 +1448,7 @@ S & L Lot S : Sous échantillon de 30 individus mesurés individuellement
           
 
 
-
+-- Fish caught during 1st pass
 INSERT INTO france.dbeel_batch_fish_rsa
    WITH bap1 AS (
     SELECT * FROM france.dbeel_batch_ope_rsa boa 
@@ -1482,12 +1483,14 @@ INSERT INTO france.dbeel_batch_fish_rsa
 	dbeel_nomenclature.individual_status 
 	WHERE species.no_name='Anguilla anguilla' 
 	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number' 
+	AND biological_characteristic_type.no_name='Number' -- should refer to Number p1 instead ?
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 121040 poissons mesurés au premier passage 1m56
 	-- JRT, 30/08/23 : 137650
 
+
+-- Fish caught during 2nd pass
 INSERT INTO france.dbeel_batch_fish_rsa
 
 
@@ -1524,12 +1527,13 @@ INSERT INTO france.dbeel_batch_fish_rsa
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' 
+  AND biological_characteristic_type.no_name='Number' -- should refer to Number p2 instead
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; 	--16089
   -- JRT 30/08/23 : 17618
-	
+
+-- Fish caught during 3rd pass
 INSERT INTO france.dbeel_batch_fish_rsa
    WITH bap3 AS (
     SELECT * FROM france.dbeel_batch_ope_rsa boa 
@@ -1564,14 +1568,14 @@ INSERT INTO france.dbeel_batch_fish_rsa
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' 
+  AND biological_characteristic_type.no_name='Number'  -- should refer to Number p3 instead
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ;   --467
   -- JRT, 30/08/23 : 492
 
 ----------------
---Measure of fish caught
+--Measures of fish caught (weight and length)
 
 -- To integrate length and weight of fish, we need the "ba_id" 
 -- that corresponds to the batch (each line must be different) 
@@ -1617,7 +1621,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   baf.ang_id   
 	FROM 
 	france.dbeel_batch_fish_rsa dbaf JOIN
-  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, 
+  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, -- ang_id is not unique in ras.anguille_ang, duplicate for each zone
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE biological_characteristic_type.no_name = 'Weight'
 	AND baf.ang_lot='N'; -- 677871 9m
