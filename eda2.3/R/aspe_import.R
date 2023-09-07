@@ -225,6 +225,8 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 # point_prelevement[point_prelevement$pop_id==100971,] # 136346
 # point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
+####################
+# A CORRIGER : il faut au préalable reprojeter toutes les stations sur du 3035
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
@@ -234,13 +236,16 @@ point_prelevement_aspe <- point_prelevement %>%
 		filter(pop_coordonnees_x < 1500000) %>% 
 		filter(pop_coordonnees_x > 0) # filter some wrong coordinates
 
+#lost pont of prelevement because of projection in Lambert II Étendu
+nrow(point_prelevement[point_prelevement$pop_typ_id==32,])
+
+
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		var_x = pop_coordonnees_x,
 		var_y = pop_coordonnees_y,
 		var_id = "pop_id",
 		var_crs_initial = "typ_code_epsg",
 		crs_sortie = 3035) 
-
 
 point_prelevement_aspe <- point_prelevement_aspe %>%
 		left_join(y = coords, by= "pop_id") %>%
@@ -530,7 +535,7 @@ operation_aspe_silver <- DBI::dbGetQuery(con,
 #18/08 : 37691 lines
   
 # Keep only french data
-table_silv <- table_silv[table_silv$country=='FR',]
+table_silv <- table_silv[table_silv$country=='FR',]#29034
 
 # hist(nchar(table_silv$ob_id))
 # nrow(operation_aspe_silver) # 37698

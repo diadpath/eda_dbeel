@@ -1582,6 +1582,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
 DROP TABLE if exists france.dbeel_mensurationindiv_biol_charac_rsa CASCADE;
 CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 	ang_id integer,
+	ang_zone text,
 	CONSTRAINT rsa_pk_mensindivbiocho_id PRIMARY KEY (bc_id),
 	CONSTRAINT rsa_fk_mensindivbiocho_bc_characteristic_type FOREIGN KEY (bc_no_characteristic_type)
 		REFERENCES dbeel_nomenclature.biological_characteristic_type (no_id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -1611,42 +1612,52 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   bc_no_characteristic_type,
   bc_no_value_type,
   bc_numvalue,
-  ang_id)
+  ang_id,
+  ang_zone)
 	SELECT
 	uuid_generate_v4() AS bc_id, 
 	ba_id AS bc_ba_id, 
 	biological_characteristic_type.no_id AS bc_no_characteristic_type,	
   55 AS bc_no_value_type, --'Raw data or Individual data'       
 	ang_poids AS bc_numvalue,	
-  baf.ang_id   
+  baf.ang_id  ,
+  baf.ang_zone-- 07/09 : corrected, was missing (as ang_id is not unique between every zone)
 	FROM 
 	france.dbeel_batch_fish_rsa dbaf JOIN
-  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, -- ang_id is not unique in ras.anguille_ang, duplicate for each zone
+    rsa.anguille_ang baf ON (baf.ang_id,baf.ang_zone)=(dbaf.ang_id,dbaf.ang_zone), -- 07/09 : corrected as ang_id is not unique in ras.anguille_ang, duplicate for each zone
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE biological_characteristic_type.no_name = 'Weight'
-	AND baf.ang_lot='N'; -- 677871 9m
+	AND baf.ang_lot='N'
+	AND baf.ang_poids is not null; --to prevent from inserting NULL weight values
+	-- 677871 (with duplicate pb)
+	-- 07/09 : 72376
 	
 	--TODO STOP HERE the 08/07/2022 See ticket https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/issues/4
 	-- Lots N
--- Insert WEIGHT (gr)
+-- Insert Length 
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   bc_id,
   bc_ba_id,
   bc_no_characteristic_type,
   bc_no_value_type,
   bc_numvalue,
-  ang_id)
+  ang_id,
+  ang_zone)
   SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type,  
   55 AS bc_no_value_type, --'Raw data or Individual data'       
-  ang_poids AS bc_numvalue, 
-  baf.ang_id
+  ang_taille AS bc_numvalue, --07/09 : corrected, ang_poids was inserted instead of ang_taille
+  baf.ang_id,
+  baf.ang_zone -- 07/09 : corrected, was missing (as ang_id is not unique between every zone)
   FROM 
   france.dbeel_batch_fish_rsa dbaf JOIN
-  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, 
+  rsa.anguille_ang baf ON (baf.ang_id,baf.ang_zone)=(dbaf.ang_id,dbaf.ang_zone), -- 07/09 : corrected as ang_id is not unique in ras.anguille_ang, duplicate for each zone 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE biological_characteristic_type.no_name = 'Length'
-  AND baf.ang_lot='N'; -- 677871
+  AND baf.ang_lot='N'
+	AND baf.ang_taille is not null; --to prevent from inserting NULL length values
+	-- 677871 (with duplicate pb)
+	-- 07/09 : 145619
 
