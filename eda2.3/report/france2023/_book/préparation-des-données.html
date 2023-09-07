@@ -332,54 +332,72 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="points-de-prélèvements" class="section level3 hasAnchor" number="2.1.3">
 <h3><span class="header-section-number">2.1.3</span> Points de prélèvements<a href="préparation-des-données.html#points-de-prélèvements" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>Dans ASPE, les opérations de pêche sont associées à des couples points de prélèvements/stations. Un point de prélèvement est associé à une station. Lors de l’importation des données pour le run du modèle EDA, les données des points de prélèvements ne sont pas nécessaires dans l’absolu. Toutefois, il existe dans ASPE des opérations qui sont associées à des points de prélèvements mais sans station. Nous allons voir ci-dessous ce cas particulier (cf <a href="préparation-des-données.html#opérations">Opérations</a> ) après avoir présenté le cas général.</p>
-<p>Dans un premier temps, les points de prélèvement français sont récupérés puis leur coordonnées dans le système de coordonnées 3035 est calculé.</p>
+<p>Dans un premier temps, les points de prélèvement français sont récupérés puis leur coordonnées dans le système de coordonnées 3035 est calculé. Au 08/09, une correction a été apportée pour mieux filtrer les points de prélèvements. En effet, dans ASPE il existe des POP dont les coordonnées sont codées sur Lambert II Etendu et d’autres sur Lambert 93. Les données DOM-TOM sont ignorées.</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="préparation-des-données.html#cb7-1" tabindex="-1"></a>point_prelevement_aspe <span class="ot">&lt;-</span> point_prelevement <span class="sc">%&gt;%</span></span>
 <span id="cb7-2"><a href="préparation-des-données.html#cb7-2" tabindex="-1"></a>        <span class="fu">left_join</span>(<span class="at">y =</span> ref_type_projection,</span>
 <span id="cb7-3"><a href="préparation-des-données.html#cb7-3" tabindex="-1"></a>                <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;pop_typ_id&quot;</span> <span class="ot">=</span> <span class="st">&quot;typ_id&quot;</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb7-4"><a href="préparation-des-données.html#cb7-4" tabindex="-1"></a>        <span class="fu">filter</span>(typ_code_epsg<span class="sc">==</span><span class="dv">2154</span>) <span class="sc">%&gt;%</span>  <span class="co">#limit points to metropolitan France</span></span>
-<span id="cb7-5"><a href="préparation-des-données.html#cb7-5" tabindex="-1"></a>        <span class="fu">filter</span>(pop_coordonnees_y <span class="sc">&gt;</span> <span class="dv">6000000</span> <span class="sc">&amp;</span> pop_coordonnees_y <span class="sc">&lt;</span><span class="dv">8000000</span>) <span class="sc">%&gt;%</span>  </span>
-<span id="cb7-6"><a href="préparation-des-données.html#cb7-6" tabindex="-1"></a><span class="co"># we limit the south extent to south Corsica for now...</span></span>
-<span id="cb7-7"><a href="préparation-des-données.html#cb7-7" tabindex="-1"></a>        <span class="fu">filter</span>(pop_coordonnees_x <span class="sc">&lt;</span> <span class="dv">1500000</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb7-8"><a href="préparation-des-données.html#cb7-8" tabindex="-1"></a>        <span class="fu">filter</span>(pop_coordonnees_x <span class="sc">&gt;</span> <span class="dv">0</span>) <span class="co"># filter some wrong coordinates</span></span>
-<span id="cb7-9"><a href="préparation-des-données.html#cb7-9" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="préparation-des-données.html#cb7-10" tabindex="-1"></a>coords <span class="ot">&lt;-</span> <span class="fu">geo_convertir_coords_df</span>(<span class="at">df =</span> point_prelevement_aspe,</span>
-<span id="cb7-11"><a href="préparation-des-données.html#cb7-11" tabindex="-1"></a>        <span class="at">var_x =</span> pop_coordonnees_x,</span>
-<span id="cb7-12"><a href="préparation-des-données.html#cb7-12" tabindex="-1"></a>        <span class="at">var_y =</span> pop_coordonnees_y,</span>
-<span id="cb7-13"><a href="préparation-des-données.html#cb7-13" tabindex="-1"></a>        <span class="at">var_id =</span> <span class="st">&quot;pop_id&quot;</span>,</span>
-<span id="cb7-14"><a href="préparation-des-données.html#cb7-14" tabindex="-1"></a>        <span class="at">var_crs_initial =</span> <span class="st">&quot;typ_code_epsg&quot;</span>,</span>
-<span id="cb7-15"><a href="préparation-des-données.html#cb7-15" tabindex="-1"></a>        <span class="at">crs_sortie =</span> <span class="dv">3035</span>) </span></code></pre></div>
-<p>Ensuite on récupère les données qui nous intéressent en conservant les coordonnées GIS. En date du 21/08/2023, il existe 120427 points de prélèvements.</p>
+<span id="cb7-4"><a href="préparation-des-données.html#cb7-4" tabindex="-1"></a>        <span class="fu">filter</span>(<span class="sc">!</span>typ_code_epsg <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">2975</span>,<span class="dv">2989</span>,<span class="dv">2972</span>,<span class="dv">4471</span>,<span class="dv">4467</span>) )  </span>
+<span id="cb7-5"><a href="préparation-des-données.html#cb7-5" tabindex="-1"></a><span class="co">#limit points to metropolitan France. Filtering DOM-TOM Espg</span></span>
+<span id="cb7-6"><a href="préparation-des-données.html#cb7-6" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="préparation-des-données.html#cb7-7" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="préparation-des-données.html#cb7-8" tabindex="-1"></a>coords <span class="ot">&lt;-</span> <span class="fu">geo_convertir_coords_df</span>(<span class="at">df =</span> point_prelevement_aspe,</span>
+<span id="cb7-9"><a href="préparation-des-données.html#cb7-9" tabindex="-1"></a>        <span class="at">var_x =</span> pop_coordonnees_x,</span>
+<span id="cb7-10"><a href="préparation-des-données.html#cb7-10" tabindex="-1"></a>        <span class="at">var_y =</span> pop_coordonnees_y,</span>
+<span id="cb7-11"><a href="préparation-des-données.html#cb7-11" tabindex="-1"></a>        <span class="at">var_id =</span> <span class="st">&quot;pop_id&quot;</span>,</span>
+<span id="cb7-12"><a href="préparation-des-données.html#cb7-12" tabindex="-1"></a>        <span class="at">var_crs_initial =</span> <span class="st">&quot;typ_code_epsg&quot;</span>,</span>
+<span id="cb7-13"><a href="préparation-des-données.html#cb7-13" tabindex="-1"></a>        <span class="at">crs_sortie =</span> <span class="dv">3035</span>) </span></code></pre></div>
+<p>Ensuite on récupère les données qui nous intéressent. En date du 21/08/2023, il existe 140160 points de prélèvements. Mais parmi ces points, certains possèdent des coordonnées erronées et il paraît difficile de les corriger. Ces points sont donc supprimés en suivant le même principe que pour les stations (intersection avec la carte de France métropolitaine).</p>
 <div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="préparation-des-données.html#cb8-1" tabindex="-1"></a>point_prelevement_aspe <span class="ot">&lt;-</span> point_prelevement_aspe <span class="sc">%&gt;%</span></span>
-<span id="cb8-2"><a href="préparation-des-données.html#cb8-2" tabindex="-1"></a>        <span class="fu">left_join</span>(<span class="at">y =</span> coords, <span class="at">by=</span> <span class="st">&quot;pop_id&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-3"><a href="préparation-des-données.html#cb8-3" tabindex="-1"></a>        dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(pop_distance_mer,</span>
-<span id="cb8-4"><a href="préparation-des-données.html#cb8-4" tabindex="-1"></a>                        pop_distance_maree_dynamique,</span>
-<span id="cb8-5"><a href="préparation-des-données.html#cb8-5" tabindex="-1"></a>                        pop_fog_id_cerema,</span>
-<span id="cb8-6"><a href="préparation-des-données.html#cb8-6" tabindex="-1"></a>                        pop_ocs_id,</span>
-<span id="cb8-7"><a href="préparation-des-données.html#cb8-7" tabindex="-1"></a>                        pop_zoh_id,</span>
-<span id="cb8-8"><a href="préparation-des-données.html#cb8-8" tabindex="-1"></a>                        pop_reh_id_cerema,</span>
-<span id="cb8-9"><a href="préparation-des-données.html#cb8-9" tabindex="-1"></a>                        pop_cap_id,</span>
-<span id="cb8-10"><a href="préparation-des-données.html#cb8-10" tabindex="-1"></a>                        pop_acc_id,</span>
-<span id="cb8-11"><a href="préparation-des-données.html#cb8-11" tabindex="-1"></a>                        pop_unh_id,</span>
-<span id="cb8-12"><a href="préparation-des-données.html#cb8-12" tabindex="-1"></a>                        pop_distance_source,</span>
-<span id="cb8-13"><a href="préparation-des-données.html#cb8-13" tabindex="-1"></a>                        pop_altitude,</span>
-<span id="cb8-14"><a href="préparation-des-données.html#cb8-14" tabindex="-1"></a>                        pop_pente_ign_cours_eau,</span>
-<span id="cb8-15"><a href="préparation-des-données.html#cb8-15" tabindex="-1"></a>                        pop_surface_bassin_versant_amont,</span>
-<span id="cb8-16"><a href="préparation-des-données.html#cb8-16" tabindex="-1"></a>                        pop_temperature_moyenne_janvier,</span>
-<span id="cb8-17"><a href="préparation-des-données.html#cb8-17" tabindex="-1"></a>                        pop_temperature_moyenne_juillet,</span>
-<span id="cb8-18"><a href="préparation-des-données.html#cb8-18" tabindex="-1"></a>                        pop_uti_id,</span>
-<span id="cb8-19"><a href="préparation-des-données.html#cb8-19" tabindex="-1"></a>                        pop_bas_id,</span>
-<span id="cb8-20"><a href="préparation-des-données.html#cb8-20" tabindex="-1"></a>                        typ_code_sandre,</span>
-<span id="cb8-21"><a href="préparation-des-données.html#cb8-21" tabindex="-1"></a>                        typ_libelle_sandre,</span>
-<span id="cb8-22"><a href="préparation-des-données.html#cb8-22" tabindex="-1"></a>                        typ_libelle,</span>
-<span id="cb8-23"><a href="préparation-des-données.html#cb8-23" tabindex="-1"></a>                        typ_ordre_affichage</span>
-<span id="cb8-24"><a href="préparation-des-données.html#cb8-24" tabindex="-1"></a>                ))<span class="sc">%&gt;%</span></span>
-<span id="cb8-25"><a href="préparation-des-données.html#cb8-25" tabindex="-1"></a>        <span class="fu">mutate</span>(<span class="at">typ_code_epsg=</span><span class="dv">3035</span>) </span></code></pre></div>
+<span id="cb8-2"><a href="préparation-des-données.html#cb8-2" tabindex="-1"></a>  <span class="fu">left_join</span>(<span class="at">y =</span> coords, <span class="at">by=</span> <span class="st">&quot;pop_id&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="préparation-des-données.html#cb8-3" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="sc">-</span><span class="fu">c</span>(pop_distance_mer,</span>
+<span id="cb8-4"><a href="préparation-des-données.html#cb8-4" tabindex="-1"></a>                   pop_distance_maree_dynamique,</span>
+<span id="cb8-5"><a href="préparation-des-données.html#cb8-5" tabindex="-1"></a>                   pop_fog_id_cerema,</span>
+<span id="cb8-6"><a href="préparation-des-données.html#cb8-6" tabindex="-1"></a>                   pop_ocs_id,</span>
+<span id="cb8-7"><a href="préparation-des-données.html#cb8-7" tabindex="-1"></a>                   pop_zoh_id,</span>
+<span id="cb8-8"><a href="préparation-des-données.html#cb8-8" tabindex="-1"></a>                   pop_reh_id_cerema,</span>
+<span id="cb8-9"><a href="préparation-des-données.html#cb8-9" tabindex="-1"></a>                   pop_cap_id,</span>
+<span id="cb8-10"><a href="préparation-des-données.html#cb8-10" tabindex="-1"></a>                   pop_acc_id,</span>
+<span id="cb8-11"><a href="préparation-des-données.html#cb8-11" tabindex="-1"></a>                   pop_unh_id,</span>
+<span id="cb8-12"><a href="préparation-des-données.html#cb8-12" tabindex="-1"></a>                   pop_distance_source,</span>
+<span id="cb8-13"><a href="préparation-des-données.html#cb8-13" tabindex="-1"></a>                   pop_altitude,</span>
+<span id="cb8-14"><a href="préparation-des-données.html#cb8-14" tabindex="-1"></a>                   pop_pente_ign_cours_eau,</span>
+<span id="cb8-15"><a href="préparation-des-données.html#cb8-15" tabindex="-1"></a>                   pop_surface_bassin_versant_amont,</span>
+<span id="cb8-16"><a href="préparation-des-données.html#cb8-16" tabindex="-1"></a>                   pop_temperature_moyenne_janvier,</span>
+<span id="cb8-17"><a href="préparation-des-données.html#cb8-17" tabindex="-1"></a>                   pop_temperature_moyenne_juillet,</span>
+<span id="cb8-18"><a href="préparation-des-données.html#cb8-18" tabindex="-1"></a>                   pop_uti_id,</span>
+<span id="cb8-19"><a href="préparation-des-données.html#cb8-19" tabindex="-1"></a>                   pop_bas_id,</span>
+<span id="cb8-20"><a href="préparation-des-données.html#cb8-20" tabindex="-1"></a>                   typ_code_sandre,</span>
+<span id="cb8-21"><a href="préparation-des-données.html#cb8-21" tabindex="-1"></a>                   typ_libelle_sandre,</span>
+<span id="cb8-22"><a href="préparation-des-données.html#cb8-22" tabindex="-1"></a>                   typ_libelle,</span>
+<span id="cb8-23"><a href="préparation-des-données.html#cb8-23" tabindex="-1"></a>                   typ_ordre_affichage</span>
+<span id="cb8-24"><a href="préparation-des-données.html#cb8-24" tabindex="-1"></a>  ))<span class="sc">%&gt;%</span></span>
+<span id="cb8-25"><a href="préparation-des-données.html#cb8-25" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">typ_code_epsg=</span><span class="dv">3035</span>) </span>
+<span id="cb8-26"><a href="préparation-des-données.html#cb8-26" tabindex="-1"></a></span>
+<span id="cb8-27"><a href="préparation-des-données.html#cb8-27" tabindex="-1"></a>point_prelevement_aspe_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(point_prelevement_aspe, <span class="at">coords=</span><span class="fu">c</span>(<span class="st">&quot;X&quot;</span>,<span class="st">&quot;Y&quot;</span>),<span class="at">crs=</span><span class="dv">3035</span>)</span>
+<span id="cb8-28"><a href="préparation-des-données.html#cb8-28" tabindex="-1"></a></span>
+<span id="cb8-29"><a href="préparation-des-données.html#cb8-29" tabindex="-1"></a><span class="fu">nrow</span>(point_prelevement_aspe)  <span class="co">#115355</span></span>
+<span id="cb8-30"><a href="préparation-des-données.html#cb8-30" tabindex="-1"></a><span class="co">#120427 au 21/08</span></span>
+<span id="cb8-31"><a href="préparation-des-données.html#cb8-31" tabindex="-1"></a><span class="co">#140160 au 08/09</span></span>
+<span id="cb8-32"><a href="préparation-des-données.html#cb8-32" tabindex="-1"></a></span>
+<span id="cb8-33"><a href="préparation-des-données.html#cb8-33" tabindex="-1"></a><span class="co"># Just checking that everything works fine</span></span>
+<span id="cb8-34"><a href="préparation-des-données.html#cb8-34" tabindex="-1"></a><span class="co">#several points are outside french territory</span></span>
+<span id="cb8-35"><a href="préparation-des-données.html#cb8-35" tabindex="-1"></a>mapview<span class="sc">::</span><span class="fu">mapview</span>(point_prelevement_aspe_sf, <span class="at">color =</span> <span class="st">&quot;green&quot;</span>) </span>
+<span id="cb8-36"><a href="préparation-des-données.html#cb8-36" tabindex="-1"></a></span>
+<span id="cb8-37"><a href="préparation-des-données.html#cb8-37" tabindex="-1"></a><span class="co">#we are going to filter pop with a similar method used for stations</span></span>
+<span id="cb8-38"><a href="préparation-des-données.html#cb8-38" tabindex="-1"></a>pop_aspe_france_buff <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_intersection</span>( <span class="co"># filter in France</span></span>
+<span id="cb8-39"><a href="préparation-des-données.html#cb8-39" tabindex="-1"></a>  point_prelevement_aspe_sf, france_polygone_buff) </span>
+<span id="cb8-40"><a href="préparation-des-données.html#cb8-40" tabindex="-1"></a><span class="co">#139680 au 08/09</span></span></code></pre></div>
+<p>Au final, 139680 points de prélèvements sont conservés. Le résultat est visible sur la carte ci-dessous (en vert les points conservés, en violet ceux qui sont supprimés). Certains point supprimés sont géolocalisés dans l’océan arctique, l’océan indien et en Afrique. Ils ne sont pas visibles sur cette carte.</p>
+<div class="float">
+<img src="images/pop_france_filtered_new.png" alt="(#fig:carte-france_pop) Visualisation des points de prélèvements." />
+<div class="figcaption">(#fig:carte-france_pop) Visualisation des points de prélèvements.</div>
+</div>
 <p>La dernière étape est l’ajout de ces points de prélèvements dans la base EDA.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="préparation-des-données.html#cb9-1" tabindex="-1"></a>station_aspe_france <span class="ot">&lt;-</span> station_aspe_france_buff</span>
 <span id="cb9-2"><a href="préparation-des-données.html#cb9-2" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="préparation-des-données.html#cb9-3" tabindex="-1"></a><span class="co"># Write prelevement table in the database</span></span>
 <span id="cb9-4"><a href="préparation-des-données.html#cb9-4" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbExecute</span>(con, <span class="st">&quot;DROP TABLE if exists france.point_prelevement_aspe;&quot;</span>)</span>
-<span id="cb9-5"><a href="préparation-des-données.html#cb9-5" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbWriteTable</span>(con, <span class="st">&quot;point_prelevement_aspe&quot;</span>, point_prelevement_aspe_sf)</span>
+<span id="cb9-5"><a href="préparation-des-données.html#cb9-5" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbWriteTable</span>(con, <span class="st">&quot;point_prelevement_aspe&quot;</span>, pop_aspe_france_buff)</span>
 <span id="cb9-6"><a href="préparation-des-données.html#cb9-6" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbExecute</span>(con, <span class="st">&quot;ALTER TABLE point_prelevement_aspe set schema france&quot;</span>)</span></code></pre></div>
 <div style="page-break-after: always;"></div>
 </div>
@@ -424,7 +442,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb10-36"><a href="préparation-des-données.html#cb10-36" tabindex="-1"></a>        <span class="fu">filter</span>(ope_pro_id <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">7</span>)) <span class="sc">%&gt;%</span> <span class="co"># remove IA SAT and vigie truite</span></span>
 <span id="cb10-37"><a href="préparation-des-données.html#cb10-37" tabindex="-1"></a>        <span class="fu">select</span>(<span class="sc">-</span>ope_pro_id) <span class="sc">%&gt;%</span></span>
 <span id="cb10-38"><a href="préparation-des-données.html#cb10-38" tabindex="-1"></a>        <span class="fu">rename</span>(<span class="at">op_typ =</span> pro_libelle)</span></code></pre></div>
-<p>La dernière étape est l’ajout de ces opérations dans la base EDA.</p>
+<p>On notera que la jointure est faite avec <em>point_prelevement</em>, qui est le jeu de données ASPE des points de prélèvements, toutes coordonnées géographiques confondues (France métropolitaine, DOM/TOM et points mal géolocalisés). A cet stade on conserve cette jointure pour maximiser le nombre d’opérations. Si on fait la jointure avec la table des points de prélèvements filtrées (cf chapitre précédent), on perd 204 opérations.
+La dernière étape est l’ajout de ces opérations dans la base EDA.</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="préparation-des-données.html#cb11-1" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbExecute</span>(con, <span class="st">&quot;DROP TABLE if exists france.operation_aspe;&quot;</span>)</span>
 <span id="cb11-2"><a href="préparation-des-données.html#cb11-2" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbWriteTable</span>(con, <span class="st">&quot;operation_aspe&quot;</span>, operation_aspe) </span>
 <span id="cb11-3"><a href="préparation-des-données.html#cb11-3" tabindex="-1"></a>DBI<span class="sc">::</span><span class="fu">dbExecute</span>(con, <span class="st">&quot;ALTER TABLE operation_aspe set schema france&quot;</span>)</span></code></pre></div>
@@ -456,7 +475,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <img src="images/ope_sans_station.png" alt="(#fig:carte-france_ope_station) Visualisation des opérations sans station." />
 <div class="figcaption">(#fig:carte-france_ope_station) Visualisation des opérations sans station.</div>
 </div>
-<p>Nous proposons donc à ce stade de conserver l’identifiant de la station la plus proche.<strong>Au 22/08 : Attente de validation Cédric/Laurent.</strong></p>
+<p>Nous proposons donc à ce stade de conserver l’identifiant de la station la plus proche.<strong>Au 22/08 : Attente de validation Cédric/Laurent. : réponse Laurent 08/09 : a priori on laisse tel quel. </strong></p>
 <div style="page-break-after: always;"></div>
 </div>
 <div id="batch" class="section level3 hasAnchor" number="2.1.5">

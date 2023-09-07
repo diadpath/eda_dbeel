@@ -172,17 +172,15 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 
 Dans ASPE, les opérations de pêche sont associées à des couples points de prélèvements/stations. Un point de prélèvement est associé à une station. Lors de l'importation des données pour le run du modèle EDA, les données des points de prélèvements ne sont pas nécessaires dans l'absolu. Toutefois, il existe dans ASPE des opérations qui sont associées à des points de prélèvements mais sans station. Nous allons voir ci-dessous ce cas particulier (cf [Opérations](#opérations) ) après avoir présenté le cas général.
 
-Dans un premier temps, les points de prélèvement français sont récupérés puis leur coordonnées dans le système de coordonnées 3035 est calculé.
+Dans un premier temps, les points de prélèvement français sont récupérés puis leur coordonnées dans le système de coordonnées 3035 est calculé. Au 08/09, une correction a été apportée pour mieux filtrer les points de prélèvements. En effet, dans ASPE il existe des POP dont les coordonnées sont codées sur Lambert II Etendu et d'autres sur Lambert 93. Les données DOM-TOM sont ignorées.
 
 ```{r get_pop_ASPE, eval = FALSE, echo = TRUE}
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
-		filter(typ_code_epsg==2154) %>%  #limit points to metropolitan France
-		filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  
-# we limit the south extent to south Corsica for now...
-		filter(pop_coordonnees_x < 1500000) %>% 
-		filter(pop_coordonnees_x > 0) # filter some wrong coordinates
+		filter(!typ_code_epsg %in% c(2975,2989,2972,4471,4467) )  
+#limit points to metropolitan France. Filtering DOM-TOM Espg
+
 
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		var_x = pop_coordonnees_x,
@@ -192,35 +190,53 @@ coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
 		crs_sortie = 3035) 
 ```
 
-Ensuite on récupère les données qui nous intéressent en conservant les coordonnées GIS. En date du 21/08/2023, il existe 120427 points de prélèvements.
+Ensuite on récupère les données qui nous intéressent. En date du 21/08/2023, il existe 140160 points de prélèvements. Mais parmi ces points, certains possèdent des coordonnées erronées et il paraît difficile de les corriger. Ces points sont donc supprimés en suivant le même principe que pour les stations (intersection avec la carte de France métropolitaine).
 
 ```{r select_pop_ASPE_data, eval = FALSE, echo = TRUE}
 point_prelevement_aspe <- point_prelevement_aspe %>%
-		left_join(y = coords, by= "pop_id") %>%
-		dplyr::select(-c(pop_distance_mer,
-						pop_distance_maree_dynamique,
-						pop_fog_id_cerema,
-						pop_ocs_id,
-						pop_zoh_id,
-						pop_reh_id_cerema,
-						pop_cap_id,
-						pop_acc_id,
-						pop_unh_id,
-						pop_distance_source,
-						pop_altitude,
-						pop_pente_ign_cours_eau,
-						pop_surface_bassin_versant_amont,
-						pop_temperature_moyenne_janvier,
-						pop_temperature_moyenne_juillet,
-						pop_uti_id,
-						pop_bas_id,
-						typ_code_sandre,
-						typ_libelle_sandre,
-						typ_libelle,
-						typ_ordre_affichage
-				))%>%
-		mutate(typ_code_epsg=3035) 
+  left_join(y = coords, by= "pop_id") %>%
+  dplyr::select(-c(pop_distance_mer,
+                   pop_distance_maree_dynamique,
+                   pop_fog_id_cerema,
+                   pop_ocs_id,
+                   pop_zoh_id,
+                   pop_reh_id_cerema,
+                   pop_cap_id,
+                   pop_acc_id,
+                   pop_unh_id,
+                   pop_distance_source,
+                   pop_altitude,
+                   pop_pente_ign_cours_eau,
+                   pop_surface_bassin_versant_amont,
+                   pop_temperature_moyenne_janvier,
+                   pop_temperature_moyenne_juillet,
+                   pop_uti_id,
+                   pop_bas_id,
+                   typ_code_sandre,
+                   typ_libelle_sandre,
+                   typ_libelle,
+                   typ_ordre_affichage
+  ))%>%
+  mutate(typ_code_epsg=3035) 
+
+point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),crs=3035)
+
+nrow(point_prelevement_aspe)  #115355
+#120427 au 21/08
+#140160 au 08/09
+
+# Just checking that everything works fine
+#several points are outside french territory
+mapview::mapview(point_prelevement_aspe_sf, color = "green") 
+
+#we are going to filter pop with a similar method used for stations
+pop_aspe_france_buff <- sf::st_intersection( # filter in France
+  point_prelevement_aspe_sf, france_polygone_buff) 
+#139680 au 08/09
 ```
+Au final, 139680 points de prélèvements sont conservés. Le résultat est visible sur la carte ci-dessous (en vert les points conservés, en violet ceux qui sont supprimés). Certains point supprimés sont géolocalisés dans l'océan arctique, l'océan indien et en Afrique. Ils ne sont pas visibles sur cette carte.
+
+![(#fig:carte-france_pop) Visualisation des points de prélèvements.](images/pop_france_filtered_new.png)
 
 La dernière étape est l'ajout de ces points de prélèvements dans la base EDA.
 
@@ -230,7 +246,7 @@ station_aspe_france <- station_aspe_france_buff
 
 # Write prelevement table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.point_prelevement_aspe;")
-DBI::dbWriteTable(con, "point_prelevement_aspe", point_prelevement_aspe_sf)
+DBI::dbWriteTable(con, "point_prelevement_aspe", pop_aspe_france_buff)
 DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 ```
 
@@ -280,7 +296,7 @@ operation_aspe <-
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)
 ```
-
+On notera que la jointure est faite avec _point_prelevement_, qui est le jeu de données ASPE des points de prélèvements, toutes coordonnées géographiques confondues (France métropolitaine, DOM/TOM et points mal géolocalisés). A cet stade on conserve cette jointure pour maximiser le nombre d'opérations. Si on fait la jointure avec la table des points de prélèvements filtrées (cf chapitre précédent), on perd 204 opérations. 
 La dernière étape est l'ajout de ces opérations dans la base EDA.
 
 ```{r write_ope_EDA, eval = FALSE, echo = TRUE}
@@ -320,7 +336,7 @@ Sur la carte ci-dessous figure l'ensemble des opération sans identifiant de sta
 
 ![(#fig:carte-france_ope_station) Visualisation des opérations sans station.](images/ope_sans_station.png)
 
-Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.**Au 22/08 : Attente de validation Cédric/Laurent.**
+Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.**Au 22/08 : Attente de validation Cédric/Laurent. : réponse Laurent 08/09 : a priori on laisse tel quel. **
 
 \newpage
 

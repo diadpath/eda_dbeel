@@ -109,8 +109,8 @@ station_aspe_france <- sf::st_intersection( # filter stations in France
 station_aspe_france_diff <- sf::st_difference(
   station_aspe_sf, france_polygone)
 #visualisation sur la map France polygonisée
-mapview::mapview(france_polygone, alpha.regions = 0.2, aplha = 1,legend=FALSE) +
-  mapview::mapview(station_aspe_france_diff, color="red",alpha.regions = 0.1, aplha = 0.1,legend=FALSE,cex =1)
+# mapview::mapview(france_polygone, alpha.regions = 0.2, aplha = 1,legend=FALSE) +
+#   mapview::mapview(station_aspe_france_diff, color="red",alpha.regions = 0.1, aplha = 0.1,legend=FALSE,cex =1)
 
 # solution 1 : on augmente le buffer de la France de 20km
 france_polygone_buff <- st_buffer(france_polygone,dist=20000)  
@@ -127,17 +127,17 @@ station_aspe_france_buff <- sf::st_intersection( # filter stations in France
 station_aspe_france_buff_diff <- sf::st_difference(
   station_aspe_sf, france_polygone_buff)#55 stations perdues (30 stations avec nouveau fichier)
 
-#solution 2 : on utilise une projection de la France plus précise (geojson, issue de l'IGN)
-#geojson files downloaded from : https://github.com/gregoiredavid/france-geojson/tree/master
-france_map_json <- read_sf("data/metropole.geojson")
-# france_map_json <- read_sf("data/regions-version-simplifiee.geojson")
-france_map_json <- st_transform(france_map_json,crs = 3035)
-#check intersection
-station_aspe_france_json <- sf::st_intersection( # filter stations in France
-  station_aspe_sf, france_map_json)
-#33036 stations = 195 stations perdues (mais difficultés pour les afficher)
-#avec nv fichiers : 33819 stations = 196 stations perdues 
-#nb : bufferiser cette solution 2 ne fonctionne pas. on duplique des résultats.
+# #solution 2 : on utilise une projection de la France plus précise (geojson, issue de l'IGN)
+# #geojson files downloaded from : https://github.com/gregoiredavid/france-geojson/tree/master
+# france_map_json <- read_sf("data/metropole.geojson")
+# # france_map_json <- read_sf("data/regions-version-simplifiee.geojson")
+# france_map_json <- st_transform(france_map_json,crs = 3035)
+# #check intersection
+# station_aspe_france_json <- sf::st_intersection( # filter stations in France
+#   station_aspe_sf, france_map_json)
+# #33036 stations = 195 stations perdues (mais difficultés pour les afficher)
+# #avec nv fichiers : 33819 stations = 196 stations perdues 
+# #nb : bufferiser cette solution 2 ne fonctionne pas. on duplique des résultats.
 
 
 # # some biometry data are wrong for Brittany. We identify station located in the region
@@ -163,35 +163,35 @@ station_aspe_france_json <- sf::st_intersection( # filter stations in France
 # Just checking that everything works fine
 #map with initial stations (France without extended buffer) and added stations (France with extended buffer)
 
-#plot with stations (solution 1)
-ggplot() +
-  geom_sf(data = france_map_json) +
-  geom_sf(data = station_aspe_france_buff,alpha=0.1,cex=0.2,color="darkred") +
-  geom_sf(data = station_aspe_france,alpha=0.1,cex=0.2,color="darkgreen") +
-  coord_sf(crs = st_crs(3035)) +
-  theme_bw()
+# #plot with stations (solution 1)
+# ggplot() +
+#   geom_sf(data = france_map_json) +
+#   geom_sf(data = station_aspe_france_buff,alpha=0.1,cex=0.2,color="darkred") +
+#   geom_sf(data = station_aspe_france,alpha=0.1,cex=0.2,color="darkgreen") +
+#   coord_sf(crs = st_crs(3035)) +
+#   theme_bw()
 #other map (less options but with zoom in/out possibilities)
 mapview::mapview(station_aspe_france_buff, color="purple",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
 mapview::mapview(station_aspe_france, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
-
-#plot with stations (solution 2)
-ggplot() +
-  geom_sf(data = france_map_json) +
-  geom_sf(data = station_aspe_france_json,alpha=0.05,cex=0.2,color="darkred") +
-  geom_sf(data = station_aspe_france,alpha=0.05,cex=0.2,color="darkgreen") +
-  coord_sf(crs = st_crs(3035)) +
-  theme_bw()
+# 
+# #plot with stations (solution 2)
+# ggplot() +
+#   geom_sf(data = france_map_json) +
+#   geom_sf(data = station_aspe_france_json,alpha=0.05,cex=0.2,color="darkred") +
+#   geom_sf(data = station_aspe_france,alpha=0.05,cex=0.2,color="darkgreen") +
+#   coord_sf(crs = st_crs(3035)) +
+#   theme_bw()
 #other map (less options but with zoom in/out possibilities)
-mapview::mapview(station_aspe_france_json, color="red",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
-  mapview::mapview(station_aspe_france, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
+# mapview::mapview(station_aspe_france_json, color="red",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
+#   mapview::mapview(station_aspe_france, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
 
 #plot solution 1 vs 2 (avec zoom possible)
 # solution 1 : il manque toujours une dizaine de sites français (ouessant, belle île + quelques sites au NE) 
 # solution 2 : on perd plusieurs sites dans les estuaires (ex dans le finistère)
 # ************ -->  la solution 1 semble meilleure **************
 
-mapview::mapview(station_aspe_france_buff, color="red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1) +
-  mapview::mapview(station_aspe_france_json, color="darkgreen",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
+# mapview::mapview(station_aspe_france_buff, color="red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1) +
+#   mapview::mapview(station_aspe_france_json, color="darkgreen",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
 
 
 station_aspe_france <- station_aspe_france_buff#33985 stations, 21/08/2023
@@ -206,8 +206,6 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 #############################################
 #Comment 21/08/2023 : J. RAITIF : cf plus bas dans le code sur les opérations. Je propose de rattacher les opérations sans station avec la station la plus proche.
 
-#COMMENT 18/08/2023 : J. RAITIF : après vérification dans le fichier import_aspe_dbeel.sql, il apparaît que la table point_prelevement_aspe n'est pas utilisée. 
-# Cette étape semble donc inutile ?
 
 #COMMENT 20/07:2023 : J.RAITIF : ici il me semble qu'il faut faire un inner join avec la table station_aspe_france que l'on a généré avant
 #pour s'assurer que l'on ne va remonter que les prélèvements réalisées sur les stations "françaises" ?
@@ -225,60 +223,183 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 # point_prelevement[point_prelevement$pop_id==100971,] # 136346
 # point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
+####################
+# A CORRIGER : il faut au préalable reprojeter toutes les stations sur du 3035
+
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
-		filter(typ_code_epsg==2154) %>%  #limit points to metropolitan France
-		filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  # some station have wrong coordinates
+		filter(!typ_code_epsg %in% c(2975,2989,2972,4471,4467) ) #%>%  #limit points to metropolitan France. Filtering DOM-TOM Espg
+		# filter(pop_coordonnees_y > 6000000 & pop_coordonnees_y <8000000) %>%  # some station have wrong coordinates
 # we limit the south extent to south Corsica for now...
-		filter(pop_coordonnees_x < 1500000) %>% 
-		filter(pop_coordonnees_x > 0) # filter some wrong coordinates
+		# filter(pop_coordonnees_x < 1500000) %>% 
+    # filter(pop_coordonnees_x > 0) 
+  
+# #lost pont of prelevement because of projection in Lambert II Étendu
+# nrow(point_prelevement[point_prelevement$pop_typ_id==32,])
+# filter(pop_coordonnees_x > 0) # filter some wrong coordinates
 
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
-		var_x = pop_coordonnees_x,
-		var_y = pop_coordonnees_y,
-		var_id = "pop_id",
-		var_crs_initial = "typ_code_epsg",
-		crs_sortie = 3035) 
-
+                                  var_x = pop_coordonnees_x,
+                                  var_y = pop_coordonnees_y,
+                                  var_id = "pop_id",
+                                  var_crs_initial = "typ_code_epsg",
+                                  crs_sortie = 3035) 
 
 point_prelevement_aspe <- point_prelevement_aspe %>%
-		left_join(y = coords, by= "pop_id") %>%
-		dplyr::select(-c(pop_distance_mer,
-						pop_distance_maree_dynamique,
-						pop_fog_id_cerema,
-						pop_ocs_id,
-						pop_zoh_id,
-						pop_reh_id_cerema,
-						pop_cap_id,
-						pop_acc_id,
-						pop_unh_id,
-						pop_distance_source,
-						pop_altitude,
-						pop_pente_ign_cours_eau,
-						pop_surface_bassin_versant_amont,
-						pop_temperature_moyenne_janvier,
-						pop_temperature_moyenne_juillet,
-						pop_uti_id,
-						pop_bas_id,
-						typ_code_sandre,
-						typ_libelle_sandre,
-						typ_libelle,
-						typ_ordre_affichage
-				))%>%
-		mutate(typ_code_epsg=3035) 
-
-nrow(point_prelevement_aspe)  #115355
-#120427 au 21/08
+  left_join(y = coords, by= "pop_id") %>%
+  dplyr::select(-c(pop_distance_mer,
+                   pop_distance_maree_dynamique,
+                   pop_fog_id_cerema,
+                   pop_ocs_id,
+                   pop_zoh_id,
+                   pop_reh_id_cerema,
+                   pop_cap_id,
+                   pop_acc_id,
+                   pop_unh_id,
+                   pop_distance_source,
+                   pop_altitude,
+                   pop_pente_ign_cours_eau,
+                   pop_surface_bassin_versant_amont,
+                   pop_temperature_moyenne_janvier,
+                   pop_temperature_moyenne_juillet,
+                   pop_uti_id,
+                   pop_bas_id,
+                   typ_code_sandre,
+                   typ_libelle_sandre,
+                   typ_libelle,
+                   typ_ordre_affichage
+  ))%>%
+  mutate(typ_code_epsg=3035) 
 
 point_prelevement_aspe_sf <- st_as_sf(point_prelevement_aspe, coords=c("X","Y"),crs=3035)
 
+nrow(point_prelevement_aspe)  #115355
+#120427 au 21/08
+#140160 au 08/09
+
 # Just checking that everything works fine
-mapview::mapview(point_prelevement_aspe_sf, color = "green")  # some points in Africa, to remove
+#several points are outside french territory
+mapview::mapview(point_prelevement_aspe_sf, color = "green") 
+
+#we are going to filter pop with a similar method used for stations
+pop_aspe_france_buff <- sf::st_intersection( # filter stations in France
+  point_prelevement_aspe_sf, france_polygone_buff) #33202 stations (33985 avec nouveaux fichiers)
+#139680 au 08/09
+mapview::mapview(point_prelevement_aspe_sf, color="purple",alpha.regions = 0, aplha = 0.3,legend=FALSE,cex =1) +
+  mapview::mapview(pop_aspe_france_buff, color="darkgreen",alpha.regions = 0, aplha = 0.1,legend=FALSE,cex =1)
+#purple points without green spot above are lost
+
+########################################################
+##checking pop with EPSG != Lambert 93 (id=2)
+unique(point_prelevement$pop_typ_id)#type of projection#DOM TOM + old Lambert 2 etendu
+#keeping only Lambert 2
+pop_32 <- point_prelevement[point_prelevement$pop_typ_id==32,] %>%
+  left_join(y = ref_type_projection,
+            by = c("pop_typ_id" = "typ_id"))
+coords_32 <- geo_convertir_coords_df(df = pop_32,
+                                     var_x = pop_coordonnees_x,
+                                     var_y = pop_coordonnees_y,
+                                     var_id = "pop_id",
+                                     var_crs_initial = "typ_code_epsg",
+                                     crs_sortie = 3035) 
+pop_32 <- pop_32 %>%
+  left_join(y = coords_32, by= "pop_id") %>%
+  dplyr::select(-c(pop_distance_mer,
+                   pop_distance_maree_dynamique,
+                   pop_fog_id_cerema,
+                   pop_ocs_id,
+                   pop_zoh_id,
+                   pop_reh_id_cerema,
+                   pop_cap_id,
+                   pop_acc_id,
+                   pop_unh_id,
+                   pop_distance_source,
+                   pop_altitude,
+                   pop_pente_ign_cours_eau,
+                   pop_surface_bassin_versant_amont,
+                   pop_temperature_moyenne_janvier,
+                   pop_temperature_moyenne_juillet,
+                   pop_uti_id,
+                   pop_bas_id,
+                   typ_code_sandre,
+                   typ_libelle_sandre,
+                   typ_libelle,
+                   typ_ordre_affichage
+  ))%>%
+  mutate(typ_code_epsg=3035) 
+
+pop_32_sf <- st_as_sf(pop_32, coords=c("X","Y"),crs=3035)
+
+nrow(pop_32)  #115355
+#19697 au 08/09
+
+# Just checking that everything works fine
+mapview::mapview(pop_32_sf, color = "green") 
+
+# Several points outside french territory (wrong coordinates)
+# pop_id : 110133, 110181, 11180, 101938
+# code_wama : 03890162,04580010,04580009,03760174
+#temporary solutinos : removing manually
+
+########################################################
+#lost pop because of extreme coordinates : NO PB
+point_prelevement_aspe_lost <- point_prelevement %>%
+  left_join(y = ref_type_projection,
+            by = c("pop_typ_id" = "typ_id")) %>%
+  # filter(typ_code_epsg==2154) %>%  #limit points to metropolitan France
+  filter(pop_coordonnees_y < 6000000 | pop_coordonnees_y >8000000) %>%  # some station have wrong coordinates
+  # we limit the south extent to south Corsica for now...
+  filter(pop_coordonnees_x > 1500000)
+
+coords_lost <- geo_convertir_coords_df(df = point_prelevement_aspe_lost,
+                                  var_x = pop_coordonnees_x,
+                                  var_y = pop_coordonnees_y,
+                                  var_id = "pop_id",
+                                  var_crs_initial = "typ_code_epsg",
+                                  crs_sortie = 3035) 
+
+point_prelevement_aspe_lost <- point_prelevement_aspe_lost %>%
+  left_join(y = coords_lost, by= "pop_id") %>%
+  dplyr::select(-c(pop_distance_mer,
+                   pop_distance_maree_dynamique,
+                   pop_fog_id_cerema,
+                   pop_ocs_id,
+                   pop_zoh_id,
+                   pop_reh_id_cerema,
+                   pop_cap_id,
+                   pop_acc_id,
+                   pop_unh_id,
+                   pop_distance_source,
+                   pop_altitude,
+                   pop_pente_ign_cours_eau,
+                   pop_surface_bassin_versant_amont,
+                   pop_temperature_moyenne_janvier,
+                   pop_temperature_moyenne_juillet,
+                   pop_uti_id,
+                   pop_bas_id,
+                   typ_code_sandre,
+                   typ_libelle_sandre,
+                   typ_libelle,
+                   typ_ordre_affichage
+  ))%>%
+  mutate(typ_code_epsg=3035) 
+
+
+point_prelevement_aspe_lost_sf <- st_as_sf(point_prelevement_aspe_lost, coords=c("X","Y"),crs=3035)
+# Just checking that everything works fine
+mapview::mapview(point_prelevement_aspe_lost_sf, color = "green")  
+# projected in africa and indian ocean
+# on of the pop refered to a station (code sandre : 04571004) which is in France (not Africa). 
+# Its coordinates (in Lambert 93) should be something like (498137.00, 6662218.00).
+# The other p.o.p or stations were not found in stations_aspe table but in station.
+station[station$sta_id %in% c(3198801, 86345,86344,86346,3198810),]
+#in operation
+operation[operation$ope_pop_id %in% c(315578, 315579, 315580,13208253, 13230738),]#no result !
 
 # Write prelevement table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.point_prelevement_aspe;")
-DBI::dbWriteTable(con, "point_prelevement_aspe", point_prelevement_aspe_sf) # written in public scheme
+DBI::dbWriteTable(con, "point_prelevement_aspe", pop_aspe_france_buff) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 
 ##############################################
@@ -294,7 +415,7 @@ DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 # 18/08 : 45589 opérations avec station
 # Based on the code from aspe::mef_creer_passerelle() without lots
 operation_aspe <- 
-		point_prelevement %>%
+  point_prelevement %>%
 		left_join(operation, by=c("pop_id"="ope_pop_id")) %>%
 		left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>%
 		left_join(ref_moyen_prospection, by = c("odp_mop_id"="mop_id"))%>%
@@ -334,9 +455,14 @@ operation_aspe <-
 #nrow(operation_aspe[is.na(operation_aspe$pop_id),])
 
 #18/08 : 10391 lignes sans sta_id
+# #avec pop_aspe_france_buff
+# 08/09 : 10135 lignes sans sta_id, 0 lign sans pop_id
 
 # nrow(operation_aspe)
-#21/08 : 45589 lignes
+#21/08 : 45589 lignes (si jointure avec point_prelevement, celle en prod actuellement)
+#08/09 : 45285 lignes 
+# (si jointure avec pop_aspe_france_buff, on perd les opérations attachées à des pop dont les coordonnées sont
+# dans les DOM TOM ou en dehors de la France)
 # write operation table in the database
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
 DBI::dbWriteTable(con, "operation_aspe", operation_aspe) # written in public scheme
@@ -344,7 +470,7 @@ DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
 #How many ASPE operation are recorded without station id 
 #(point of prelevement is not properly attached to station)
-lost_pop <- point_prelevement_aspe %>%
+lost_pop <- pop_aspe_france_buff %>%
   inner_join(operation_aspe, by=c("pop_id"="pop_id")) %>%
   filter(is.na(sta_id))
 #21/08 : 24 operations (same as previous EDA runs in 2020) without proper sta_id
@@ -365,7 +491,7 @@ min(dist) #minimal distance is 25m
 max(dist) #maximal distance is 1711m
 
 #####
-#### Au 22/08 : Attente de validation Cédric/Laurent.
+#### Au 22/08 : Attente de validation Cédric/Laurent. A priori pour 24 opérations, pas indispensable
 #####
 
 ##############################################
@@ -530,7 +656,7 @@ operation_aspe_silver <- DBI::dbGetQuery(con,
 #18/08 : 37691 lines
   
 # Keep only french data
-table_silv <- table_silv[table_silv$country=='FR',]
+table_silv <- table_silv[table_silv$country=='FR',]#29034
 
 # hist(nchar(table_silv$ob_id))
 # nrow(operation_aspe_silver) # 37698

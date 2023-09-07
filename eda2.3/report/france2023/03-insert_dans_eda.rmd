@@ -2204,6 +2204,8 @@ CREATE TABLE france.dbeel_mensurationindiv_biol_charac_rsa  (
 
 Ensuite, les références des mesures individuelles sont intégrées dans **dbeel_batch_fish_rsa**, une ligne pour chaque poisson de chaque passage de chaque opération de pêche. Les mesures sont insérées dans **dbeel_mensurationindiv_biol_charac_rsa**, à raison de 1 ligne pour chaque type de mesure (longueur et poids).
 
+Il existait une erreur dans l'insertion dans _france.dbeel_batch_fish_rsa_ puisque le numéro de passage était perdu à cause de la clause _AND biological_characteristic_type.no_name='Number'_ reprise à chaque numéro de passage. Elle doit en effet mentionner _'Numper p1', 'Numper p2' ou ''Numper p3'_ selon le numéro de passage. La correction a été apportée.
+
 
 ```{sql insert_batch_fish_rsa_1, eval = FALSE, echo = TRUE}
 -- Fish caught during 1st pass
@@ -2241,7 +2243,8 @@ INSERT INTO france.dbeel_batch_fish_rsa
 	dbeel_nomenclature.individual_status 
 	WHERE species.no_name='Anguilla anguilla' 
 	AND stage.no_name='Yellow eel' 
-	AND biological_characteristic_type.no_name='Number' -- should refer to Number p1 instead ?
+	AND biological_characteristic_type.no_name='Number p1'
+	--AND biological_characteristic_type.no_name='Number' -- should refer to Number p1 instead ?
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 121040 poissons mesurés au premier passage 1m56
@@ -2285,7 +2288,8 @@ INSERT INTO france.dbeel_batch_fish_rsa
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number' -- should refer to Number p2 instead
+	AND biological_characteristic_type.no_name='Number p2'
+	--AND biological_characteristic_type.no_name='Number' -- should refer to Number p2 instead ?
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; 	--16089
@@ -2326,7 +2330,8 @@ INSERT INTO france.dbeel_batch_fish_rsa
   dbeel_nomenclature.individual_status 
   WHERE species.no_name='Anguilla anguilla' 
   AND stage.no_name='Yellow eel' 
-  AND biological_characteristic_type.no_name='Number'  -- should refer to Number p3 instead
+	AND biological_characteristic_type.no_name='Number p3'
+	--AND biological_characteristic_type.no_name='Number' -- should refer to Number p3 instead ?
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ;   --467
@@ -2342,20 +2347,24 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   bc_no_characteristic_type,
   bc_no_value_type,
   bc_numvalue,
-  ang_id)
+  ang_id,
+  ang_zone)
 	SELECT
 	uuid_generate_v4() AS bc_id, 
 	ba_id AS bc_ba_id, 
 	biological_characteristic_type.no_id AS bc_no_characteristic_type,	
   55 AS bc_no_value_type, --'Raw data or Individual data'       
 	ang_poids AS bc_numvalue,	
-  baf.ang_id   
+  baf.ang_id  ,
+  baf.ang_zone-- 07/09 : corrected, was missing (as ang_id is not unique between every zone)
 	FROM 
 	france.dbeel_batch_fish_rsa dbaf JOIN
-  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, -- ang_id is not unique in ras.anguille_ang, duplicate for each zone
+    rsa.anguille_ang baf ON (baf.ang_id,baf.ang_zone)=(dbaf.ang_id,dbaf.ang_zone), -- 07/09 : corrected as ang_id is not unique in ras.anguille_ang, duplicate for each zone
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE biological_characteristic_type.no_name = 'Weight'
-	AND baf.ang_lot='N'; -- 677871 9m
+	AND baf.ang_lot='N'
+	AND baf.ang_poids is not null; --to prevent from inserting NULL weight values
+	-- 677871 9m
 	
 	--TODO STOP HERE the 08/07/2022 See ticket https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/issues/4
 	-- Lots N
@@ -2366,34 +2375,28 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
   bc_no_characteristic_type,
   bc_no_value_type,
   bc_numvalue,
-  ang_id)
+  ang_id,
+  ang_zone)
   SELECT 
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type,  
   55 AS bc_no_value_type, --'Raw data or Individual data'       
-  ang_poids AS bc_numvalue, 
-  baf.ang_id
+  ang_taille AS bc_numvalue, --07/09 : corrected, ang_poids was inserted instead of ang_taille
+  baf.ang_id,
+  baf.ang_zone -- 07/09 : corrected, was missing (as ang_id is not unique between every zone)
   FROM 
   france.dbeel_batch_fish_rsa dbaf JOIN
-  rsa.anguille_ang baf ON baf.ang_id=dbaf.ang_id, 
+  rsa.anguille_ang baf ON (baf.ang_id,baf.ang_zone)=(dbaf.ang_id,dbaf.ang_zone), -- 07/09 : corrected as ang_id is not unique in ras.anguille_ang, duplicate for each zone 
   dbeel_nomenclature.biological_characteristic_type 
   WHERE biological_characteristic_type.no_name = 'Length'
-  AND baf.ang_lot='N'; -- 677871
+  AND baf.ang_lot='N'
+	AND baf.ang_taille is not null; --to prevent from inserting NULL length values
 ```
-Au 04/09/2023, l'insertion dans la table  **france.dbeel_mensurationindiv_biol_charac_rsa** n'est pas effectuvé, cf ci-dessous.
 
+Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. L'insertion résultante est de 72376 lignes de données poids, et 145619 mesures de longueur.**
 
-**Attention, au 04/09/23**, problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre des des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. Au 04/09/23, il existe des duplicats en prod dans la table dbeel_mensurationindiv_biol_charac_rsa. 
-Enfin il y a bcp de lignes avec une mesure de poids ou taille à NULL. De plus pourquoi ne fait on pas comme pour ASPE et on calcule un poids moyen redistribué pour les anguilles mesurées par lot ?
-
-**Attention, au 04/09/23**, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, certaines données semblent saisies en double (même taille dupliquée pour l'ensemble des poissons de la pêche). Voir l'exemple ci-dessous.
-```{sql _pb_rsa_anguille_1, eval = FALSE, echo = TRUE}
-select * from rsa.anguille_ang aa where aa.ang_op_id = 1 and aa.ang_zone ='lcv'
---chaque ligne d'anguille et en double ?
-```
-						
-On s'aperçoit que pour bcp de pêches on a des données de biométrie qui sont équivalentes (__i.e.__ mêmes poids et tailles et même code anguille), sont elles des vraies données ou des duplicats ? Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicats proviennent de la zone 'lcv'.
+**Attention, au 04/09/23**, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone 'lcv'.
 ```{sql _pb_rsa_anguille_2, eval = FALSE, echo = TRUE}
 SELECT   count(*),aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poids
 FROM rsa.anguille_ang aa
@@ -2401,6 +2404,5 @@ GROUP BY aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poi
 having count(*)>1 and aa.ang_cod notnull 
 order by count(*) desc
 ```
-Si on supprime le filtre sur les codes d'anguilles non NULL, on obtient beaucoup de duplicats. **A étudier ?**
 
 

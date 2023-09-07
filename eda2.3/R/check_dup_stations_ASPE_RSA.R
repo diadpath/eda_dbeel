@@ -50,18 +50,43 @@ dist$aspe <- rownames(dist)
 #line = stations ASPE
 #column = stations RSA
 
-#remove all distances > 1km
-maxdist <- 1000
+#index of aspe site with many NA distances from ASPE site
+length(which(rowSums(is.na(dist))>0))#every site --> so the problem is in RSA subset
+#index of rsa site with many NA distances from ASPE site
+na_rsa <- which(colSums(is.na(dist))>0)#/prod(dim(dist))
+#for 11 rsa sites there is a problème with distance
+sf_stations_rsa_3035[na_rsa,]#no coordinates
+ds_stations_rsa[na_rsa,]#no coordinates (and no coordinates neither in rsa.station table)
+
+
+#remove all distances > maxdist
+maxdist <- 200 #in meters
+#reformat dataset
 dist2 <- dist %>%
   pivot_longer(cols = !aspe, names_to = "rsa", values_to = "dist")
 
-# summary(dist2$dist), bcp de NA, pkoi ?
-
-# sf_stations_aspe_3035[4,]
-# sf_stations_rsa_3035[1006,]
-
-
-dist2$dist <- as.numeric(dist2$dist)
+dist2$dist <- as.integer(dist2$dist)
 dist2 <- dist2 %>%
-  filter(dist <= maxdist)
+  filter(dist <= maxdist) %>%
+  mutate(across(rsa, substr, 2, nchar(rsa)))
 
+#retrieve aspe station informations         
+dist2$aspe_loc <- sf_stations_aspe_3035[dist2$aspe,]$op_placename
+dist2$aspe_sta_id <- sf_stations_aspe_3035[dist2$aspe,]$sta_id
+#retrieve rsa station informations
+dist2$rsa_loc <- sf_stations_rsa_3035[dist2$rsa,]$op_placename
+dist2$rsa_sta_id <- sf_stations_rsa_3035[dist2$rsa,]$sta_id#for rsa, sta_id & sta_zone are needed to uniquely identified a station
+dist2$rsa_sta_zone <- sf_stations_rsa_3035[dist2$rsa,]$sta_zone
+
+mapview::mapview(sf_stations_aspe_3035[dist2$aspe,], color="red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =3) +
+  mapview::mapview(sf_stations_rsa_3035[dist2$rsa,], color="darkgreen",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1.5)
+#near-by station ar correctly shown on map
+
+
+# Write result table in the database
+#remove index columns
+dist2$aspe <- NULL
+dist2$rsa <- NULL
+DBI::dbExecute(con, "DROP TABLE if exists france.stations_dup_aspe_rsa;")
+DBI::dbWriteTable(con, "temp_stations_dup_aspe_rsa", dist2) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE stations_dup_aspe_rsa set schema france")
