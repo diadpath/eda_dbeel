@@ -223,9 +223,6 @@ DBI::dbExecute(con, "ALTER TABLE station_aspe set schema france")
 # point_prelevement[point_prelevement$pop_id==100971,] # 136346
 # point_prelevement_aspe[point_prelevement_aspe$pop_id==100971,] # 115323
 
-####################
-# A CORRIGER : il faut au préalable reprojeter toutes les stations sur du 3035
-
 point_prelevement_aspe <- point_prelevement %>%
 		left_join(y = ref_type_projection,
 				by = c("pop_typ_id" = "typ_id")) %>%
@@ -238,6 +235,10 @@ point_prelevement_aspe <- point_prelevement %>%
 # #lost pont of prelevement because of projection in Lambert II Étendu
 # nrow(point_prelevement[point_prelevement$pop_typ_id==32,])
 # filter(pop_coordonnees_x > 0) # filter some wrong coordinates
+
+#lost pont of prelevement because of projection in Lambert II Étendu
+nrow(point_prelevement[point_prelevement$pop_typ_id==32,])
+
 
 coords <- geo_convertir_coords_df(df = point_prelevement_aspe,
                                   var_x = pop_coordonnees_x,

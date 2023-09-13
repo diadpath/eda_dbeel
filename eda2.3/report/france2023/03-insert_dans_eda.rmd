@@ -2397,6 +2397,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. L'insertion résultante est de 72376 lignes de données poids, et 145619 mesures de longueur.**
 
 **Attention, au 04/09/23**, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone 'lcv'.
+
 ```{sql _pb_rsa_anguille_2, eval = FALSE, echo = TRUE}
 SELECT   count(*),aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poids
 FROM rsa.anguille_ang aa
