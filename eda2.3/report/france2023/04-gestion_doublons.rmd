@@ -134,7 +134,7 @@ Au 08/09, 1053 opérations de pêches réalisées le même jour sur des stations
 ## Résultats de pêches identiques sur ces stations
 Parmi ces opérations similaires, certaines ont toutefois des quantités de poissons pêchés différentes. On ne va donc conserver que celles présentant des effectifs pêchés égaux.
 
-```{sql doub_ope_sql, eval = FALSE, echo = TRUE}
+```{sql doub_ope_sql_2, eval = FALSE, echo = TRUE}
 with select_ope_aspe as(
 select dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date, dea.ope_id  from dbeel_electrofishing_aspe dea 
 join temp_stations_dup_aspe_rsa tsdar on tsdar.aspe_sta_id = dea.sta_id ),
