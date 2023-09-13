@@ -332,73 +332,108 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb78-25"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-25" tabindex="-1"></a>dboa.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
 <span id="cb78-26"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-26" tabindex="-1"></a>dbor.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
 <span id="cb78-27"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-27" tabindex="-1"></a>dboa.ba_quantity <span class="op">=</span> dbor.ba_quantity</span>
-<span id="cb78-28"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-28" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> dboa.ba_quantity ```</span>
-<span id="cb78-29"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-29" tabindex="-1"></a></span>
-<span id="cb78-30"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-30" tabindex="-1"></a>Cette requête renvoie <span class="dv">98</span> opérations de pêches similaires dont <span class="dv">29</span> concernent des pêches sans aucun poisson pêché.</span>
-<span id="cb78-31"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-31" tabindex="-1"></a></span>
-<span id="cb78-32"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-32" tabindex="-1"></a>Enfin pour l<span class="st">&#39;analyse de l&#39;</span>étape suivante, <span class="kw">on</span> va stocker ces résultats dans une <span class="kw">table</span> temporaire.</span></code></pre></div>
+<span id="cb78-28"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb78-28" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> dboa.ba_quantity </span></code></pre></div>
+<p>Cette requête renvoie 98 opérations de pêches similaires dont 29 concernent des pêches sans aucun poisson pêché.</p>
+<p>Enfin pour l’analyse de l’étape suivante, on va stocker ces résultats dans une table temporaire.</p>
 <div class="sourceCode" id="cb79"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb79-1"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-1" tabindex="-1"></a><span class="co">--on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite</span></span>
-<span id="cb79-2"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-2" tabindex="-1"></a><span class="co">--on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite</span></span>
-<span id="cb79-3"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-3" tabindex="-1"></a><span class="kw">drop</span> <span class="kw">table</span> france.temp_ope_dup_aspe_rsa</span>
-<span id="cb79-4"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-4" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> france.temp_ope_dup_aspe_rsa(</span>
-<span id="cb79-5"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-5" tabindex="-1"></a><span class="kw">id</span> TEXT,</span>
-<span id="cb79-6"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-6" tabindex="-1"></a>aspe_sta_id <span class="dt">INTEGER</span>,</span>
-<span id="cb79-7"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-7" tabindex="-1"></a>rsa_sta_id <span class="dt">INTEGER</span>,</span>
-<span id="cb79-8"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-8" tabindex="-1"></a>rsa_sta_zone TEXT,</span>
-<span id="cb79-9"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-9" tabindex="-1"></a>sta_dist  <span class="dt">INTEGER</span>,</span>
-<span id="cb79-10"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-10" tabindex="-1"></a>ope_date_debut <span class="dt">DATE</span>,</span>
-<span id="cb79-11"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-11" tabindex="-1"></a>aspe_ob_id TEXT,</span>
-<span id="cb79-12"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-12" tabindex="-1"></a>aspe_ope_id <span class="dt">INTEGER</span>,</span>
-<span id="cb79-13"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-13" tabindex="-1"></a>rsa_ob_id TEXT,</span>
-<span id="cb79-14"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-14" tabindex="-1"></a>rsa_ope_id <span class="dt">INTEGER</span>,</span>
-<span id="cb79-15"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-15" tabindex="-1"></a>aspe_qty <span class="dt">INTEGER</span>,</span>
-<span id="cb79-16"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-16" tabindex="-1"></a>rsa_qty <span class="dt">INTEGER</span>)</span>
-<span id="cb79-17"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-17" tabindex="-1"></a></span>
-<span id="cb79-18"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-18" tabindex="-1"></a><span class="kw">insert</span> <span class="kw">into</span> france.temp_ope_dup_aspe_rsa(</span>
-<span id="cb79-19"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-19" tabindex="-1"></a><span class="kw">id</span>,</span>
-<span id="cb79-20"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-20" tabindex="-1"></a>aspe_sta_id,</span>
-<span id="cb79-21"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-21" tabindex="-1"></a>rsa_sta_id,</span>
-<span id="cb79-22"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-22" tabindex="-1"></a>rsa_sta_zone,</span>
-<span id="cb79-23"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-23" tabindex="-1"></a>sta_dist,</span>
-<span id="cb79-24"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-24" tabindex="-1"></a>ope_date_debut,</span>
-<span id="cb79-25"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-25" tabindex="-1"></a>aspe_ob_id,</span>
-<span id="cb79-26"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-26" tabindex="-1"></a>aspe_ope_id,</span>
-<span id="cb79-27"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-27" tabindex="-1"></a>rsa_ob_id,</span>
-<span id="cb79-28"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-28" tabindex="-1"></a>rsa_ope_id,</span>
-<span id="cb79-29"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-29" tabindex="-1"></a>aspe_qty,</span>
-<span id="cb79-30"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-30" tabindex="-1"></a>rsa_qty)</span>
-<span id="cb79-31"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-31" tabindex="-1"></a><span class="kw">with</span> select_ope_aspe <span class="kw">as</span>(</span>
-<span id="cb79-32"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-32" tabindex="-1"></a><span class="kw">select</span> dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date, dea.ope_id  <span class="kw">from</span> dbeel_electrofishing_aspe dea </span>
-<span id="cb79-33"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-33" tabindex="-1"></a><span class="kw">join</span> temp_stations_dup_aspe_rsa tsdar <span class="kw">on</span> tsdar.aspe_sta_id <span class="op">=</span> dea.sta_id ),</span>
-<span id="cb79-34"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-34" tabindex="-1"></a>select_ope_rsa <span class="kw">as</span>(</span>
-<span id="cb79-35"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-35" tabindex="-1"></a><span class="kw">select</span> der.ob_id,tsdar.rsa_sta_id,tsdar.rsa_sta_zone,der.ob_starting_date, der.op_id <span class="kw">from</span> dbeel_electrofishing_rsa der  </span>
-<span id="cb79-36"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-36" tabindex="-1"></a><span class="kw">join</span> temp_stations_dup_aspe_rsa tsdar <span class="kw">on</span> (tsdar.rsa_sta_id,tsdar.rsa_sta_zone) <span class="op">=</span> (der.op_sta_id,der.op_zone))</span>
-<span id="cb79-37"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-37" tabindex="-1"></a><span class="kw">select</span> <span class="kw">distinct</span>(tsd.aspe_sta_id, tsd.rsa_sta_id, tsd.rsa_sta_zone, soa.ob_id, sor.ob_id) <span class="kw">as</span> <span class="kw">id</span>,</span>
-<span id="cb79-38"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-38" tabindex="-1"></a>tsd.aspe_sta_id <span class="kw">as</span> aspe_sta_id,</span>
-<span id="cb79-39"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-39" tabindex="-1"></a>tsd.rsa_sta_id <span class="kw">as</span> rsa_sta_id, </span>
-<span id="cb79-40"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-40" tabindex="-1"></a>tsd.rsa_sta_zone <span class="kw">as</span> rsa_sta_zone,</span>
-<span id="cb79-41"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-41" tabindex="-1"></a>tsd.dist <span class="kw">as</span> sta_dist, </span>
-<span id="cb79-42"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-42" tabindex="-1"></a>soa.ob_starting_date <span class="kw">as</span> ope_date_debut, </span>
-<span id="cb79-43"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-43" tabindex="-1"></a>soa.ob_id <span class="kw">as</span> aspe_ob_id,</span>
-<span id="cb79-44"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-44" tabindex="-1"></a>soa.ope_id <span class="kw">as</span> aspe_ope_id,</span>
-<span id="cb79-45"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-45" tabindex="-1"></a>sor.ob_id <span class="kw">as</span> rsa_ob_id,</span>
-<span id="cb79-46"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-46" tabindex="-1"></a>sor.op_id <span class="kw">as</span> rsa_ope_id,</span>
-<span id="cb79-47"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-47" tabindex="-1"></a>dboa.ba_quantity <span class="kw">as</span> aspe_qty,</span>
-<span id="cb79-48"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-48" tabindex="-1"></a>dbor.ba_quantity <span class="kw">as</span> rsa_qty</span>
-<span id="cb79-49"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-49" tabindex="-1"></a><span class="kw">from</span> temp_stations_dup_aspe_rsa tsd</span>
-<span id="cb79-50"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-50" tabindex="-1"></a><span class="kw">join</span> select_ope_aspe soa <span class="kw">on</span> soa.aspe_sta_id <span class="op">=</span> tsd.aspe_sta_id </span>
-<span id="cb79-51"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-51" tabindex="-1"></a><span class="kw">join</span> select_ope_rsa sor <span class="kw">on</span> (sor.rsa_sta_id,sor.rsa_sta_zone) <span class="op">=</span> (tsd.rsa_sta_id ,tsd.rsa_sta_zone)</span>
-<span id="cb79-52"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-52" tabindex="-1"></a><span class="kw">join</span> dbeel_batch_ope_aspe dboa <span class="kw">ON</span> dboa.ope_id <span class="op">=</span> soa.ope_id</span>
-<span id="cb79-53"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-53" tabindex="-1"></a><span class="kw">join</span> dbeel_batch_ope_rsa dbor <span class="kw">on</span> (dbor.op_id,dbor.op_zone) <span class="op">=</span> (sor.rsa_sta_id,sor.rsa_sta_zone) </span>
-<span id="cb79-54"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-54" tabindex="-1"></a><span class="kw">where</span> soa.ob_starting_date <span class="op">=</span> sor.ob_starting_date <span class="kw">and</span></span>
-<span id="cb79-55"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-55" tabindex="-1"></a>dboa.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
-<span id="cb79-56"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-56" tabindex="-1"></a>dbor.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
-<span id="cb79-57"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-57" tabindex="-1"></a>dboa.ba_quantity <span class="op">=</span> dbor.ba_quantity</span>
-<span id="cb79-58"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-58" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> dboa.ba_quantity </span></code></pre></div>
+<span id="cb79-2"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-2" tabindex="-1"></a><span class="co">--drop table france.temp_ope_dup_aspe_rsa</span></span>
+<span id="cb79-3"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-3" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> france.temp_ope_dup_aspe_rsa(</span>
+<span id="cb79-4"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-4" tabindex="-1"></a><span class="kw">id</span> TEXT,</span>
+<span id="cb79-5"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-5" tabindex="-1"></a>aspe_sta_id <span class="dt">INTEGER</span>,</span>
+<span id="cb79-6"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-6" tabindex="-1"></a>rsa_sta_id <span class="dt">INTEGER</span>,</span>
+<span id="cb79-7"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-7" tabindex="-1"></a>rsa_sta_zone TEXT,</span>
+<span id="cb79-8"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-8" tabindex="-1"></a>sta_dist  <span class="dt">INTEGER</span>,</span>
+<span id="cb79-9"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-9" tabindex="-1"></a>ope_date_debut <span class="dt">DATE</span>,</span>
+<span id="cb79-10"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-10" tabindex="-1"></a>aspe_ob_id TEXT,</span>
+<span id="cb79-11"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-11" tabindex="-1"></a>aspe_ope_id <span class="dt">INTEGER</span>,</span>
+<span id="cb79-12"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-12" tabindex="-1"></a>rsa_ob_id TEXT,</span>
+<span id="cb79-13"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-13" tabindex="-1"></a>rsa_ope_id <span class="dt">INTEGER</span>,</span>
+<span id="cb79-14"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-14" tabindex="-1"></a>aspe_qty <span class="dt">INTEGER</span>,</span>
+<span id="cb79-15"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-15" tabindex="-1"></a>rsa_qty <span class="dt">INTEGER</span>)</span>
+<span id="cb79-16"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-16" tabindex="-1"></a></span>
+<span id="cb79-17"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-17" tabindex="-1"></a><span class="kw">insert</span> <span class="kw">into</span> france.temp_ope_dup_aspe_rsa(</span>
+<span id="cb79-18"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-18" tabindex="-1"></a><span class="kw">id</span>,</span>
+<span id="cb79-19"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-19" tabindex="-1"></a>aspe_sta_id,</span>
+<span id="cb79-20"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-20" tabindex="-1"></a>rsa_sta_id,</span>
+<span id="cb79-21"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-21" tabindex="-1"></a>rsa_sta_zone,</span>
+<span id="cb79-22"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-22" tabindex="-1"></a>sta_dist,</span>
+<span id="cb79-23"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-23" tabindex="-1"></a>ope_date_debut,</span>
+<span id="cb79-24"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-24" tabindex="-1"></a>aspe_ob_id,</span>
+<span id="cb79-25"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-25" tabindex="-1"></a>aspe_ope_id,</span>
+<span id="cb79-26"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-26" tabindex="-1"></a>rsa_ob_id,</span>
+<span id="cb79-27"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-27" tabindex="-1"></a>rsa_ope_id,</span>
+<span id="cb79-28"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-28" tabindex="-1"></a>aspe_qty,</span>
+<span id="cb79-29"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-29" tabindex="-1"></a>rsa_qty)</span>
+<span id="cb79-30"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-30" tabindex="-1"></a><span class="kw">with</span> select_ope_aspe <span class="kw">as</span>(</span>
+<span id="cb79-31"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-31" tabindex="-1"></a><span class="kw">select</span> dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date, dea.ope_id  <span class="kw">from</span> dbeel_electrofishing_aspe dea </span>
+<span id="cb79-32"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-32" tabindex="-1"></a><span class="kw">join</span> temp_stations_dup_aspe_rsa tsdar <span class="kw">on</span> tsdar.aspe_sta_id <span class="op">=</span> dea.sta_id ),</span>
+<span id="cb79-33"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-33" tabindex="-1"></a>select_ope_rsa <span class="kw">as</span>(</span>
+<span id="cb79-34"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-34" tabindex="-1"></a><span class="kw">select</span> der.ob_id,tsdar.rsa_sta_id,tsdar.rsa_sta_zone,der.ob_starting_date, der.op_id <span class="kw">from</span> dbeel_electrofishing_rsa der  </span>
+<span id="cb79-35"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-35" tabindex="-1"></a><span class="kw">join</span> temp_stations_dup_aspe_rsa tsdar <span class="kw">on</span> (tsdar.rsa_sta_id,tsdar.rsa_sta_zone) <span class="op">=</span> (der.op_sta_id,der.op_zone))</span>
+<span id="cb79-36"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-36" tabindex="-1"></a><span class="kw">select</span> <span class="kw">distinct</span>(tsd.aspe_sta_id, tsd.rsa_sta_id, tsd.rsa_sta_zone, soa.ob_id, sor.ob_id) <span class="kw">as</span> <span class="kw">id</span>,</span>
+<span id="cb79-37"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-37" tabindex="-1"></a>tsd.aspe_sta_id <span class="kw">as</span> aspe_sta_id,</span>
+<span id="cb79-38"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-38" tabindex="-1"></a>tsd.rsa_sta_id <span class="kw">as</span> rsa_sta_id, </span>
+<span id="cb79-39"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-39" tabindex="-1"></a>tsd.rsa_sta_zone <span class="kw">as</span> rsa_sta_zone,</span>
+<span id="cb79-40"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-40" tabindex="-1"></a>tsd.dist <span class="kw">as</span> sta_dist, </span>
+<span id="cb79-41"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-41" tabindex="-1"></a>soa.ob_starting_date <span class="kw">as</span> ope_date_debut, </span>
+<span id="cb79-42"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-42" tabindex="-1"></a>soa.ob_id <span class="kw">as</span> aspe_ob_id,</span>
+<span id="cb79-43"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-43" tabindex="-1"></a>soa.ope_id <span class="kw">as</span> aspe_ope_id,</span>
+<span id="cb79-44"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-44" tabindex="-1"></a>sor.ob_id <span class="kw">as</span> rsa_ob_id,</span>
+<span id="cb79-45"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-45" tabindex="-1"></a>sor.op_id <span class="kw">as</span> rsa_ope_id,</span>
+<span id="cb79-46"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-46" tabindex="-1"></a>dboa.ba_quantity <span class="kw">as</span> aspe_qty,</span>
+<span id="cb79-47"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-47" tabindex="-1"></a>dbor.ba_quantity <span class="kw">as</span> rsa_qty</span>
+<span id="cb79-48"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-48" tabindex="-1"></a><span class="kw">from</span> temp_stations_dup_aspe_rsa tsd</span>
+<span id="cb79-49"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-49" tabindex="-1"></a><span class="kw">join</span> select_ope_aspe soa <span class="kw">on</span> soa.aspe_sta_id <span class="op">=</span> tsd.aspe_sta_id </span>
+<span id="cb79-50"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-50" tabindex="-1"></a><span class="kw">join</span> select_ope_rsa sor <span class="kw">on</span> (sor.rsa_sta_id,sor.rsa_sta_zone) <span class="op">=</span> (tsd.rsa_sta_id ,tsd.rsa_sta_zone)</span>
+<span id="cb79-51"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-51" tabindex="-1"></a><span class="kw">join</span> dbeel_batch_ope_aspe dboa <span class="kw">ON</span> dboa.ope_id <span class="op">=</span> soa.ope_id</span>
+<span id="cb79-52"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-52" tabindex="-1"></a><span class="kw">join</span> dbeel_batch_ope_rsa dbor <span class="kw">on</span> (dbor.op_id,dbor.op_zone) <span class="op">=</span> (sor.rsa_sta_id,sor.rsa_sta_zone) </span>
+<span id="cb79-53"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-53" tabindex="-1"></a><span class="kw">where</span> soa.ob_starting_date <span class="op">=</span> sor.ob_starting_date <span class="kw">and</span></span>
+<span id="cb79-54"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-54" tabindex="-1"></a>dboa.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
+<span id="cb79-55"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-55" tabindex="-1"></a>dbor.ba_no_biological_characteristic_type <span class="op">=</span> <span class="dv">47</span> <span class="kw">and</span> </span>
+<span id="cb79-56"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-56" tabindex="-1"></a>dboa.ba_quantity <span class="op">=</span> dbor.ba_quantity</span>
+<span id="cb79-57"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb79-57" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> dboa.ba_quantity </span></code></pre></div>
 </div>
 <div id="comparaison-du-détails-des-pêches-communes-aspersa" class="section level2 hasAnchor" number="4.4">
 <h2><span class="header-section-number">4.4</span> Comparaison du détails des pêches communes ASPE/RSA<a href="gestion-des-doublons-éventuels-rsaaspe.html#comparaison-du-détails-des-pêches-communes-aspersa" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l’ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considèrerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées. Sont elles par Lot ou Individuelles.</p>
+<p>A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l’ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considérerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées.</p>
+<p>La requête suivant permet de remonter l’ensemble des opérations de pêches ASPE/RSA survenues le même jour sur des sites “doublons”.</p>
+<div class="sourceCode" id="cb80"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb80-1"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-1" tabindex="-1"></a><span class="kw">with</span> aspe_listing <span class="kw">as</span> (</span>
+<span id="cb80-2"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-2" tabindex="-1"></a><span class="kw">select</span> dbfa.ba_ob_id <span class="kw">as</span> aspe_ob_id, </span>
+<span id="cb80-3"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-3" tabindex="-1"></a>dbfa.ba_no_biological_characteristic_type <span class="kw">as</span> num_p, </span>
+<span id="cb80-4"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-4" tabindex="-1"></a><span class="fu">sum</span>(dbfa.ba_quantity) <span class="kw">as</span> quantity,</span>
+<span id="cb80-5"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-5" tabindex="-1"></a>todar.rsa_ob_id <span class="kw">as</span> rsa_ob_id,</span>
+<span id="cb80-6"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-6" tabindex="-1"></a><span class="fu">ROUND</span>(<span class="fu">cast</span>(<span class="fu">avg</span>(dmbca.bc_numvalue) <span class="kw">as</span> <span class="dt">numeric</span>),<span class="dv">2</span>) <span class="kw">as</span> mean_length</span>
+<span id="cb80-7"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-7" tabindex="-1"></a><span class="kw">from</span> france.dbeel_batch_fish_aspe dbfa </span>
+<span id="cb80-8"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-8" tabindex="-1"></a><span class="kw">join</span> france.temp_ope_dup_aspe_rsa todar <span class="kw">on</span> todar.aspe_ob_id <span class="op">=</span> <span class="fu">cast</span>(dbfa.ba_ob_id <span class="kw">as</span> text)</span>
+<span id="cb80-9"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-9" tabindex="-1"></a><span class="kw">join</span> france.dbeel_mensurationindiv_biol_charac_aspe dmbca <span class="kw">on</span> dmbca.mei_id <span class="op">=</span> dbfa.mei_id</span>
+<span id="cb80-10"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-10" tabindex="-1"></a><span class="kw">where</span> dmbca.bc_no_characteristic_type <span class="op">=</span> <span class="dv">39</span> <span class="co">-- length</span></span>
+<span id="cb80-11"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-11" tabindex="-1"></a><span class="kw">group</span> <span class="kw">by</span> dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type ),</span>
+<span id="cb80-12"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-12" tabindex="-1"></a>rsa_listing <span class="kw">as</span> (<span class="kw">select</span> dbfr.ba_ob_id <span class="kw">as</span> rsa_ob_id, </span>
+<span id="cb80-13"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-13" tabindex="-1"></a>dbfr.ba_no_biological_characteristic_type  <span class="kw">as</span> num_p, </span>
+<span id="cb80-14"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-14" tabindex="-1"></a><span class="fu">sum</span>(dbfr.ba_quantity) <span class="kw">as</span> quantity,</span>
+<span id="cb80-15"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-15" tabindex="-1"></a>todar.aspe_ob_id <span class="kw">as</span> aspe_ob_id,</span>
+<span id="cb80-16"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-16" tabindex="-1"></a><span class="fu">ROUND</span>(<span class="fu">cast</span>(<span class="fu">avg</span>(dmbcr.bc_numvalue) <span class="kw">as</span> <span class="dt">numeric</span>),<span class="dv">2</span>) <span class="kw">as</span> mean_length</span>
+<span id="cb80-17"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-17" tabindex="-1"></a><span class="kw">from</span> france.dbeel_batch_fish_rsa dbfr</span>
+<span id="cb80-18"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-18" tabindex="-1"></a><span class="kw">join</span> france.temp_ope_dup_aspe_rsa todar <span class="kw">on</span> todar.rsa_ob_id <span class="op">=</span> <span class="fu">cast</span>(dbfr.ba_ob_id <span class="kw">as</span> text)</span>
+<span id="cb80-19"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-19" tabindex="-1"></a><span class="kw">join</span> france.dbeel_mensurationindiv_biol_charac_rsa dmbcr <span class="kw">on</span> (dmbcr.ang_id,dmbcr.ang_zone)<span class="op">=</span>(dbfr.ang_id,dbfr.ang_zone) </span>
+<span id="cb80-20"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-20" tabindex="-1"></a><span class="kw">where</span> dmbcr.bc_no_characteristic_type <span class="op">=</span> <span class="dv">39</span> <span class="co">-- length</span></span>
+<span id="cb80-21"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-21" tabindex="-1"></a><span class="kw">group</span> <span class="kw">by</span> dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type)</span>
+<span id="cb80-22"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-22" tabindex="-1"></a><span class="kw">select</span> al.aspe_ob_id,</span>
+<span id="cb80-23"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-23" tabindex="-1"></a>al.rsa_ob_id,</span>
+<span id="cb80-24"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-24" tabindex="-1"></a>al.quantity <span class="kw">as</span> aspe_quantity,</span>
+<span id="cb80-25"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-25" tabindex="-1"></a>rl.quantity <span class="kw">as</span> rsa_quantity,</span>
+<span id="cb80-26"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-26" tabindex="-1"></a>al.mean_length <span class="kw">as</span> aspe_mean_length,</span>
+<span id="cb80-27"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-27" tabindex="-1"></a>rl.mean_length <span class="kw">as</span> rsa_mean_length,</span>
+<span id="cb80-28"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-28" tabindex="-1"></a>(al.mean_length<span class="op">-</span>rl.mean_length) <span class="kw">as</span> aspe_rsa_diff</span>
+<span id="cb80-29"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-29" tabindex="-1"></a><span class="kw">from</span> aspe_listing al</span>
+<span id="cb80-30"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-30" tabindex="-1"></a><span class="kw">join</span> rsa_listing rl <span class="kw">on</span> (<span class="fu">cast</span>(rl.rsa_ob_id <span class="kw">as</span> text),rl.num_p) <span class="op">=</span> (<span class="fu">cast</span>(al.rsa_ob_id <span class="kw">as</span> text),al.num_p)</span>
+<span id="cb80-31"><a href="gestion-des-doublons-éventuels-rsaaspe.html#cb80-31" tabindex="-1"></a><span class="co">--where (al.mean_length-rl.mean_length) &lt;&gt; 0</span></span></code></pre></div>
+<p>On obtient ainsi une liste de 63 couples d’opérations. Parmi celles-ci 53 couples d’opérations présentent des effectifs totaux de pêches et mesures de longueurs (en moyenne) identiques.</p>
+<p>Sur les 10 couples d’opérations différents, 8 présentent une différence de moins 5mm sur la longueur moyenne des anguilles capturées.
+2 couples d’opérations sont présentent des différences significatives :
+- une différence de 129mm avec notamment une anguille manquante dans RSA
+- une différence de 73mm, une seule anguille mesurée, 282mm dans ASPE, 355mm dans RSA</p>
+<p><strong>Solution proposée</strong> : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.</p>
 
 </div>
 </div>

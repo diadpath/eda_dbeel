@@ -132,6 +132,7 @@ where soa.ob_starting_date = sor.ob_starting_date
 Au 08/09, 1053 opérations de pêches réalisées le même jour sur des stations géographiquement très proches (<=200m) sont trouvées.
 
 ## Résultats de pêches identiques sur ces stations
+
 Parmi ces opérations similaires, certaines ont toutefois des quantités de poissons pêchés différentes. On ne va donc conserver que celles présentant des effectifs pêchés égaux.
 
 ```{sql doub_ope_sql_2, eval = FALSE, echo = TRUE}
@@ -162,16 +163,15 @@ where soa.ob_starting_date = sor.ob_starting_date and
 dboa.ba_no_biological_characteristic_type = 47 and 
 dbor.ba_no_biological_characteristic_type = 47 and 
 dboa.ba_quantity = dbor.ba_quantity
-order by dboa.ba_quantity ```
+order by dboa.ba_quantity 
+```
 
 Cette requête renvoie 98 opérations de pêches similaires dont 29 concernent des pêches sans aucun poisson pêché.
 
 Enfin pour l'analyse de l'étape suivante, on va stocker ces résultats dans une table temporaire.
-
 ```{sql doub_ope_insert, eval = FALSE, echo = TRUE}
 --on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite
---on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite
-drop table france.temp_ope_dup_aspe_rsa
+--drop table france.temp_ope_dup_aspe_rsa
 CREATE TABLE france.temp_ope_dup_aspe_rsa(
 id TEXT,
 aspe_sta_id INTEGER,
@@ -231,4 +231,48 @@ order by dboa.ba_quantity
 
 ## Comparaison du détails des pêches communes ASPE/RSA
 
-A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l'ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considèrerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées. Sont elles par Lot ou Individuelles.
+A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l'ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considérerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées. 
+
+La requête suivant permet de remonter l'ensemble des opérations de pêches ASPE/RSA survenues le même jour sur des sites "doublons". 
+
+```{sql doub_ope_moy_long, eval = FALSE, echo = TRUE}
+with aspe_listing as (
+select dbfa.ba_ob_id as aspe_ob_id, 
+dbfa.ba_no_biological_characteristic_type as num_p, 
+sum(dbfa.ba_quantity) as quantity,
+todar.rsa_ob_id as rsa_ob_id,
+ROUND(cast(avg(dmbca.bc_numvalue) as numeric),2) as mean_length
+from france.dbeel_batch_fish_aspe dbfa 
+join france.temp_ope_dup_aspe_rsa todar on todar.aspe_ob_id = cast(dbfa.ba_ob_id as text)
+join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id
+where dmbca.bc_no_characteristic_type = 39 -- length
+group by dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type ),
+rsa_listing as (select dbfr.ba_ob_id as rsa_ob_id, 
+dbfr.ba_no_biological_characteristic_type  as num_p, 
+sum(dbfr.ba_quantity) as quantity,
+todar.aspe_ob_id as aspe_ob_id,
+ROUND(cast(avg(dmbcr.bc_numvalue) as numeric),2) as mean_length
+from france.dbeel_batch_fish_rsa dbfr
+join france.temp_ope_dup_aspe_rsa todar on todar.rsa_ob_id = cast(dbfr.ba_ob_id as text)
+join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id,dmbcr.ang_zone)=(dbfr.ang_id,dbfr.ang_zone) 
+where dmbcr.bc_no_characteristic_type = 39 -- length
+group by dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type)
+select al.aspe_ob_id,
+al.rsa_ob_id,
+al.quantity as aspe_quantity,
+rl.quantity as rsa_quantity,
+al.mean_length as aspe_mean_length,
+rl.mean_length as rsa_mean_length,
+(al.mean_length-rl.mean_length) as aspe_rsa_diff
+from aspe_listing al
+join rsa_listing rl on (cast(rl.rsa_ob_id as text),rl.num_p) = (cast(al.rsa_ob_id as text),al.num_p)
+--where (al.mean_length-rl.mean_length) <> 0
+```
+On obtient ainsi une liste de 63 couples d'opérations. Parmi celles-ci 53 couples d'opérations présentent des effectifs totaux de pêches et mesures de longueurs (en moyenne) identiques.
+
+Sur les 10 couples d'opérations différents, 8 présentent une différence de moins 5mm sur la longueur moyenne des anguilles capturées.
+2 couples d'opérations sont présentent des différences significatives :
+- une différence de 129mm avec notamment une anguille manquante dans RSA
+- une différence de 73mm, une seule anguille mesurée, 282mm dans ASPE, 355mm dans RSA
+
+__Solution proposée__ : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.
