@@ -135,6 +135,7 @@ INSERT INTO france.dbeel_station_rsa
   'FR' AS country 
 	FROM rsa.station LEFT JOIN rsa.bassin_bas ON station.sta_bas_id=bassin_bas.bas_id
 	;  --1793
+	--1767 au 02/10
 	
 -- 28/08/2023 : 1766 stations
 
@@ -303,6 +304,7 @@ SELECT
 	AND period_type.no_name='Daily' 
 	; --950 ROWS 28s
 	--J. RAITIF, 29/08 : 1008
+	--J. RAITIF, 02/10 : 1090
 	
 
 
@@ -366,7 +368,7 @@ SELECT
   AND period_type.no_name='Daily' 
   ; --2221 ROWS 28s (2499 avant)
   	--J. RAITIF, 29/08 : 2775
-  
+	--J.RAITIF, 02/10 : 2785
 
 --------------------------------------
 -- echantillonage pontctuel d'abondance, pêche par points (en bateau ?)
@@ -426,7 +428,7 @@ SELECT
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
   ; --152 ROWS 28s
-  	--J. RAITIF, 29/08 : 162
+  	--J. RAITIF, 29/08 et 02/10 : 162
   
 --------------------------------------
 -- Pêche en continue des berge (en bateau ?) 
@@ -486,7 +488,7 @@ SELECT
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
   ; --177 ROWS 28s 
-  	--J. RAITIF, 29/08 : 186
+  	--J. RAITIF, 29/08 et 02/10 : 186
   
 --------------------------------------
 -- Pêche en continu des berge (à pied ?) 
@@ -547,6 +549,7 @@ SELECT
   AND period_type.no_name='Daily' 
   ; --17 ROWS 28s 
   	--J. RAITIF, 29/08 : 17  
+	--J. RAITIF, 02/10 : 19
   
   
   
@@ -608,7 +611,7 @@ SELECT
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
   ; --132 ROWS 28s
-  	--J. RAITIF, 29/08 : 145  
+  	--J. RAITIF, 29/08 et 02/10 : 145  
    
 ALTER TABLE rsa.operation ADD COLUMN ope_dbeel_ob_id UUID;
 UPDATE rsa.operation SET ope_dbeel_ob_id= NULL; --4540
@@ -622,6 +625,7 @@ UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
 WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
 AND  operation.ope_dbeel_ob_id IS NULL; --3632+17
 --J. RAITIF, 29/08 : 4293  
+--J. RAITIF, 02/10 : 4387
 
 	
 -- contrôle d'intégrité
@@ -688,7 +692,7 @@ Pour les types de pêches inv, pcbgb et pcbgp on stocke ensuite les résultats d
 -- WE DON'T NEED DENSITY, WILL BE RECALCULATED LATER
 --------------------------------------------
  
-DROP TABLE france.dbeel_batch_ope_rsa;
+DROP TABLE france.dbeel_batch_ope_rsa  CASCADE;
 CREATE TABLE france.dbeel_batch_ope_rsa (
   op_id int4 NULL,
   op_zone TEXT,
@@ -740,6 +744,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data';
   --950
   -- JRT, 30/08/23 : 1008
+  -- JRT, 02/10 : 1090
 
   /*--------------------
    SELECT * FROM rsa.op_iaa
@@ -788,6 +793,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --2221
   -- JRT, 30/08 : 2775
+  -- JRT, 02/10 : 2785
   
 ------------
 -- Pêche en continu des berge (à pied ?), totaux  
@@ -822,6 +828,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --17
   -- JRT, 30/08 : 17
+  -- JRT, 02/10 : 19
 
 ------------
 -- Pêche en continu des berge (en bateau ?), totaux
@@ -855,7 +862,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --177
-  -- JRT, 30/08 : 186
+  -- JRT, 30/08 et 02/10 : 186
   
 -----------------
 -- echantillonage pontctuel d'abondance, pêche par points (en bateau ?), totaux  
@@ -887,7 +894,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --152   
-  -- JRT, 30/08 : 162
+  -- JRT, 30/08 et 02/10 : 162
 
 
 -----------------
@@ -920,7 +927,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --132 
--- JRT? 30/08 : 145  
+-- JRT? 30/08 et 02/10 : 145  
   
   
 
@@ -961,6 +968,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --950
   -- JRT? 30/08 : 1008
+  -- JRT, 02/10 : 1090
   
 --------
 -- Indice d'abondance à pied, premier passage
@@ -993,6 +1001,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --2221
   -- JRT, 30/08 : 2775
+  -- JRT, 02/10 : 2785
   
 ------------
 -- Pêche en continu des berge (à pied ?), 1er passage 
@@ -1025,6 +1034,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --17
   -- JRT, 30/08 : 17
+  -- JRT, 02/10 : 19
   
 ------------
 -- Pêche en continu des berge (en bateau ?), 1er passage 
@@ -1057,6 +1067,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --177
   -- JRT, 30/08 : 186
+  -- JRT, 02/10 : 186
   
 -----------------
 -- echantillonage pontctuel d'abondance, pêche par points (en bateau ?), 1er passage    
@@ -1089,6 +1100,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --152   
   -- JRT, 30/08 : 162
+  -- JRT, 02/10 : 162
 
 -----------------
 -- echantillonage pontctuel d'abondance, pêche par points (à pied ?), 1er passage  
@@ -1121,6 +1133,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --132    
   -- JRT, 30/08 : 145
+  -- JRT, 02/10 : 145
   
   
   
@@ -1156,8 +1169,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  and op_inv.inv_npas > 1 -- ce filtre est nécessaire sinon on insère des lignes de résultats d'opérations avec une quantité NULL (alors qu'il n'y avait qu'un seul passage)
   ; --950 
   -- JRT, 30/08 : 1008
+  -- JRT, 02/10 : 1039 (après correction)
   
 ------------
 -- Pêche en continu des berge (à pied ?), 2eme passage
@@ -1188,8 +1203,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  AND op_pcbgp.pcbgp_npas > 1
   ; --17
   -- JRT, 30/08 : 17
+  -- jRT, 02/10 : 19
   
 ------------
 -- Pêche en continu des berge (en bateau ?), 2ème passage 
@@ -1220,8 +1237,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2'
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  AND op_pcbgb.pcbgb_npas>1
   ; --177
   -- JRT, 30/08 : 186
+  -- JRT, 02/10 : 186
   
 ---------------------------------------------- 
 -- Effectif du troisième passage
@@ -1258,6 +1277,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND inv_npas=3
   ; --59
   -- JRT, 30/08 : 60
+  -- JRT, 02/10 : 60
   
 ------------
 -- Pêche en continu des berge (à pied ?), 3eme passage 
@@ -1290,7 +1310,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   AND pcbgp_npas=3
   ; --0
-  -- JRT, 30/08 : 0
+  -- JRT, 30/08 et 02/10 : 0
   
 ------------
 -- Pêche en continu des berge (en bateau ?), 3ème passage 
@@ -1323,7 +1343,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
    AND pcbgb_npas=3
   ; --0  
-  -- JRT, 30/08 : 0
+  -- JRT, 30/08 et 02/10 : 0
   
   
   
@@ -1489,6 +1509,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 121040 poissons mesurés au premier passage 1m56
 	-- JRT, 30/08/23 : 137650
+	-- JRT, 02/10 : 136827
 
 
 -- Fish caught during 2nd pass
@@ -1534,6 +1555,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; 	--16089
   -- JRT 30/08/23 : 17618
+  -- JRT, 02/10 : 17700
 
 -- Fish caught during 3rd pass
 INSERT INTO france.dbeel_batch_fish_rsa
@@ -1576,6 +1598,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
   AND value_type.no_name='Raw data or Individual data'
   ;   --467
   -- JRT, 30/08/23 : 492
+  -- JRT, 02/10 : 492
 
 
 ----------------
@@ -1635,6 +1658,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 	AND baf.ang_poids is not null; --to prevent from inserting NULL weight values
 	-- 677871 (with duplicate pb)
 	-- 07/09 : 72376
+	-- 02/10 : 69162
 	
 	--TODO STOP HERE the 08/07/2022 See ticket https://forgemia.inra.fr/pole-migrateurs/eda/dbeel/-/issues/4
 	-- Lots N
@@ -1664,4 +1688,5 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 	AND baf.ang_taille is not null; --to prevent from inserting NULL length values
 	-- 677871 (with duplicate pb)
 	-- 07/09 : 145619
+	-- 02/10 : 144187
 

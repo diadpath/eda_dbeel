@@ -4,6 +4,8 @@
 #---------------------Libraries---------------------#
 library(aspe)
 library(tidyverse)
+# options("sp_evolution_status" = 2) # use sf instead of rgdal and rgeos in sp
+# library(sp)
 library(sf)
 library(RPostgres)
 library(aspeQual)

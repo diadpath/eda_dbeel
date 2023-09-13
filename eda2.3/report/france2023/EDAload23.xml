@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="windows-1252" standalone="yes"?>
+<EDA xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<Utilisateur>		
+		<pgwd>C:/workspace/eda_dbeel</pgwd>/		
+		<datawd>C:/Users/jraitif/Documents/EDA/EDAdata</datawd><!-- <datawd>C:/workspace/EDAdata</datawd> -->
+		<shpwd>C:/workspace/EDAdata/eda_dbeel/report2.3/shp/</shpwd><!--F:/workspace/EDAdata/dataEDAccm/shape/-->
+		<imgwd>C:/workspace/EDAdata/eda_dbeel/report2.3/image/</imgwd><!--remplacer par ccm-->
+	</Utilisateur>	
+	<base>
+	<lienODBCOracle>BDMAP</lienODBCOracle>
+	<uidOracle>postgres</uidOracle>
+	<pwdOracle>sargasso5500</pwdOracle>
+	<lienODBCBar>ROE</lienODBCBar>
+	<uidBar>postgres</uidBar>
+	<pwdBar>postgres</pwdBar>
+	<lienODBCccm>eda2.3</lienODBCccm>
+	<uidccm>postgres</uidccm>
+	<pwdccm>postgres</pwdccm>
+	<lienODBCrht>eda2.2.1</lienODBCrht>
+	<uidrht>postgres</uidrht>
+	<pwdrht>postgres</pwdrht>
+	<lienODBCdbeel>dbeel</lienODBCdbeel>
+	<uiddbeel>postgres</uiddbeel>
+	<pwddbeel>postgres</pwddbeel>
+	<lienODBCdevalpomi>ouvragelb</lienODBCdevalpomi>
+	<uiddevalpomi>postgres</uiddevalpomi>
+	<pwddevalpomi>sargasso5500</pwddevalpomi>
+    <lienODBCrios>eda2.3</lienODBCrios>
+	<uidrios>postgres</uidrios>
+	<pwdrios>postgres</pwdrios>	
+	</base>
+</EDA>
+<!--<lienODBC>eda2distant</lienODBC>-->
+<!--<lienODBC>eda2.0</lienODBC>-->
+<!--<lienODBC>eda2local</lienODBC>-->
+<!--BD_CONTMIG_INRA-->

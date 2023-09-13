@@ -68,7 +68,6 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 
 # to test the output and adapt the type of table
 output <- rmarkdown::metadata$output
-
 ```
 
 ```{r packages, include=FALSE, echo=FALSE}
@@ -83,10 +82,12 @@ load_library=function(necessary)
 
 load_library(c('sqldf',  # for executing SQL queries 
 				'getPass',  # for asking a password
+				'RPostgres',# for DB interface for PostgreSQL 
 				'RPostgreSQL',  # for DB interface for PostgreSQL 
 				'ggplot2',  # for producing good looking plots
 				'lubridate', # for wrangling with dates
 				'kableExtra', # for pub-ready tables
 				'RCurl',
-				'tidyverse')) # because tidyverse dude	
+				'tidyverse',
+				'sf')) 
 ```

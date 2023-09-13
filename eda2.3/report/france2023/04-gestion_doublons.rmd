@@ -4,7 +4,21 @@ output:
   pdf_document: default
 ---
 
-# Gestion des doublons éventuels RSA/ASPE
+```{r use_functions, include=F, eval=T}
+fc_run_query <- function(con = NULL, query='')
+{
+  if (length(query)==0 | is.null(con))
+    return(NULL)
+  else
+    return <- dbSendQuery(con,query)
+    res <- dbFetch(return)
+    dbClearResult(return)
+    return <- NULL
+    return(res)
+}
+```
+
+# Gestion des doublons éventuels RSA/ASPE (basés sur des stations proches géographiquement)
 Il existe potentiellement des doublons de saisie  d'opérations de pêches dans RSA et ASPE. Un doublon est défini comme : une opération de pêche présente à la fois dans ASPE et RSA ayant les champs suivants en commun :
 - station
 - date de pêche
@@ -17,8 +31,8 @@ La recherche de doublons se déroule en plusieurs étapes.
 La première étape est de remonter les couples de stations ASPE/RSA situées à moins de 200m. Cette étape est réalisée dans le fichier __check_dup_stations_ASPE_RSA.R__. Les résultats seront stockés dans une table temporaire dans la base Postgres. La connexion à la base est initialisée.
 
 ```{r doub_conn_base, eval = FALSE, echo = TRUE}
-source("common/init.r")
-
+rivernetwork <- "RIOS"
+source("../../../common/init.r")
 # Set up database connection
 
 con = dbConnect(Postgres(),
@@ -62,7 +76,7 @@ dist$aspe <- rownames(dist)
 
 On ne conserve que les couples de stations dont la distance est inférieure ou égale à 200m.
 
-```{r doub_filter_dist, eval = FALSE, echo = TRUE}
+```{r doub_filter_dist, eval = FALSE, echo = TRUE, message=F}
 #remove all distances > maxdist
 maxdist <- 200 #in meters
 #reformat dataset
@@ -97,7 +111,7 @@ mapview::mapview(sf_stations_aspe_3035[dist2$aspe,], color="red",alpha.regions =
   
   Les résultats sont finalement stockés dans la base. La table est préfixée de _temp_ car elle n'a pas vocation à rester en base.
   
-  ```{r doub_insert_sql, eval = FALSE, echo = TRUE}
+```{r doub_insert_sql, eval = FALSE, echo = TRUE}
   # Write result table in the database
 #remove index columns
 dist2$aspe <- NULL
@@ -109,7 +123,7 @@ DBI::dbExecute(con, "ALTER TABLE temp_stations_dup_aspe_rsa set schema france")
 
 ## Opérations ASPE/RSA communes sur ces stations
 
-A partir de ces couples de stations, nous recherchons ensuite les opérations de pêches potentiellent "doublons". Pour ce faire, nous réalisons une requête qui va travailler à la fois sur dbeel_electrofishing_aspe et dbeel_electrofishing_rsa en lien avec temp_stations_dup_aspe_rsa.
+A partir de ces couples de stations, nous recherchons ensuite les opérations de pêches potentiellement "doublons". Aussi nous réalisons une requête qui va travailler à la fois sur dbeel_electrofishing_aspe et dbeel_electrofishing_rsa en lien avec temp_stations_dup_aspe_rsa.
 
 Le principe de la requête est de remonter séparément les opérations ASPE et RSA sur des stations connues comme potentiellement en doublons (sachant qu'une station ASPE/RSA peut être doublon d'une ou plusieurs stations RSA/ASPE). Ensuite ne sont retenus que les couples d'opérations sur des couples de doublons connus.
 
@@ -132,6 +146,7 @@ where soa.ob_starting_date = sor.ob_starting_date
 Au 08/09, 1053 opérations de pêches réalisées le même jour sur des stations géographiquement très proches (<=200m) sont trouvées.
 
 ## Résultats de pêches identiques sur ces stations
+
 Parmi ces opérations similaires, certaines ont toutefois des quantités de poissons pêchés différentes. On ne va donc conserver que celles présentant des effectifs pêchés égaux.
 
 ```{sql doub_ope_sql_2, eval = FALSE, echo = TRUE}
@@ -162,16 +177,15 @@ where soa.ob_starting_date = sor.ob_starting_date and
 dboa.ba_no_biological_characteristic_type = 47 and 
 dbor.ba_no_biological_characteristic_type = 47 and 
 dboa.ba_quantity = dbor.ba_quantity
-order by dboa.ba_quantity ```
+order by dboa.ba_quantity 
+```
 
 Cette requête renvoie 98 opérations de pêches similaires dont 29 concernent des pêches sans aucun poisson pêché.
 
 Enfin pour l'analyse de l'étape suivante, on va stocker ces résultats dans une table temporaire.
-
 ```{sql doub_ope_insert, eval = FALSE, echo = TRUE}
 --on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite
---on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite
-drop table france.temp_ope_dup_aspe_rsa
+--drop table france.temp_ope_dup_aspe_rsa
 CREATE TABLE france.temp_ope_dup_aspe_rsa(
 id TEXT,
 aspe_sta_id INTEGER,
@@ -231,4 +245,263 @@ order by dboa.ba_quantity
 
 ## Comparaison du détails des pêches communes ASPE/RSA
 
-A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l'ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considèrerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées. Sont elles par Lot ou Individuelles.
+A cette étape nous allons vérifier que ces opérations de pêche en double sont, dans le détail, identiques. Pour cela, nous allons remonter l'ensemble des effectifs, tailles et poids de poissons à chaque passage et comparer les moyennes de chacune de ces caractéristiques. Nous considérerons que si ces valeurs sont identiques, les données saisies das ASPE et RSA le sont aussi. Il est nécessaire également de porter une attention sur le type de mesures sauvegardées. 
+
+La requête suivant permet de remonter l'ensemble des opérations de pêches ASPE/RSA survenues le même jour sur des sites "doublons". 
+
+```{sql doub_ope_moy_long, eval = FALSE, echo = TRUE}
+with aspe_listing as (
+select dbfa.ba_ob_id as aspe_ob_id, 
+dbfa.ba_no_biological_characteristic_type as num_p, 
+sum(dbfa.ba_quantity) as quantity,
+todar.rsa_ob_id as rsa_ob_id,
+ROUND(cast(avg(dmbca.bc_numvalue) as numeric),2) as mean_length
+from france.dbeel_batch_fish_aspe dbfa 
+join france.temp_ope_dup_aspe_rsa todar on todar.aspe_ob_id = cast(dbfa.ba_ob_id as text)
+join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id
+where dmbca.bc_no_characteristic_type = 39 -- length
+group by dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type ),
+rsa_listing as (select dbfr.ba_ob_id as rsa_ob_id, 
+dbfr.ba_no_biological_characteristic_type  as num_p, 
+sum(dbfr.ba_quantity) as quantity,
+todar.aspe_ob_id as aspe_ob_id,
+ROUND(cast(avg(dmbcr.bc_numvalue) as numeric),2) as mean_length
+from france.dbeel_batch_fish_rsa dbfr
+join france.temp_ope_dup_aspe_rsa todar on todar.rsa_ob_id = cast(dbfr.ba_ob_id as text)
+join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id,dmbcr.ang_zone)=(dbfr.ang_id,dbfr.ang_zone) 
+where dmbcr.bc_no_characteristic_type = 39 -- length
+group by dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type)
+select al.aspe_ob_id,
+al.rsa_ob_id,
+al.quantity as aspe_quantity,
+rl.quantity as rsa_quantity,
+al.mean_length as aspe_mean_length,
+rl.mean_length as rsa_mean_length,
+(al.mean_length-rl.mean_length) as aspe_rsa_diff
+from aspe_listing al
+join rsa_listing rl on (cast(rl.rsa_ob_id as text),rl.num_p) = (cast(al.rsa_ob_id as text),al.num_p)
+--where (al.mean_length-rl.mean_length) <> 0
+```
+On obtient ainsi une liste de 63 couples d'opérations. Parmi celles-ci 53 couples d'opérations présentent des effectifs totaux de pêches et mesures de longueurs (en moyenne) identiques.
+
+Sur les 10 couples d'opérations différents, 8 présentent une différence de moins 5mm sur la longueur moyenne des anguilles capturées.
+2 couples d'opérations sont présentent des différences significatives :
+- une différence de 129mm avec notamment une anguille manquante dans RSA
+- une différence de 73mm, une seule anguille mesurée, 282mm dans ASPE, 355mm dans RSA
+
+__Solution proposée__ : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.
+
+# Opérations de pêches dupliquées ASPE/RSA
+
+Pour cette recherche de doublons, la méthode est moins strictement liée aux coordonnées des stations. On va considérer qu'un doublon est une opération de pêche réalisée au même endroit (on s'appuie sur le nom du lieu dit), à la même date, avec les mêmes caractéristiques de pêches. On portera également une attention particulière aux quantités pêchées.
+
+Dans un souci de réutilisation des scripts,dans la mesure du possible, les requêtes vont être exécutées sur les tables "mère". Ainsi nous allons travailler sur le schéma dbeel et sur les tables _observation_places_ (pour les stations), _electrofishing_ (pour le détail des opérations de pêches) et _batch_ (pour les résultats de pêches).
+
+On ne s'intéressera qu'aux données intégrées depuis ASPE ou RSA. Au 06/10, cette conditions et vérifiée grâce au champs _op_gis_layername_ de la table observation_places. A l'avenir, lorsque le schéma dbeel_france sera créé, cette étape ne sera pas nécessaire car les requêtes travailleront directement sur les tables "mère" de ce nouveau schéma.
+ 
+```{r load_database, include=FALSE}
+#dans un premier temp on définit un ensemble de variables qui vont permettre 
+#de construire les requêtes d'accès aux données "dynamiquement"
+#ceci permettra d'utiliser l'ensemble des procédures de recherche de doublons plus facilement
+# schéma (ex : dbeel, france, dbeel_france)
+var_schema <- "dbeel"
+var_schema_nom <- "dbeel_nomenclature"
+# tables nomenclature
+# nomenclature 
+var_nom_bio_car <- "biological_characteristic_type"
+var_nom_bio_car_id <- "no_id"
+var_nom_bio_label <- "bc_label"
+# table electrofishing + clés prim et étrangère
+var_electrofishing_ope <- "electrofishing" 
+var_electrofishing_ope_id <- "ob_id"
+var_electrofishing_ope_stations <- "ob_op_id"
+#table stations + clé prim
+var_stations <- "observation_places"
+var_stations_id <- "op_id"
+var_stations_source <- "op_gis_layername"
+#table batch (opé et fish) + clé prim et étrangère
+var_batch <- "batch"
+var_batch_id <- "ba_id"
+var_batch_electrofishing <- "ba_ob_id"
+var_batch_nomen <- "ba_no_biological_characteristic_type"
+#table mesures biologiques + clé prim et étrangère
+var_biochar <- "biological_characteristic"
+var_biochar_id <- "bc_id"
+var_biochar_batch <- "bc_ba_id"
+var_biochar_nomen <- "bc_no_characteristic_type"
+#table stations
+var_stations <- "observation_places"
+var_stations_id <- "op_id"
+var_stations_source <- "op_gis_layername"
+var_stations_label <- "op_placename"
+#filtre temporaire (en attendant le schéma dbeel_france)
+#mettre var_filter_aspe_rsa à '' si utilisation du schéma dbeel_france
+var_filter_aspe_rsa <- "'ASPE', 'RSA'"
+```
+
+## Récupérations des détails des opérations de pêches potentiellement dupliquées en base
+
+La première étape est donc de récupérer dans la table _`r var_electrofishing_ope`_ du schéma _`r var_schema`_ l'ensemble des opérations de pêches qui pourraient être assimilées à des doublons (cf règle énoncée précédemment). On crée une table temporaire pour stocker toutes les caractéristiques d'opérations de pêches qui apparaissent plusieurs fois dans la base. On va créer un champs "id" qui sera simplement la concaténation des champs permettant de regrouper ces "doublons" potentiels.
+
+```{r get_doub_etape_1, include=FALSE}
+query <- paste0("drop table if exists france.temp_duplicates_intra_source")
+res <- fc_run_query(con,query)
+
+query <- paste0("create table france.temp_duplicates_intra_source
+as 
+select ROW_NUMBER() OVER (ORDER BY 1) as id,concat_ws('_',e.ob_no_origin,
+e.ob_no_type, 
+e.ob_no_period,
+e.ob_starting_date,
+e.ef_no_fishingmethod,
+e.ef_no_electrofishing_mean,
+e.ef_wetted_area,
+e.ef_fished_length,
+e.ef_fished_width,
+e.ef_duration,
+e.ef_nbpas, 
+op.op_placename,
+op.op_gis_layername,
+b.ba_quantity) as id_concat
+from ", var_schema,".",var_electrofishing_ope," e join ",
+var_schema,".",var_stations, " op on op.", var_stations_id, " = e.", var_electrofishing_ope_stations,
+" join ", var_schema,".", var_batch, " b on b.", var_batch_electrofishing, " = e.", var_electrofishing_ope_id, 
+" where op.",var_stations_source," in (",var_filter_aspe_rsa,")",
+#à partir de cet endroit, l'utilisation de variable locale n'a pas trop d'intérêt
+#elle alourdirait la lecture
+" and b.ba_batch_level = 1
+and b.ba_no_biological_characteristic_type = 47
+group by concat_ws('_',e.ob_no_origin,
+e.ob_no_type, 
+e.ob_no_period,
+e.ob_starting_date,
+e.ef_no_fishingmethod,
+e.ef_no_electrofishing_mean,
+e.ef_wetted_area,
+e.ef_fished_length,
+e.ef_fished_width,
+e.ef_duration,
+e.ef_nbpas, 
+op.op_placename,
+op.op_gis_layername,
+b.ba_quantity)
+having count(concat_ws('_',e.ob_no_origin,
+e.ob_no_type, 
+e.ob_no_period,
+e.ob_starting_date,
+e.ef_no_fishingmethod,
+e.ef_no_electrofishing_mean,
+e.ef_wetted_area,
+e.ef_fished_length,
+e.ef_fished_width,
+e.ef_duration,
+e.ef_nbpas, 
+op.op_placename,
+op.op_gis_layername,
+b.ba_quantity))>1;")
+
+#on supprime les retours chariots (au cas où)
+query <- gsub("[\r\n]", " ", query)
+res <- fc_run_query(con,query )
+
+query <- "select count(*) from france.temp_duplicates_intra_source"
+res <- fc_run_query(con,query )
+```
+
+Cette première requête a permis de mettre en évidence l'existence de `r res$count` opérations dupliquées en base (ASPE et RSA confondus).
+
+## Récupérations des identifiants et du détails des saisies des opérations potentiellement dupliquées
+
+L'étape suivante va permettre de regrouper l'ensemble des opérations de pêches concernées par ces doublons et de présenter le détail de ces opérations.
+
+Le détail est présenté ci-dessous.
+
+```{r get_doub_etape_2, include=FALSE}
+
+query <- 'drop table if exists france.temp_duplicates_intra_source_2;'
+res <- fc_run_query(con, query)
+
+query = paste0("create table france.temp_duplicates_intra_source_2
+as 
+select tdis.id,e.ob_id
+from ", var_schema,".",var_electrofishing_ope," e",
+" join ", var_schema,".",var_batch," b on b.", var_batch_electrofishing, " = e.", var_electrofishing_ope_id,  
+" join ",  var_schema,".", var_stations, " op on op.", var_stations_id, " = e.", var_electrofishing_ope_stations, 
+" join france.temp_duplicates_intra_source tdis on tdis.id_concat = concat_ws('_',e.ob_no_origin,
+e.ob_no_type, 
+e.ob_no_period,
+e.ob_starting_date,
+e.ef_no_fishingmethod,
+e.ef_no_electrofishing_mean,
+e.ef_wetted_area,
+e.ef_fished_length,
+e.ef_fished_width,
+e.ef_duration,
+e.ef_nbpas, 
+op.op_placename,
+op.op_gis_layername,
+b.ba_quantity)
+where b.ba_batch_level = 1
+and b.ba_no_biological_characteristic_type = 47
+order by tdis.id, e.ob_id, b.ba_ba_id;")
+
+res <- fc_run_query(con,query)
+
+query <- "drop table if exists france.temp_duplicates_intra_source; "
+res <- fc_run_query(con,query)
+
+query <- paste0("create table france.temp_duplicates_intra_source
+as
+select tdis.id, b.ba_ob_id, b.ba_batch_level,
+count(*)
+from ", var_schema,".", var_batch, " b ",
+" join france.temp_duplicates_intra_source_2 tdis on tdis.ob_id = b.", var_batch_electrofishing,
+" group by (tdis.id, b.ba_ob_id, b.ba_batch_level)",
+" order by tdis.id, b.ba_batch_level,b.ba_ob_id;")
+res <- fc_run_query(con,query)
+
+query <- "drop table if exists france.temp_duplicates_intra_source_2;"
+res <- fc_run_query(con,query)
+
+query <- "alter table france.temp_duplicates_intra_source add mean_length float4;"
+res <- fc_run_query(con,query)
+
+query = paste0("with pre_query as (
+  select tds.id, b.ba_ob_id, avg(bc.bc_numvalue) as mean_lgt
+  from ", var_schema,".",var_batch, " b ",
+  " join france.temp_duplicates_intra_source tds on tds.ba_ob_id = b.", var_batch_electrofishing,
+  " join ", var_schema,".",var_biochar, " bc on bc.", var_biochar_batch, " = b.", var_batch_id, 
+  " where b.ba_batch_level = 2 ", #only fishes
+  " and bc.bc_no_characteristic_type = 39 ", #length
+  " group by  (tds.id,b.", var_batch_electrofishing, ")) ",
+  " update france.temp_duplicates_intra_source tdis  
+  set mean_length = pre_query.mean_lgt 
+  from pre_query 
+  where tdis.id = pre_query.id
+  and tdis.ba_ob_id = pre_query.ba_ob_id
+  and tdis.ba_batch_level = 2;")
+res <- fc_run_query(con,query)
+
+query <- "select * from france.temp_duplicates_intra_source tdis order by tdis.id, tdis.ba_batch_level"
+res <- fc_run_query(con,query)
+
+colnames(res) <- c("id_doublons","ba_b_id","batch lvl","Nb de passages ou Poissons", "Taille moy. des poissons")
+```
+
+```{r get_doub_etape_3, eval=T, include=T}
+if(nrow(res)>0)
+{
+  res %>%
+  kable() %>%
+  kable_styling(full_width = FALSE, font_size = 10)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  kable_styling(latex_options = "scale_down")  
+}
+
+```
+
+Il est par la suite nécessaire de contrôler chacun de ces doublons dans ASPE et RSA (si nécessaire) afin de déterminer si ce sont de véritables doublons ou des opérations de pêches véritablement réalisées le même jour au même endroit avec les mêmes résultats.
+
+Au 09/10/23 : 
+pour les doublons RSA (action Guirec André): il existait 18 couples d'opérations potentiellement doublons, 16 en Bretagne et 2 en Normandie. Celles de Bretagne étaient effectivement des doublons et ont été épurés, celles de Normandie ne sont pas des doublons.
+pour les doublons ASPE : en cours de traitement par Eddy Cosson. 

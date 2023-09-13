@@ -990,7 +990,7 @@ INSERT INTO france.dbeel_station_rsa
 
 ```
 
-Au 28/08, il existe 1766 stations à insérer.
+Au 02/10, il existe 1767 stations à insérer.
 
 ### dbeel_electrofishing_rsa
 
@@ -1096,10 +1096,9 @@ SELECT
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
 	; --950 ROWS 28s
-	--J. RAITIF, 29/08 : 1008
 
 ```
-Au 29/08, il existe 1008 opérations à insérer.
+Au 02/10, il existe 1090 opérations à insérer.
 
 
 Ci-dessous le code d'insertion des epa à pied.
@@ -1287,13 +1286,12 @@ SELECT
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
   ; --17 ROWS 28s 
-  	--J. RAITIF, 29/08 : 17  
 ```
-Au 29/08, il existe 17 opérations à insérer.
+Au 02/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_elec_rsa_pcbgb, eval = FALSE, echo = TRUE}
-NSERT INTO france.dbeel_electrofishing_rsa (
+INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
   ob_no_origin,
   ob_no_type,
@@ -1412,9 +1410,8 @@ SELECT
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
   ; --2221 ROWS 28s (2499 avant)
-  	--J. RAITIF, 29/08 : 2775
 ```
-Au 29/08, il existe 2775 opérations à insérer.
+Au 02/10, il existe 2785 opérations à insérer.
 
 Ensuite, on récupère les __op_id__ de la table __france.dbeel_electrofishing_rsa__ pour les ajouter dans le champs __ope_dbeel_ob_id__ de la table __rsa.operation__. Ils seront utilisés plus tard pour insérer le détail des résultats de pêche dans __dbeel_batch_ope_rsa__.
 
@@ -1430,10 +1427,9 @@ SELECT ob_id, rsa.operation.* FROM
 UPDATE rsa.operation SET ope_dbeel_ob_id = ob_id FROM the_join
 WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
 AND  operation.ope_dbeel_ob_id IS NULL; 
---J. RAITIF, 29/08 : 4293 
 ```
 
-On met ainsi à jour 4293 lignes d'opérations. On vérifier ensuite que chaque opération dans __rsa.operation__ possède bien un nouvel id.
+On met ainsi à jour 4387 lignes d'opérations. On vérifier ensuite que chaque opération dans __rsa.operation__ possède bien un nouvel id.
 
 ```{sql check_rsa_ope_id, eval = FALSE, echo = TRUE}
 -- contrôle d'intégrité
@@ -1472,7 +1468,7 @@ Dans le schéma France, la table **dbeel_batch_ope_rsa** hérite de la table **b
 **A noter**, il existait une erreur dans l'insertion des batch pour les opérations de pêches rsa de type **epap**. En effet le code zone n'était pas inséré. Ce problème a été corrigé.
 
 ```{sql drop_create_batch_rsa, eval = FALSE, echo = TRUE}
-DROP TABLE france.dbeel_batch_ope_rsa;
+DROP TABLE france.dbeel_batch_ope_rsa CASCADE;
 CREATE TABLE france.dbeel_batch_ope_rsa (
   op_id int4 NULL,
   op_zone TEXT,
@@ -1521,9 +1517,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data';
   --950
-  -- JRT, 30/08/23 : 1008
+
 ```
-Au 29/08, il existe 1008 opérations à insérer.
+Au 02/10, il existe 1090 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa à pied.
 ```{sql insert_batch_rsa_epap, eval = FALSE, echo = TRUE}
@@ -1560,7 +1556,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
 -- JRT? 30/08 : 145  
 
 ```
-Au 29/08, il existe 145 opérations à insérer.
+Au 02/10, il existe 145 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa en bateau.
 ```{sql insert_batch_rsa_epab, eval = FALSE, echo = TRUE}
@@ -1594,9 +1590,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --152   
-  -- JRT, 30/08 : 162
+
 ```
-Au 29/08, il existe 162 opérations à insérer.
+Au 02/10, il existe 162 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp, eval = FALSE, echo = TRUE}
@@ -1632,9 +1628,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --17
-  -- JRT, 30/08 : 17
+
 ```
-Au 29/08, il existe 17 opérations à insérer.
+Au 02/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb, eval = FALSE, echo = TRUE}
@@ -1670,9 +1666,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --177
-  -- JRT, 30/08 : 186
 ```
-Au 29/08, il existe 186 opérations à insérer.
+Au 02/10, il existe 186 opérations à insérer.
 
 Ci-dessous le code d'insertion des indices d'abondances à pied.
 ```{sql insert_batch_rsa_iaa, eval = FALSE, echo = TRUE}
@@ -1706,7 +1701,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --2221
   -- JRT, 30/08 : 2775
 ```
-Au 29/08, il existe 2775 opérations à insérer.
+Au 02/10 il existe 2785 opérations à insérer.
 
 Ensuite sont insérées les lignes de premiers passages.
 
@@ -1742,9 +1737,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --950
-  -- JRT? 30/08 : 1008
 ```
-Au 29/08, il existe 1008 opérations à insérer.
+Au 02/10, il existe 1090 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa à pied.
 ```{sql insert_batch_rsa_epap_1, eval = FALSE, echo = TRUE}
@@ -1778,9 +1772,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --132    
-  -- JRT, 30/08 : 145
 ```
-Au 29/08, il existe 145 opérations à insérer.
+Au 02/10, il existe 145 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa en bateau.
 ```{sql insert_batch_rsa_epab_1, eval = FALSE, echo = TRUE}
@@ -1814,9 +1807,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --152   
-  -- JRT, 30/08 : 162
 ```
-Au 29/08, il existe 162 opérations à insérer.
+Au 02/10, il existe 162 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_1, eval = FALSE, echo = TRUE}
@@ -1850,9 +1842,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --17
-  -- JRT, 30/08 : 17
 ```
-Au 29/08, il existe 17 opérations à insérer.
+Au 02/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_1, eval = FALSE, echo = TRUE}
@@ -1886,9 +1877,8 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --177
-  -- JRT, 30/08 : 186
 ```
-Au 29/08, il existe 186 opérations à insérer.
+Au 02/10, il existe 186 opérations à insérer.
 
 Ci-dessous le code d'insertion des indices d'abondances à pied.
 ```{sql insert_batch_rsa_iaa_1, eval = FALSE, echo = TRUE}
@@ -1922,10 +1912,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; --2221
-  -- JRT, 30/08 : 2775
   
 ```
-Au 29/08, il existe 2775 opérations à insérer.
+Au 02/10, il existe 2785 opérations à insérer.
 
 Ensuite sont insérées les lignes de seconds passages.
 
@@ -1960,10 +1949,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  and op_inv.inv_npas > 1 -- ce filtre est nécessaire sinon on insère des lignes de résultats d'opérations avec une quantité NULL (alors qu'il n'y avait qu'un seul passage)
   ; --950 
-  -- JRT, 30/08 : 1008
 ```
-Au 29/08, il existe 1008 opérations à insérer.
+Au 02/10, il existe 1039 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_2, eval = FALSE, echo = TRUE}
@@ -1996,10 +1985,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  AND op_pcbgp.pcbgp_npas > 1
   ; --17
-  -- JRT, 30/08 : 17
 ```
-Au 29/08, il existe 17 opérations à insérer.
+Au 02/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_2, eval = FALSE, echo = TRUE}
@@ -2032,11 +2021,11 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number p2'
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
+  AND op_pcbgb.pcbgb_npas>1
   ; --177
-  -- JRT, 30/08 : 186
 
 ```
-Au 29/08, il existe 186 opérations à insérer.
+Au 02/10, il existe 186 opérations à insérer.
 
 Et enfin ceux du troisième passage.
 
@@ -2075,7 +2064,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --59
   -- JRT, 30/08 : 60
 ```
-Au 29/08, il existe 60 opérations à insérer.
+Au 02/10, il existe 60 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_3, eval = FALSE, echo = TRUE}
@@ -2112,7 +2101,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --0
   -- JRT, 30/08 : 0
 ```
-Au 29/08, il n'existe aucune opération à insérer.
+Au 02/10, il n'existe aucune opération à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_3, eval = FALSE, echo = TRUE}
@@ -2149,7 +2138,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --0  
   -- JRT, 30/08 : 0
 ```
-Au 29/08, il n'existe aucune opération à insérer.
+Au 02/10, il n'existe aucune opération à insérer.
 
 
 ### dbeel_batch_fish_rsa et dbeel_mensurationindiv_biol_charac_rsa
@@ -2248,7 +2237,6 @@ INSERT INTO france.dbeel_batch_fish_rsa
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
 	; -- 121040 poissons mesurés au premier passage 1m56
-	-- JRT, 30/08/23 : 137650
 
 
 -- Fish caught during 2nd pass
@@ -2293,7 +2281,6 @@ INSERT INTO france.dbeel_batch_fish_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; 	--16089
-  -- JRT 30/08/23 : 17618
 
 -- Fish caught during 3rd pass
 INSERT INTO france.dbeel_batch_fish_rsa
@@ -2335,9 +2322,8 @@ INSERT INTO france.dbeel_batch_fish_rsa
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ;   --467
-  -- JRT, 30/08/23 : 492
 ```
-Au 04/09/2023, 137650, 17618 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table **dbeel_batch_fish_rsa**.
+Au 02/10/2023, 136827, 17700 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table **dbeel_batch_fish_rsa**.
 
 
 ```{sql insert_batch_fish_rsa_2, eval = FALSE, echo = TRUE}
@@ -2394,9 +2380,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 	AND baf.ang_taille is not null; --to prevent from inserting NULL length values
 ```
 
-Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. L'insertion résultante est de 72376 lignes de données poids, et 145619 mesures de longueur.**
+Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. Au 02/10, l'insertion résultante est de 69162 lignes de données poids, et 144187 mesures de longueur.**
 
-**Attention, au 04/09/23**, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone 'lcv'.
+Au 04/09/23, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone 'lcv'. Cela a été corrigé au 02/10. La requête suivante ne renvoie plus aucun résultat.
 
 ```{sql _pb_rsa_anguille_2, eval = FALSE, echo = TRUE}
 SELECT   count(*),aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poids
@@ -2406,4 +2392,16 @@ having count(*)>1 and aa.ang_cod notnull
 order by count(*) desc
 ```
 
+## Vues
 
+Le run du modèle EDA nécessite l'utilisation de vues. Les vues utilisées sont les suivantes :
+- view_electrofishing ou view_electrofishing_loire ou view_electrofishing_loirebretatgne ( __à renommer__ )
+- view_electrofishing_size
+- view_silvering
+- view_electrofishing_size_weight
+
+### view_electrofishing
+
+Au 19/09, cette requête renvoie 8329677 lignes. Elle liste l'ensemble des opérations de pêches qui ont été menées en précisant notamment la source de données (ASPE/RSA), la station et sa localisation, quelques éléments sur la méthode de pêche et enfin des résultats de pêches. (totaux et par passages).
+
+A modifier pour ne renvoyer que la France. Dans le nouveau schéma france, on tapera directement sur les tables.

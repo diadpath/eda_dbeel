@@ -1,0 +1,269 @@
+# Contrôle de l'intégrité des données ASPE/RSA dans la Dbeel
+
+les requêtes à cette étape sont pensées pour être facilement modificables si le schéma de la base devait évoluer vers la Dbeel France.
+Il est donc nécessaire au maximum d'utiliser les tables mère (opérations, electrofishing, etc...)
+
+A cette étape, il est nécessaire de vérifier que les données intégrées dans la dbeel, depuis ASPE et RSA, sont cohérentes à la fois structurellement (ex: relation entre opérations de pêches et poissons pêchés) et biologiquement (ex : contrôle des tailles et poids des anguilles mesurées).
+
+<!-- -- -->
+<!-- chunk de connexion à la base -->
+<!-- -- -->
+<!--
+```{r conn_database, include=FALSE}
+#EDALoad23.xml a été copié dans le répertoire france2023 car c'est le répertoire par défaut de knitr 
+#peut être à améliorer via knitr::opts_chunk$set ?
+rivernetwork <- "RIOS"
+source("../../../common/init.r")
+
+# Set up database connection
+
+con = dbConnect(Postgres(),
+		dbname=baseODBCrios[1],
+		host="localhost",
+		port=5432,
+		user=baseODBCrios[2], 
+		password=baseODBCrios[3])
+```
+-->
+<!-- -- -->
+<!-- chunk d'import des données -->
+<!-- -- -->
+```{r load_database_2, include=FALSE}
+#dans un premier temp on définit un ensemble de variables qui vont permettre 
+#de construire les requêtes d'accès aux données "dynamiquement"
+#ceci permettra d'utiliser l'ensemble des procédures de check d'intégrité plus facilement
+#même si la structure de la DB venait à être modifiée (i.e. cas de la mise en prod de dbeel_Frances)
+#il faut travailler au maximum sur les tables mères, mais attention à vérifier qu'il n'y a pas des champs #importants présents uniquement dans les tables filles ?
+# schéma (ex : dbeel, france, dbeel_france)
+var_schema <- "dbeel"
+var_schema_nom <- "dbeel_nomenclature"
+# tables nomenclature
+# nomenclature 
+var_nom_bio_car <- "biological_characteristic_type"
+var_nom_bio_car_id <- "no_id"
+var_nom_bio_label <- "bc_label"
+# table electrofishing + clés prim et étrangère
+var_electrofishing_ope <- "electrofishing" 
+var_electrofishing_ope_id <- "ob_id"
+var_electrofishing_ope_stations <- "ob_op_id"
+#table stations + clé prim
+var_stations <- "observation_places"
+var_stations_id <- "op_id"
+var_stations_source <- "op_gis_layername"
+#table batch (opé et fish) + clé prim et étrangère
+var_batch <- "batch"
+var_batch_id <- "ba_id"
+var_batch_electrofishing <- "ba_ob_id"
+var_batch_nomen <- "ba_no_biological_characteristic_type"
+#table mesures biologiques + clé prim et étrangère
+var_biochar <- "biological_characteristic"
+var_biochar_id <- "bc_id"
+var_biochar_batch <- "bc_ba_id"
+var_biochar_nomen <- "bc_no_characteristic_type"
+#filtre temporaire (en attendant le schéma dbeel_france)
+#mettre var_filter_aspe_rsa à '' si utilisation du schéma dbeel_france
+var_filter_aspe_rsa <- "op_gis_layername in ('ASPE','RSA')"
+
+#load stations
+query <- paste0("SELECT * FROM ",var_schema,".",var_stations)
+return <- dbSendQuery(con,query)
+stations <- dbFetch(return)
+dbClearResult(return)
+
+#load electrofishing ASPE + RSA (avec conditions where si nécessaire = cas du schéma dbeel pour ne pas remonter l'ensemble des opérations de pêches électriques stockées dans la dbeel, i.e. Espagne, Portugal, ...)
+query <- paste0("SELECT e.* FROM ",
+                                             var_schema,".",var_electrofishing_ope, " e",
+                                            #jointure avec la table station pour filtre sur ASPE/RSA
+                                             " join ",var_schema,".",var_stations," s", " on ",
+                                             "s.",var_stations_id," = ","e.",var_electrofishing_ope_stations,
+                                             ifelse(nchar(var_filter_aspe_rsa >0),
+                                                    paste0(" where s.",var_filter_aspe_rsa),
+                                                    "")
+                                             )
+return <- dbSendQuery(con,query)
+electrofishing <- dbFetch(return)
+dbClearResult(return)
+
+#load batch (level 1, totaux, et 2, détails par poissons)
+#la condition where est également utilisée
+query <- paste0("SELECT b.*, bn.",var_nom_bio_label," FROM ",
+                                             var_schema,".",var_batch, " b",
+                                            #jointure avec la table electrofishing pour filtre sur opérations ASPE/RSA
+                                             " join ",var_schema,".",var_electrofishing_ope," e", " on ",
+                                            "e.",var_electrofishing_ope_id," = ","b.",var_batch_electrofishing,
+                                            #jointure avec la table station pour filtre sur ASPE/RSA
+                                             " join ",var_schema,".",var_stations," s", " on ",
+                                             "s.",var_stations_id," = ","e.",var_electrofishing_ope_stations,
+                                             " join ",var_schema_nom,".",var_nom_bio_car," bn", " on ",
+                                             "bn.",var_nom_bio_car_id," = ","b.",var_batch_nomen,
+                                             ifelse(nchar(var_filter_aspe_rsa >0),
+                                                    paste0(" where s.",var_filter_aspe_rsa),
+                                                    "")
+                                             )
+return <- dbSendQuery(con,query)
+batch <- dbFetch(return)
+dbClearResult(return)
+
+#load mesures biométriques (longueur/taille)
+#la condition where est également utilisée
+query <- paste0("SELECT bc.*, bn.",var_nom_bio_label," FROM ",
+                                             var_schema,".",var_biochar, " bc",
+                                            #jointure avec la table batch pour filtre sur résultats de pêches ASPE/RSA
+                                             " join ",var_schema,".",var_batch," b", " on ",
+                                            "b.",var_batch_id," = ","bc.",var_biochar_batch,
+                                            #jointure avec la table electrofishing pour filtre sur opérations ASPE/RSA
+                                             " join ",var_schema,".",var_electrofishing_ope," e", " on ",
+                                            "e.",var_electrofishing_ope_id," = ","b.",var_batch_electrofishing,
+                                            #jointure avec la table station pour filtre sur ASPE/RSA
+                                             " join ",var_schema,".",var_stations," s", " on ",
+                                             "s.",var_stations_id," = ","e.",var_electrofishing_ope_stations,
+                                            " join ",var_schema_nom,".",var_nom_bio_car," bn", " on ",
+                                             "bn.",var_nom_bio_car_id," = ","bc.",var_biochar_nomen,
+                                             ifelse(nchar(var_filter_aspe_rsa >0),
+                                                    paste0(" where s.",var_filter_aspe_rsa),
+                                                    "")
+                                             )
+return <- dbSendQuery(con,query)
+biochar <- dbFetch(return)
+dbClearResult(return)
+
+
+```
+
+## Quelques chiffres
+
+L'insertion des données ASPE et RSA se caractérise par `r nrow(electrofishing)` opérations de pêche électrique en France Métropolitaine. Ces pêches ont donné lieu à `r nrow(batch[batch$ba_batch_level == 1 & batch$ba_no_biological_characteristic_type==47,])` résultats de pêches décomposés comme suit :
+
+```{r batch_sum_up, message=F, warning=F}
+
+batch_sum_up <- batch[batch$ba_batch_level==1,] %>%
+  group_by(ba_no_biological_characteristic_type,bc_label) %>% 
+    summarise(n = n(), 
+      qty = sum(ba_quantity,na.rm=T)
+    )
+
+colnames(batch_sum_up) <- c("","","Nb d'opérations de pêches","Poissons pêchés")
+
+ 
+batch_sum_up [,-c(1)]%>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+Ces pêches ont également donnée lieu à des mesures biométriques :
+```{r bio_char_sum_up, message=F, warning=F}
+
+biocar_sum_up <- biochar %>%
+  group_by(bc_no_characteristic_type,bc_label) %>% 
+    summarise(n = n()
+    )
+
+colnames(biocar_sum_up) <- c("","","Quantité mesurée")
+
+ 
+biocar_sum_up [,-c(1)] %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+## Cohérence des données par opérations de pêches
+
+A ce stade nous vérifions qu'il existe bien une cohérence des données entre opérations de pêches et quantités d'anguilles. De plus chaque anguille doit être rattachée à une opération existante. Enfin la somme des effectifs de chaque passage est concordante avec celle des totaux.
+
+```{r coherence_electro_batch, message=F, warning=F}
+
+#on récupère uniquement les nombres de passages par opération de pêches
+#donc on travaille uniquement avec les lignes présentants les résultats totaux par passage
+batch_pass_sum <- batch[batch$ba_no_biological_characteristic_type != 47 & batch$ba_batch_level == 1,] %>%
+  group_by(ba_ob_id) %>% 
+    summarise(
+      nb_pass = length(unique(bc_label))
+    )
+#ensuite on fait une jointure avec electrofishing pour comparer le nombre de passage
+electro_batch_coher <- electrofishing %>%
+  #on fait un full_join pour récupérer éventuellement 
+  #les lignes dans electrofishing qui n'ont pas de résultats de pêches dans batch
+  #ou les résultats de pêches dans batch qui n'ont pas d'opérations de pêches dans electrofishing
+  #dans les deux cas ce serait des anomalies.
+		full_join(batch_pass_sum, by = setNames(c(var_batch_electrofishing),c(var_electrofishing_ope_id)))
+
+```
+
+L'analyse de cohérence des données electrofishing/batch montre qu'il existe `r nrow(electro_batch_coher[is.na(electro_batch_coher$nb_pass),])` opérations de pêches (i.e. dans _electrofishing_) qui ne présente aucun résultat de pêche dans _batch_. 
+
+```{r coherence_electro_batch_1, message=F, warning=F}
+if (nrow(electro_batch_coher[is.na(electro_batch_coher$nb_pass),])>0)
+{
+  electro_batch_coher[is.na(electro_batch_coher$nb_pass),] %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+}
+```
+
+A l'inverse il existe `r nrow(electro_batch_coher[is.na(electro_batch_coher$ob_id),])` résultats de pêche (i.e. dans _batch_) qui ne sont rattachés à aucune opération de pêche existante dans _electrofishing_. 
+
+```{r coherence_electro_batch_2, message=F, warning=F}
+if (nrow(electro_batch_coher[is.na(electro_batch_coher$ob_id),])>0)
+{
+  electro_batch_coher[is.na(electro_batch_coher$ob_id),] %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+}
+```
+
+Enfin, il existe `r nrow(electro_batch_coher[which(electro_batch_coher$ef_nbpas != electro_batch_coher$nb_pass),])` opérations de pêches dont le nombre de passages stockés dans _electrofishing_ est différent de celui stocké dans _batch_. Liste ci-dessous (si erreur existante).
+
+```{r coherence_electro_batch_3, message=F, warning=F}
+electro_batch_coher[which(electro_batch_coher$ef_nbpas != electro_batch_coher$nb_pass),
+                      c("ob_id","ef_nbpas","nb_pass")] %>%
+  rename("Nb passage electrofishing"="ef_nbpas","Nb passage batch"="nb_pass") %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+  
+  error_coher <- batch %>%
+    inner_join(electro_batch_coher[which(electro_batch_coher$ef_nbpas != electro_batch_coher$nb_pass),],
+               by = setNames(c(var_electrofishing_ope_id),c(var_batch_electrofishing))
+               )
+  #source des problèmes (on récupère le champs 'var_stations_source' dans la table station)
+  temp <- error_coher %>%
+    left_join(stations, by = setNames(c(var_stations_id),c(var_electrofishing_ope_stations))) %>%
+    select(starts_with(c(var_batch_id,var_batch_electrofishing,var_stations_source)))
+```
+
+Au 28/09 : L'analyse de cette incohérence montre que à chaque fois il y a 2 passages dans _batch_ mais un seul dans _electrofishing_.
+
+Ces deuxièmes passages intégrés dans _batch_ concernent dans tous les cas des passages sans capture :
+
+```{r coherence_electro_batch_4, message=F, warning=F}
+if (nrow(electro_batch_coher[which(electro_batch_coher$ef_nbpas != electro_batch_coher$nb_pass),])>0)
+{
+
+  as.data.frame(table(error_coher[error_coher$ba_no_biological_characteristic_type == 232,#uniquement les 2èmes passages
+                                  c("ba_quantity")], useNA = "always")) %>%
+  rename(" "="Var1","Nb occurence"="Freq") %>%
+  kable() %>%
+  kable_styling(full_width = FALSE)  %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  kable_styling(latex_options = "scale_down")
+  
+  temp <- NULL
+}
+```
+
+Au 28/09 : Le problème a été identifié. Dans le script d'insertion _import_rsa_dbeel.sql_, lors de l'insertion des résultats de pêche, passage par passage, il manquait une condition permettant de ne filtrer que les opérations de pêches à plusieurs passages. Ainsi pour les opérations de pêches à un seul passage, on intégrait des résultats de pêches 'NULL'. Enfin il existe certaines lignes dans RSA qui présente des pêches à 1 ou plusieurs passages mais dont les effectifs de pêches sont renseignés à 'NULL' au lieu de '0'. Les scripts d'intégration des batch rsa sont relancés le 29/09 : __problème résolu__.
+
+## 
+<!-- -- -->
+<!-- étape 3 : s'inspirer de Beaulaton et al 2015 -->
+<!-- les données de taille/poids sont cohérentes -->
+<!-- cohérence de la taille de la nageoire pectorale, du diamètre oculaire, -->
+<!-- --- -->
+
+

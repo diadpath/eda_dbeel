@@ -29,7 +29,7 @@
   
   
 <link rel="prev" href="préparation-des-données.html"/>
-<link rel="next" href="gestion-des-doublons-éventuels-rsaaspe.html"/>
+<link rel="next" href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -50,6 +50,8 @@
 <link href="libs/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
 <link href="libs/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
 <script src="libs/anchor-sections-1.1.0/anchor-sections.js"></script>
+<script src="libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
 
 
 <style type="text/css">
@@ -178,13 +180,28 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="3.2.4" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_batch_ope_rsa"><i class="fa fa-check"></i><b>3.2.4</b> dbeel_batch_ope_rsa</a></li>
 <li class="chapter" data-level="3.2.5" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_batch_fish_rsa-et-dbeel_mensurationindiv_biol_charac_rsa"><i class="fa fa-check"></i><b>3.2.5</b> dbeel_batch_fish_rsa et dbeel_mensurationindiv_biol_charac_rsa</a></li>
 </ul></li>
-</ul></li>
-<li class="chapter" data-level="4" data-path="gestion-des-doublons-éventuels-rsaaspe.html"><a href="gestion-des-doublons-éventuels-rsaaspe.html"><i class="fa fa-check"></i><b>4</b> Gestion des doublons éventuels RSA/ASPE</a>
+<li class="chapter" data-level="3.3" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#vues"><i class="fa fa-check"></i><b>3.3</b> Vues</a>
 <ul>
-<li class="chapter" data-level="4.1" data-path="gestion-des-doublons-éventuels-rsaaspe.html"><a href="gestion-des-doublons-éventuels-rsaaspe.html#couples-de-stations-aspersa-similaires"><i class="fa fa-check"></i><b>4.1</b> Couples de stations ASPE/RSA similaires</a></li>
-<li class="chapter" data-level="4.2" data-path="gestion-des-doublons-éventuels-rsaaspe.html"><a href="gestion-des-doublons-éventuels-rsaaspe.html#opérations-aspersa-communes-sur-ces-stations"><i class="fa fa-check"></i><b>4.2</b> Opérations ASPE/RSA communes sur ces stations</a></li>
-<li class="chapter" data-level="4.3" data-path="gestion-des-doublons-éventuels-rsaaspe.html"><a href="gestion-des-doublons-éventuels-rsaaspe.html#résultats-de-pêches-identiques-sur-ces-stations"><i class="fa fa-check"></i><b>4.3</b> Résultats de pêches identiques sur ces stations</a></li>
-<li class="chapter" data-level="4.4" data-path="gestion-des-doublons-éventuels-rsaaspe.html"><a href="gestion-des-doublons-éventuels-rsaaspe.html#comparaison-du-détails-des-pêches-communes-aspersa"><i class="fa fa-check"></i><b>4.4</b> Comparaison du détails des pêches communes ASPE/RSA</a></li>
+<li class="chapter" data-level="3.3.1" data-path="insertion-des-données-dans-les-tables-de-la-dbeel.html"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#view_electrofishing"><i class="fa fa-check"></i><b>3.3.1</b> view_electrofishing</a></li>
+</ul></li>
+</ul></li>
+<li class="chapter" data-level="4" data-path="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><i class="fa fa-check"></i><b>4</b> Gestion des doublons éventuels RSA/ASPE (basés sur des stations proches géographiquement)</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#couples-de-stations-aspersa-similaires"><i class="fa fa-check"></i><b>4.1</b> Couples de stations ASPE/RSA similaires</a></li>
+<li class="chapter" data-level="4.2" data-path="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#opérations-aspersa-communes-sur-ces-stations"><i class="fa fa-check"></i><b>4.2</b> Opérations ASPE/RSA communes sur ces stations</a></li>
+<li class="chapter" data-level="4.3" data-path="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#résultats-de-pêches-identiques-sur-ces-stations"><i class="fa fa-check"></i><b>4.3</b> Résultats de pêches identiques sur ces stations</a></li>
+<li class="chapter" data-level="4.4" data-path="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#comparaison-du-détails-des-pêches-communes-aspersa"><i class="fa fa-check"></i><b>4.4</b> Comparaison du détails des pêches communes ASPE/RSA</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="opérations-de-pêches-dupliquées-aspersa.html"><a href="opérations-de-pêches-dupliquées-aspersa.html"><i class="fa fa-check"></i><b>5</b> Opérations de pêches dupliquées ASPE/RSA</a>
+<ul>
+<li class="chapter" data-level="5.1" data-path="opérations-de-pêches-dupliquées-aspersa.html"><a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-détails-des-opérations-de-pêches-potentiellement-dupliquées-en-base"><i class="fa fa-check"></i><b>5.1</b> Récupérations des détails des opérations de pêches potentiellement dupliquées en base</a></li>
+<li class="chapter" data-level="5.2" data-path="opérations-de-pêches-dupliquées-aspersa.html"><a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-identifiants-et-du-détails-des-saisies-des-opérations-potentiellement-dupliquées"><i class="fa fa-check"></i><b>5.2</b> Récupérations des identifiants et du détails des saisies des opérations potentiellement dupliquées</a></li>
+</ul></li>
+<li class="chapter" data-level="6" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><i class="fa fa-check"></i><b>6</b> Contrôle de l’intégrité des données ASPE/RSA dans la Dbeel</a>
+<ul>
+<li class="chapter" data-level="6.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres"><i class="fa fa-check"></i><b>6.1</b> Quelques chiffres</a></li>
+<li class="chapter" data-level="6.2" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cohérence-des-données-par-opérations-de-pêches"><i class="fa fa-check"></i><b>6.2</b> Cohérence des données par opérations de pêches</a></li>
+<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#section"><i class="fa fa-check"></i><b>6.3</b> </a></li>
 </ul></li>
 </ul>
 
@@ -1102,7 +1119,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb38-16"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb38-16" tabindex="-1"></a>  <span class="st">&#39;FR&#39;</span> <span class="kw">AS</span> country </span>
 <span id="cb38-17"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb38-17" tabindex="-1"></a>    <span class="kw">FROM</span> rsa.station <span class="kw">LEFT</span> <span class="kw">JOIN</span> rsa.bassin_bas <span class="kw">ON</span> station.sta_bas_id<span class="op">=</span>bassin_bas.bas_id</span>
 <span id="cb38-18"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb38-18" tabindex="-1"></a>    ;</span></code></pre></div>
-<p>Au 28/08, il existe 1766 stations à insérer.</p>
+<p>Au 02/10, il existe 1767 stations à insérer.</p>
 </div>
 <div id="dbeel_electrofishing_rsa" class="section level3 hasAnchor" number="3.2.3">
 <h3><span class="header-section-number">3.2.3</span> dbeel_electrofishing_rsa<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_electrofishing_rsa" class="anchor-section" aria-label="Anchor link to header"></a></h3>
@@ -1200,9 +1217,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb40-52"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-52" tabindex="-1"></a>    <span class="kw">WHERE</span> observation_origin.no_name<span class="op">=</span><span class="st">&#39;Raw data&#39;</span> </span>
 <span id="cb40-53"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-53" tabindex="-1"></a>    <span class="kw">AND</span> observation_type.no_name<span class="op">=</span><span class="st">&#39;Electro-fishing&#39;</span> </span>
 <span id="cb40-54"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-54" tabindex="-1"></a>    <span class="kw">AND</span> period_type.no_name<span class="op">=</span><span class="st">&#39;Daily&#39;</span> </span>
-<span id="cb40-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-55" tabindex="-1"></a>    ; <span class="co">--950 ROWS 28s</span></span>
-<span id="cb40-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-56" tabindex="-1"></a>    <span class="co">--J. RAITIF, 29/08 : 1008</span></span></code></pre></div>
-<p>Au 29/08, il existe 1008 opérations à insérer.</p>
+<span id="cb40-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb40-55" tabindex="-1"></a>    ; <span class="co">--950 ROWS 28s</span></span></code></pre></div>
+<p>Au 02/10, il existe 1090 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des epa à pied.</p>
 <div class="sourceCode" id="cb41"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb41-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb41-1" tabindex="-1"></a><span class="co">-------------------------------------</span></span>
 <span id="cb41-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb41-2" tabindex="-1"></a><span class="co">-- echantillonage pontctuel d&#39;abondance, pêche par points (à pied ?)</span></span>
@@ -1380,11 +1396,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb43-52"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-52" tabindex="-1"></a>  <span class="kw">WHERE</span> observation_origin.no_name<span class="op">=</span><span class="st">&#39;Raw data&#39;</span> </span>
 <span id="cb43-53"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-53" tabindex="-1"></a>  <span class="kw">AND</span> observation_type.no_name<span class="op">=</span><span class="st">&#39;Electro-fishing&#39;</span> </span>
 <span id="cb43-54"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-54" tabindex="-1"></a>  <span class="kw">AND</span> period_type.no_name<span class="op">=</span><span class="st">&#39;Daily&#39;</span> </span>
-<span id="cb43-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-55" tabindex="-1"></a>  ; <span class="co">--17 ROWS 28s </span></span>
-<span id="cb43-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-56" tabindex="-1"></a>    <span class="co">--J. RAITIF, 29/08 : 17  </span></span></code></pre></div>
-<p>Au 29/08, il existe 17 opérations à insérer.</p>
+<span id="cb43-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb43-55" tabindex="-1"></a>  ; <span class="co">--17 ROWS 28s </span></span></code></pre></div>
+<p>Au 02/10, il existe 19 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges en bateau.</p>
-<div class="sourceCode" id="cb44"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb44-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb44-1" tabindex="-1"></a>NSERT <span class="kw">INTO</span> france.dbeel_electrofishing_rsa (</span>
+<div class="sourceCode" id="cb44"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb44-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb44-1" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_electrofishing_rsa (</span>
 <span id="cb44-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb44-2" tabindex="-1"></a>  ob_id,</span>
 <span id="cb44-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb44-3" tabindex="-1"></a>  ob_no_origin,</span>
 <span id="cb44-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb44-4" tabindex="-1"></a>  ob_no_type,</span>
@@ -1499,9 +1514,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb45-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-55" tabindex="-1"></a>  <span class="kw">WHERE</span> observation_origin.no_name<span class="op">=</span><span class="st">&#39;Raw data&#39;</span> </span>
 <span id="cb45-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-56" tabindex="-1"></a>  <span class="kw">AND</span> observation_type.no_name<span class="op">=</span><span class="st">&#39;Electro-fishing&#39;</span> </span>
 <span id="cb45-57"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-57" tabindex="-1"></a>  <span class="kw">AND</span> period_type.no_name<span class="op">=</span><span class="st">&#39;Daily&#39;</span> </span>
-<span id="cb45-58"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-58" tabindex="-1"></a>  ; <span class="co">--2221 ROWS 28s (2499 avant)</span></span>
-<span id="cb45-59"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-59" tabindex="-1"></a>    <span class="co">--J. RAITIF, 29/08 : 2775</span></span></code></pre></div>
-<p>Au 29/08, il existe 2775 opérations à insérer.</p>
+<span id="cb45-58"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb45-58" tabindex="-1"></a>  ; <span class="co">--2221 ROWS 28s (2499 avant)</span></span></code></pre></div>
+<p>Au 02/10, il existe 2785 opérations à insérer.</p>
 <p>Ensuite, on récupère les <strong>op_id</strong> de la table <strong>france.dbeel_electrofishing_rsa</strong> pour les ajouter dans le champs <strong>ope_dbeel_ob_id</strong> de la table <strong>rsa.operation</strong>. Ils seront utilisés plus tard pour insérer le détail des résultats de pêche dans <strong>dbeel_batch_ope_rsa</strong>.</p>
 <div class="sourceCode" id="cb46"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb46-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-1" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> rsa.operation <span class="kw">ADD</span> <span class="kw">COLUMN</span> ope_dbeel_ob_id UUID;</span>
 <span id="cb46-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-2" tabindex="-1"></a><span class="kw">UPDATE</span> rsa.operation <span class="kw">SET</span> ope_dbeel_ob_id<span class="op">=</span> <span class="kw">NULL</span>; </span>
@@ -1513,9 +1527,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb46-8"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-8" tabindex="-1"></a> )</span>
 <span id="cb46-9"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-9" tabindex="-1"></a><span class="kw">UPDATE</span> rsa.operation <span class="kw">SET</span> ope_dbeel_ob_id <span class="op">=</span> ob_id <span class="kw">FROM</span> the_join</span>
 <span id="cb46-10"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-10" tabindex="-1"></a><span class="kw">WHERE</span> (operation.op_id, operation.op_zone) <span class="op">=</span>  (the_join.op_id, the_join.op_zone)</span>
-<span id="cb46-11"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-11" tabindex="-1"></a><span class="kw">AND</span>  operation.ope_dbeel_ob_id <span class="kw">IS</span> <span class="kw">NULL</span>; </span>
-<span id="cb46-12"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-12" tabindex="-1"></a><span class="co">--J. RAITIF, 29/08 : 4293 </span></span></code></pre></div>
-<p>On met ainsi à jour 4293 lignes d’opérations. On vérifier ensuite que chaque opération dans <strong>rsa.operation</strong> possède bien un nouvel id.</p>
+<span id="cb46-11"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb46-11" tabindex="-1"></a><span class="kw">AND</span>  operation.ope_dbeel_ob_id <span class="kw">IS</span> <span class="kw">NULL</span>; </span></code></pre></div>
+<p>On met ainsi à jour 4387 lignes d’opérations. On vérifier ensuite que chaque opération dans <strong>rsa.operation</strong> possède bien un nouvel id.</p>
 <div class="sourceCode" id="cb47"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb47-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb47-1" tabindex="-1"></a><span class="co">-- contrôle d&#39;intégrité</span></span>
 <span id="cb47-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb47-2" tabindex="-1"></a><span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> rsa.operation ope <span class="kw">where</span> ope.ope_dbeel_ob_id <span class="kw">IS</span> <span class="kw">NULL</span></span>
 <span id="cb47-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb47-3" tabindex="-1"></a><span class="co">-- JRT, 29/08 : 22 lignes, </span></span>
@@ -1543,7 +1556,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h3><span class="header-section-number">3.2.4</span> dbeel_batch_ope_rsa<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_batch_ope_rsa" class="anchor-section" aria-label="Anchor link to header"></a></h3>
 <p>Dans le schéma France, la table <strong>dbeel_batch_ope_rsa</strong> hérite de la table <strong>batch</strong> du schéma dbeel. Cette table va regrouper l’ensemble des opérations de pêches électriques référencées dans RSA avec certaines informations liées aux nombres de poissons pêchés. Dans cette table, chaque opération de pêche donnera lieu à au moins 2 lignes. Une première ligne stocke le nombre total de poisson pêché lors la pêche. Les suivantes (avec le même <strong>ope_id</strong>) stockeront les quantités pêchées à chaque passage (le numéro de passage est stocké dans le champs <strong>ba_no_biological_characteristic_type</strong>). Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée.</p>
 <p><strong>A noter</strong>, il existait une erreur dans l’insertion des batch pour les opérations de pêches rsa de type <strong>epap</strong>. En effet le code zone n’était pas inséré. Ce problème a été corrigé.</p>
-<div class="sourceCode" id="cb48"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb48-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb48-1" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> france.dbeel_batch_ope_rsa;</span>
+<div class="sourceCode" id="cb48"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb48-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb48-1" tabindex="-1"></a><span class="kw">DROP</span> <span class="kw">TABLE</span> france.dbeel_batch_ope_rsa <span class="kw">CASCADE</span>;</span>
 <span id="cb48-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb48-2" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> france.dbeel_batch_ope_rsa (</span>
 <span id="cb48-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb48-3" tabindex="-1"></a>  op_id int4 <span class="kw">NULL</span>,</span>
 <span id="cb48-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb48-4" tabindex="-1"></a>  op_zone TEXT,</span>
@@ -1586,9 +1599,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb49-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number&#39;</span> </span>
 <span id="cb49-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb49-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span>;</span>
-<span id="cb49-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-30" tabindex="-1"></a>  <span class="co">--950</span></span>
-<span id="cb49-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08/23 : 1008</span></span></code></pre></div>
-<p>Au 29/08, il existe 1008 opérations à insérer.</p>
+<span id="cb49-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb49-30" tabindex="-1"></a>  <span class="co">--950</span></span></code></pre></div>
+<p>Au 02/10, il existe 1090 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des epa à pied.</p>
 <div class="sourceCode" id="cb50"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb50-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb50-1" tabindex="-1"></a><span class="co">-----------------</span></span>
 <span id="cb50-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb50-2" tabindex="-1"></a><span class="co">-- echantillonage pontctuel d&#39;abondance, pêche par points (à pied ?), totaux</span></span>
@@ -1621,7 +1633,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb50-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb50-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
 <span id="cb50-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb50-30" tabindex="-1"></a>  ; <span class="co">--132 </span></span>
 <span id="cb50-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb50-31" tabindex="-1"></a><span class="co">-- JRT? 30/08 : 145  </span></span></code></pre></div>
-<p>Au 29/08, il existe 145 opérations à insérer.</p>
+<p>Au 02/10, il existe 145 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des epa en bateau.</p>
 <div class="sourceCode" id="cb51"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb51-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-1" tabindex="-1"></a><span class="co">-----------------</span></span>
 <span id="cb51-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-2" tabindex="-1"></a><span class="co">-- echantillonage pontctuel d&#39;abondance, pêche par points (en bateau ?), totaux  </span></span>
@@ -1652,9 +1664,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb51-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number&#39;</span> </span>
 <span id="cb51-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb51-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb51-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-30" tabindex="-1"></a>  ; <span class="co">--152   </span></span>
-<span id="cb51-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 162</span></span></code></pre></div>
-<p>Au 29/08, il existe 162 opérations à insérer.</p>
+<span id="cb51-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb51-30" tabindex="-1"></a>  ; <span class="co">--152   </span></span></code></pre></div>
+<p>Au 02/10, il existe 162 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges à pied.</p>
 <div class="sourceCode" id="cb52"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb52-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb52-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (à pied ?), totaux  </span></span>
@@ -1687,9 +1698,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb52-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-29" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number&#39;</span> </span>
 <span id="cb52-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-30" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb52-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-31" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb52-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-32" tabindex="-1"></a>  ; <span class="co">--17</span></span>
-<span id="cb52-33"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-33" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 17</span></span></code></pre></div>
-<p>Au 29/08, il existe 17 opérations à insérer.</p>
+<span id="cb52-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb52-32" tabindex="-1"></a>  ; <span class="co">--17</span></span></code></pre></div>
+<p>Au 02/10, il existe 19 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges en bateau.</p>
 <div class="sourceCode" id="cb53"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb53-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb53-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (en bateau ?), totaux</span></span>
@@ -1722,9 +1732,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb53-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-29" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number&#39;</span> </span>
 <span id="cb53-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-30" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb53-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-31" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb53-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-32" tabindex="-1"></a>  ; <span class="co">--177</span></span>
-<span id="cb53-33"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-33" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 186</span></span></code></pre></div>
-<p>Au 29/08, il existe 186 opérations à insérer.</p>
+<span id="cb53-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb53-32" tabindex="-1"></a>  ; <span class="co">--177</span></span></code></pre></div>
+<p>Au 02/10, il existe 186 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des indices d’abondances à pied.</p>
 <div class="sourceCode" id="cb54"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb54-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb54-1" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_batch_ope_rsa</span>
 <span id="cb54-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb54-2" tabindex="-1"></a>  <span class="kw">SELECT</span> uuid_generate_v4() <span class="kw">AS</span> ba_id,</span>
@@ -1755,7 +1764,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb54-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb54-27" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
 <span id="cb54-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb54-28" tabindex="-1"></a>  ; <span class="co">--2221</span></span>
 <span id="cb54-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb54-29" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 2775</span></span></code></pre></div>
-<p>Au 29/08, il existe 2775 opérations à insérer.</p>
+<p>Au 02/10 il existe 2785 opérations à insérer.</p>
 <p>Ensuite sont insérées les lignes de premiers passages.</p>
 <p>Ci-dessous le code d’insertion des inventaires à pied.</p>
 <div class="sourceCode" id="cb55"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb55-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-1" tabindex="-1"></a><span class="co">---</span></span>
@@ -1787,9 +1796,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb55-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p1&#39;</span> </span>
 <span id="cb55-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb55-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb55-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-30" tabindex="-1"></a>  ; <span class="co">--950</span></span>
-<span id="cb55-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-31" tabindex="-1"></a>  <span class="co">-- JRT? 30/08 : 1008</span></span></code></pre></div>
-<p>Au 29/08, il existe 1008 opérations à insérer.</p>
+<span id="cb55-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb55-30" tabindex="-1"></a>  ; <span class="co">--950</span></span></code></pre></div>
+<p>Au 02/10, il existe 1090 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des epa à pied.</p>
 <div class="sourceCode" id="cb56"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb56-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-1" tabindex="-1"></a><span class="co">-----------------</span></span>
 <span id="cb56-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-2" tabindex="-1"></a><span class="co">-- echantillonage pontctuel d&#39;abondance, pêche par points (à pied ?), 1er passage  </span></span>
@@ -1820,9 +1828,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb56-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p1&#39;</span> </span>
 <span id="cb56-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb56-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb56-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-30" tabindex="-1"></a>  ; <span class="co">--132    </span></span>
-<span id="cb56-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 145</span></span></code></pre></div>
-<p>Au 29/08, il existe 145 opérations à insérer.</p>
+<span id="cb56-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb56-30" tabindex="-1"></a>  ; <span class="co">--132    </span></span></code></pre></div>
+<p>Au 02/10, il existe 145 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des epa en bateau.</p>
 <div class="sourceCode" id="cb57"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb57-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-1" tabindex="-1"></a><span class="co">-----------------</span></span>
 <span id="cb57-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-2" tabindex="-1"></a><span class="co">-- echantillonage pontctuel d&#39;abondance, pêche par points (en bateau ?), 1er passage    </span></span>
@@ -1853,9 +1860,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb57-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p1&#39;</span> </span>
 <span id="cb57-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb57-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb57-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-30" tabindex="-1"></a>  ; <span class="co">--152   </span></span>
-<span id="cb57-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 162</span></span></code></pre></div>
-<p>Au 29/08, il existe 162 opérations à insérer.</p>
+<span id="cb57-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb57-30" tabindex="-1"></a>  ; <span class="co">--152   </span></span></code></pre></div>
+<p>Au 02/10, il existe 162 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges à pied.</p>
 <div class="sourceCode" id="cb58"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb58-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb58-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (à pied ?), 1er passage </span></span>
@@ -1886,9 +1892,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb58-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p1&#39;</span> </span>
 <span id="cb58-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb58-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb58-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-30" tabindex="-1"></a>  ; <span class="co">--17</span></span>
-<span id="cb58-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 17</span></span></code></pre></div>
-<p>Au 29/08, il existe 17 opérations à insérer.</p>
+<span id="cb58-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb58-30" tabindex="-1"></a>  ; <span class="co">--17</span></span></code></pre></div>
+<p>Au 02/10, il existe 19 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges en bateau.</p>
 <div class="sourceCode" id="cb59"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb59-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb59-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (en bateau ?), 1er passage </span></span>
@@ -1919,9 +1924,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb59-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p1&#39;</span></span>
 <span id="cb59-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb59-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb59-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-30" tabindex="-1"></a>  ; <span class="co">--177</span></span>
-<span id="cb59-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 186</span></span></code></pre></div>
-<p>Au 29/08, il existe 186 opérations à insérer.</p>
+<span id="cb59-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb59-30" tabindex="-1"></a>  ; <span class="co">--177</span></span></code></pre></div>
+<p>Au 02/10, il existe 186 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des indices d’abondances à pied.</p>
 <div class="sourceCode" id="cb60"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb60-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-1" tabindex="-1"></a><span class="co">--------</span></span>
 <span id="cb60-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-2" tabindex="-1"></a><span class="co">-- Indice d&#39;abondance à pied, premier passage</span></span>
@@ -1953,9 +1957,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb60-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb60-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
 <span id="cb60-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-30" tabindex="-1"></a>  ; <span class="co">--2221</span></span>
-<span id="cb60-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 2775</span></span>
-<span id="cb60-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-32" tabindex="-1"></a>  </span></code></pre></div>
-<p>Au 29/08, il existe 2775 opérations à insérer.</p>
+<span id="cb60-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb60-31" tabindex="-1"></a>  </span></code></pre></div>
+<p>Au 02/10, il existe 2785 opérations à insérer.</p>
 <p>Ensuite sont insérées les lignes de seconds passages.</p>
 <p>Ci-dessous le code d’insertion des inventaires à pied.</p>
 <div class="sourceCode" id="cb61"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb61-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-1" tabindex="-1"></a><span class="co">---</span></span>
@@ -1987,9 +1990,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb61-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span> </span>
 <span id="cb61-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb61-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb61-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-30" tabindex="-1"></a>  ; <span class="co">--950 </span></span>
-<span id="cb61-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 1008</span></span></code></pre></div>
-<p>Au 29/08, il existe 1008 opérations à insérer.</p>
+<span id="cb61-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-30" tabindex="-1"></a>  <span class="kw">and</span> op_inv.inv_npas <span class="op">&gt;</span> <span class="dv">1</span> <span class="co">-- ce filtre est nécessaire sinon on insère des lignes de résultats d&#39;opérations avec une quantité NULL (alors qu&#39;il n&#39;y avait qu&#39;un seul passage)</span></span>
+<span id="cb61-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb61-31" tabindex="-1"></a>  ; <span class="co">--950 </span></span></code></pre></div>
+<p>Au 02/10, il existe 1039 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges à pied.</p>
 <div class="sourceCode" id="cb62"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb62-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb62-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (à pied ?), 2eme passage</span></span>
@@ -2020,9 +2023,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb62-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span> </span>
 <span id="cb62-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb62-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb62-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-30" tabindex="-1"></a>  ; <span class="co">--17</span></span>
-<span id="cb62-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 17</span></span></code></pre></div>
-<p>Au 29/08, il existe 17 opérations à insérer.</p>
+<span id="cb62-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-30" tabindex="-1"></a>  <span class="kw">AND</span> op_pcbgp.pcbgp_npas <span class="op">&gt;</span> <span class="dv">1</span></span>
+<span id="cb62-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb62-31" tabindex="-1"></a>  ; <span class="co">--17</span></span></code></pre></div>
+<p>Au 02/10, il existe 19 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges en bateau.</p>
 <div class="sourceCode" id="cb63"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb63-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb63-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (en bateau ?), 2ème passage </span></span>
@@ -2053,9 +2056,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb63-27"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-27" tabindex="-1"></a>  <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span></span>
 <span id="cb63-28"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-28" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb63-29"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-29" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb63-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-30" tabindex="-1"></a>  ; <span class="co">--177</span></span>
-<span id="cb63-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-31" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 186</span></span></code></pre></div>
-<p>Au 29/08, il existe 186 opérations à insérer.</p>
+<span id="cb63-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-30" tabindex="-1"></a>  <span class="kw">AND</span> op_pcbgb.pcbgb_npas<span class="op">&gt;</span><span class="dv">1</span></span>
+<span id="cb63-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb63-31" tabindex="-1"></a>  ; <span class="co">--177</span></span></code></pre></div>
+<p>Au 02/10, il existe 186 opérations à insérer.</p>
 <p>Et enfin ceux du troisième passage.</p>
 <p>Ci-dessous le code d’insertion des inventaires à pied.</p>
 <div class="sourceCode" id="cb64"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb64-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb64-1" tabindex="-1"></a><span class="co">---</span></span>
@@ -2090,7 +2093,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb64-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb64-30" tabindex="-1"></a>  <span class="kw">AND</span> inv_npas<span class="op">=</span><span class="dv">3</span></span>
 <span id="cb64-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb64-31" tabindex="-1"></a>  ; <span class="co">--59</span></span>
 <span id="cb64-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb64-32" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 60</span></span></code></pre></div>
-<p>Au 29/08, il existe 60 opérations à insérer.</p>
+<p>Au 02/10, il existe 60 opérations à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges à pied.</p>
 <div class="sourceCode" id="cb65"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb65-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb65-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb65-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb65-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (à pied ?), 3eme passage </span></span>
@@ -2124,7 +2127,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb65-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb65-30" tabindex="-1"></a>  <span class="kw">AND</span> pcbgp_npas<span class="op">=</span><span class="dv">3</span></span>
 <span id="cb65-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb65-31" tabindex="-1"></a>  ; <span class="co">--0</span></span>
 <span id="cb65-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb65-32" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 0</span></span></code></pre></div>
-<p>Au 29/08, il n’existe aucune opération à insérer.</p>
+<p>Au 02/10, il n’existe aucune opération à insérer.</p>
 <p>Ci-dessous le code d’insertion des pêches des berges en bateau.</p>
 <div class="sourceCode" id="cb66"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb66-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb66-1" tabindex="-1"></a><span class="co">------------</span></span>
 <span id="cb66-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb66-2" tabindex="-1"></a><span class="co">-- Pêche en continu des berge (en bateau ?), 3ème passage </span></span>
@@ -2158,7 +2161,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb66-30"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb66-30" tabindex="-1"></a>   <span class="kw">AND</span> pcbgb_npas<span class="op">=</span><span class="dv">3</span></span>
 <span id="cb66-31"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb66-31" tabindex="-1"></a>  ; <span class="co">--0  </span></span>
 <span id="cb66-32"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb66-32" tabindex="-1"></a>  <span class="co">-- JRT, 30/08 : 0</span></span></code></pre></div>
-<p>Au 29/08, il n’existe aucune opération à insérer.</p>
+<p>Au 02/10, il n’existe aucune opération à insérer.</p>
 </div>
 <div id="dbeel_batch_fish_rsa-et-dbeel_mensurationindiv_biol_charac_rsa" class="section level3 hasAnchor" number="3.2.5">
 <h3><span class="header-section-number">3.2.5</span> dbeel_batch_fish_rsa et dbeel_mensurationindiv_biol_charac_rsa<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#dbeel_batch_fish_rsa-et-dbeel_mensurationindiv_biol_charac_rsa" class="anchor-section" aria-label="Anchor link to header"></a></h3>
@@ -2248,95 +2251,92 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb68-38"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-38" tabindex="-1"></a>    <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
 <span id="cb68-39"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-39" tabindex="-1"></a>    <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
 <span id="cb68-40"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-40" tabindex="-1"></a>    ; <span class="co">-- 121040 poissons mesurés au premier passage 1m56</span></span>
-<span id="cb68-41"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-41" tabindex="-1"></a>    <span class="co">-- JRT, 30/08/23 : 137650</span></span>
+<span id="cb68-41"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-41" tabindex="-1"></a></span>
 <span id="cb68-42"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-42" tabindex="-1"></a></span>
-<span id="cb68-43"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-43" tabindex="-1"></a></span>
-<span id="cb68-44"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-44" tabindex="-1"></a><span class="co">-- Fish caught during 2nd pass</span></span>
-<span id="cb68-45"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-45" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_batch_fish_rsa</span>
+<span id="cb68-43"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-43" tabindex="-1"></a><span class="co">-- Fish caught during 2nd pass</span></span>
+<span id="cb68-44"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-44" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_batch_fish_rsa</span>
+<span id="cb68-45"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-45" tabindex="-1"></a></span>
 <span id="cb68-46"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-46" tabindex="-1"></a></span>
-<span id="cb68-47"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-47" tabindex="-1"></a></span>
-<span id="cb68-48"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-48" tabindex="-1"></a>   <span class="kw">WITH</span> bap2 <span class="kw">AS</span> (</span>
-<span id="cb68-49"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-49" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> france.dbeel_batch_ope_rsa boa </span>
-<span id="cb68-50"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-50" tabindex="-1"></a>    <span class="kw">JOIN</span> dbeel_nomenclature.biological_characteristic_type bc <span class="kw">ON</span> bc.no_id<span class="op">=</span>boa.ba_no_biological_characteristic_type</span>
-<span id="cb68-51"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-51" tabindex="-1"></a>    <span class="kw">WHERE</span> bc.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span>  </span>
-<span id="cb68-52"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-52" tabindex="-1"></a>  ),</span>
-<span id="cb68-53"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-53" tabindex="-1"></a></span>
-<span id="cb68-54"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-54" tabindex="-1"></a>  bafp2 <span class="kw">AS</span> (<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> rsa.anguille_ang</span>
-<span id="cb68-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-55" tabindex="-1"></a>          <span class="kw">WHERE</span> ang_pas <span class="op">=</span> <span class="dv">2</span>) <span class="co">-- AS we entered ALL fish AS p1 even IF they ARE point sample</span></span>
-<span id="cb68-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-56" tabindex="-1"></a>  <span class="kw">SELECT</span> uuid_generate_v4() <span class="kw">AS</span> ba_id,</span>
-<span id="cb68-57"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-57" tabindex="-1"></a>  species.no_id <span class="kw">AS</span> ba_no_species,</span>
-<span id="cb68-58"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-58" tabindex="-1"></a>  stage.no_id <span class="kw">AS</span> ba_no_stage,</span>
-<span id="cb68-59"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-59" tabindex="-1"></a>  value_type.no_id <span class="kw">AS</span> ba_no_value_type,</span>
-<span id="cb68-60"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-60" tabindex="-1"></a>  biological_characteristic_type.no_id <span class="kw">AS</span> ba_no_biological_characteristic_type,</span>
-<span id="cb68-61"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-61" tabindex="-1"></a>  <span class="dv">1</span> <span class="kw">AS</span> ba_quantity,</span>
-<span id="cb68-62"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-62" tabindex="-1"></a>  individual_status.no_id <span class="kw">AS</span> ba_no_individual_status,</span>
-<span id="cb68-63"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-63" tabindex="-1"></a>  <span class="dv">2</span> <span class="kw">AS</span> ba_batch_level,</span>
-<span id="cb68-64"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-64" tabindex="-1"></a>  bap2.ba_ob_id <span class="kw">as</span> ba_ob_id, </span>
-<span id="cb68-65"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-65" tabindex="-1"></a>  ba_id <span class="kw">as</span> ba_ba_id,</span>
-<span id="cb68-66"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-66" tabindex="-1"></a>  ang_id,</span>
-<span id="cb68-67"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-67" tabindex="-1"></a>  ang_op_id,</span>
-<span id="cb68-68"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-68" tabindex="-1"></a>  ang_lot,</span>
-<span id="cb68-69"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-69" tabindex="-1"></a>  ang_nlot, </span>
-<span id="cb68-70"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-70" tabindex="-1"></a>  ang_zone ,</span>
-<span id="cb68-71"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-71" tabindex="-1"></a>  ang_cod </span>
-<span id="cb68-72"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-72" tabindex="-1"></a>  <span class="kw">FROM</span> bafp2</span>
-<span id="cb68-73"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-73" tabindex="-1"></a>  <span class="kw">JOIN</span> bap2 <span class="kw">ON</span> (bap2.op_id, bap2.op_zone) <span class="op">=</span>(bafp2.ang_op_id, bafp2.ang_zone),</span>
-<span id="cb68-74"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-74" tabindex="-1"></a>  dbeel_nomenclature.species, </span>
-<span id="cb68-75"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-75" tabindex="-1"></a>  dbeel_nomenclature.stage, </span>
-<span id="cb68-76"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-76" tabindex="-1"></a>  dbeel_nomenclature.biological_characteristic_type,</span>
-<span id="cb68-77"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-77" tabindex="-1"></a>  dbeel_nomenclature.value_type,</span>
-<span id="cb68-78"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-78" tabindex="-1"></a>  dbeel_nomenclature.individual_status </span>
-<span id="cb68-79"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-79" tabindex="-1"></a>  <span class="kw">WHERE</span> species.no_name<span class="op">=</span><span class="st">&#39;Anguilla anguilla&#39;</span> </span>
-<span id="cb68-80"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-80" tabindex="-1"></a>  <span class="kw">AND</span> stage.no_name<span class="op">=</span><span class="st">&#39;Yellow eel&#39;</span> </span>
-<span id="cb68-81"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-81" tabindex="-1"></a>    <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span></span>
-<span id="cb68-82"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-82" tabindex="-1"></a>    <span class="co">--AND biological_characteristic_type.no_name=&#39;Number&#39; -- should refer to Number p2 instead ?</span></span>
-<span id="cb68-83"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-83" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
-<span id="cb68-84"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-84" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb68-85"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-85" tabindex="-1"></a>  ;     <span class="co">--16089</span></span>
-<span id="cb68-86"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-86" tabindex="-1"></a>  <span class="co">-- JRT 30/08/23 : 17618</span></span>
-<span id="cb68-87"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-87" tabindex="-1"></a></span>
-<span id="cb68-88"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-88" tabindex="-1"></a><span class="co">-- Fish caught during 3rd pass</span></span>
-<span id="cb68-89"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-89" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_batch_fish_rsa</span>
-<span id="cb68-90"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-90" tabindex="-1"></a>   <span class="kw">WITH</span> bap3 <span class="kw">AS</span> (</span>
-<span id="cb68-91"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-91" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> france.dbeel_batch_ope_rsa boa </span>
-<span id="cb68-92"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-92" tabindex="-1"></a>    <span class="kw">JOIN</span> dbeel_nomenclature.biological_characteristic_type bc <span class="kw">ON</span> bc.no_id<span class="op">=</span>boa.ba_no_biological_characteristic_type</span>
-<span id="cb68-93"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-93" tabindex="-1"></a>    <span class="kw">WHERE</span> bc.no_name<span class="op">=</span><span class="st">&#39;Number p3&#39;</span>  </span>
-<span id="cb68-94"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-94" tabindex="-1"></a>  ),</span>
-<span id="cb68-95"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-95" tabindex="-1"></a></span>
-<span id="cb68-96"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-96" tabindex="-1"></a>  bafp3 <span class="kw">AS</span> (<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> rsa.anguille_ang</span>
-<span id="cb68-97"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-97" tabindex="-1"></a>          <span class="kw">WHERE</span> ang_pas <span class="op">=</span> <span class="dv">3</span>) <span class="co">-- AS we entered ALL fish AS p1 even IF they ARE point sample</span></span>
-<span id="cb68-98"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-98" tabindex="-1"></a>  <span class="kw">SELECT</span> uuid_generate_v4() <span class="kw">AS</span> ba_id,</span>
-<span id="cb68-99"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-99" tabindex="-1"></a>  species.no_id <span class="kw">AS</span> ba_no_species,</span>
-<span id="cb68-100"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-100" tabindex="-1"></a>  stage.no_id <span class="kw">AS</span> ba_no_stage,</span>
-<span id="cb68-101"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-101" tabindex="-1"></a>  value_type.no_id <span class="kw">AS</span> ba_no_value_type,</span>
-<span id="cb68-102"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-102" tabindex="-1"></a>  biological_characteristic_type.no_id <span class="kw">AS</span> ba_no_biological_characteristic_type,</span>
-<span id="cb68-103"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-103" tabindex="-1"></a>  <span class="dv">1</span> <span class="kw">AS</span> ba_quantity,</span>
-<span id="cb68-104"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-104" tabindex="-1"></a>  individual_status.no_id <span class="kw">AS</span> ba_no_individual_status,</span>
-<span id="cb68-105"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-105" tabindex="-1"></a>  <span class="dv">2</span> <span class="kw">AS</span> ba_batch_level,</span>
-<span id="cb68-106"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-106" tabindex="-1"></a>  bap3.ba_ob_id <span class="kw">as</span> ba_ob_id, </span>
-<span id="cb68-107"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-107" tabindex="-1"></a>  ba_id <span class="kw">as</span> ba_ba_id,</span>
-<span id="cb68-108"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-108" tabindex="-1"></a>  ang_id,</span>
-<span id="cb68-109"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-109" tabindex="-1"></a>  ang_op_id,</span>
-<span id="cb68-110"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-110" tabindex="-1"></a>  ang_lot,</span>
-<span id="cb68-111"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-111" tabindex="-1"></a>  ang_nlot, </span>
-<span id="cb68-112"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-112" tabindex="-1"></a>  ang_zone ,</span>
-<span id="cb68-113"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-113" tabindex="-1"></a>  ang_cod </span>
-<span id="cb68-114"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-114" tabindex="-1"></a>  <span class="kw">FROM</span> bafp3</span>
-<span id="cb68-115"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-115" tabindex="-1"></a>  <span class="kw">JOIN</span> bap3 <span class="kw">ON</span> (bap3.op_id, bap3.op_zone) <span class="op">=</span>(bafp3.ang_op_id, bafp3.ang_zone),</span>
-<span id="cb68-116"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-116" tabindex="-1"></a>  dbeel_nomenclature.species, </span>
-<span id="cb68-117"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-117" tabindex="-1"></a>  dbeel_nomenclature.stage, </span>
-<span id="cb68-118"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-118" tabindex="-1"></a>  dbeel_nomenclature.biological_characteristic_type,</span>
-<span id="cb68-119"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-119" tabindex="-1"></a>  dbeel_nomenclature.value_type,</span>
-<span id="cb68-120"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-120" tabindex="-1"></a>  dbeel_nomenclature.individual_status </span>
-<span id="cb68-121"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-121" tabindex="-1"></a>  <span class="kw">WHERE</span> species.no_name<span class="op">=</span><span class="st">&#39;Anguilla anguilla&#39;</span> </span>
-<span id="cb68-122"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-122" tabindex="-1"></a>  <span class="kw">AND</span> stage.no_name<span class="op">=</span><span class="st">&#39;Yellow eel&#39;</span> </span>
-<span id="cb68-123"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-123" tabindex="-1"></a>    <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p3&#39;</span></span>
-<span id="cb68-124"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-124" tabindex="-1"></a>    <span class="co">--AND biological_characteristic_type.no_name=&#39;Number&#39; -- should refer to Number p3 instead ?</span></span>
-<span id="cb68-125"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-125" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
-<span id="cb68-126"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-126" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
-<span id="cb68-127"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-127" tabindex="-1"></a>  ;   <span class="co">--467</span></span>
-<span id="cb68-128"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-128" tabindex="-1"></a>  <span class="co">-- JRT, 30/08/23 : 492</span></span></code></pre></div>
-<p>Au 04/09/2023, 137650, 17618 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table <strong>dbeel_batch_fish_rsa</strong>.</p>
+<span id="cb68-47"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-47" tabindex="-1"></a>   <span class="kw">WITH</span> bap2 <span class="kw">AS</span> (</span>
+<span id="cb68-48"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-48" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> france.dbeel_batch_ope_rsa boa </span>
+<span id="cb68-49"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-49" tabindex="-1"></a>    <span class="kw">JOIN</span> dbeel_nomenclature.biological_characteristic_type bc <span class="kw">ON</span> bc.no_id<span class="op">=</span>boa.ba_no_biological_characteristic_type</span>
+<span id="cb68-50"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-50" tabindex="-1"></a>    <span class="kw">WHERE</span> bc.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span>  </span>
+<span id="cb68-51"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-51" tabindex="-1"></a>  ),</span>
+<span id="cb68-52"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-52" tabindex="-1"></a></span>
+<span id="cb68-53"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-53" tabindex="-1"></a>  bafp2 <span class="kw">AS</span> (<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> rsa.anguille_ang</span>
+<span id="cb68-54"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-54" tabindex="-1"></a>          <span class="kw">WHERE</span> ang_pas <span class="op">=</span> <span class="dv">2</span>) <span class="co">-- AS we entered ALL fish AS p1 even IF they ARE point sample</span></span>
+<span id="cb68-55"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-55" tabindex="-1"></a>  <span class="kw">SELECT</span> uuid_generate_v4() <span class="kw">AS</span> ba_id,</span>
+<span id="cb68-56"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-56" tabindex="-1"></a>  species.no_id <span class="kw">AS</span> ba_no_species,</span>
+<span id="cb68-57"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-57" tabindex="-1"></a>  stage.no_id <span class="kw">AS</span> ba_no_stage,</span>
+<span id="cb68-58"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-58" tabindex="-1"></a>  value_type.no_id <span class="kw">AS</span> ba_no_value_type,</span>
+<span id="cb68-59"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-59" tabindex="-1"></a>  biological_characteristic_type.no_id <span class="kw">AS</span> ba_no_biological_characteristic_type,</span>
+<span id="cb68-60"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-60" tabindex="-1"></a>  <span class="dv">1</span> <span class="kw">AS</span> ba_quantity,</span>
+<span id="cb68-61"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-61" tabindex="-1"></a>  individual_status.no_id <span class="kw">AS</span> ba_no_individual_status,</span>
+<span id="cb68-62"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-62" tabindex="-1"></a>  <span class="dv">2</span> <span class="kw">AS</span> ba_batch_level,</span>
+<span id="cb68-63"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-63" tabindex="-1"></a>  bap2.ba_ob_id <span class="kw">as</span> ba_ob_id, </span>
+<span id="cb68-64"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-64" tabindex="-1"></a>  ba_id <span class="kw">as</span> ba_ba_id,</span>
+<span id="cb68-65"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-65" tabindex="-1"></a>  ang_id,</span>
+<span id="cb68-66"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-66" tabindex="-1"></a>  ang_op_id,</span>
+<span id="cb68-67"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-67" tabindex="-1"></a>  ang_lot,</span>
+<span id="cb68-68"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-68" tabindex="-1"></a>  ang_nlot, </span>
+<span id="cb68-69"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-69" tabindex="-1"></a>  ang_zone ,</span>
+<span id="cb68-70"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-70" tabindex="-1"></a>  ang_cod </span>
+<span id="cb68-71"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-71" tabindex="-1"></a>  <span class="kw">FROM</span> bafp2</span>
+<span id="cb68-72"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-72" tabindex="-1"></a>  <span class="kw">JOIN</span> bap2 <span class="kw">ON</span> (bap2.op_id, bap2.op_zone) <span class="op">=</span>(bafp2.ang_op_id, bafp2.ang_zone),</span>
+<span id="cb68-73"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-73" tabindex="-1"></a>  dbeel_nomenclature.species, </span>
+<span id="cb68-74"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-74" tabindex="-1"></a>  dbeel_nomenclature.stage, </span>
+<span id="cb68-75"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-75" tabindex="-1"></a>  dbeel_nomenclature.biological_characteristic_type,</span>
+<span id="cb68-76"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-76" tabindex="-1"></a>  dbeel_nomenclature.value_type,</span>
+<span id="cb68-77"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-77" tabindex="-1"></a>  dbeel_nomenclature.individual_status </span>
+<span id="cb68-78"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-78" tabindex="-1"></a>  <span class="kw">WHERE</span> species.no_name<span class="op">=</span><span class="st">&#39;Anguilla anguilla&#39;</span> </span>
+<span id="cb68-79"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-79" tabindex="-1"></a>  <span class="kw">AND</span> stage.no_name<span class="op">=</span><span class="st">&#39;Yellow eel&#39;</span> </span>
+<span id="cb68-80"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-80" tabindex="-1"></a>    <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p2&#39;</span></span>
+<span id="cb68-81"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-81" tabindex="-1"></a>    <span class="co">--AND biological_characteristic_type.no_name=&#39;Number&#39; -- should refer to Number p2 instead ?</span></span>
+<span id="cb68-82"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-82" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
+<span id="cb68-83"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-83" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
+<span id="cb68-84"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-84" tabindex="-1"></a>  ;     <span class="co">--16089</span></span>
+<span id="cb68-85"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-85" tabindex="-1"></a></span>
+<span id="cb68-86"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-86" tabindex="-1"></a><span class="co">-- Fish caught during 3rd pass</span></span>
+<span id="cb68-87"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-87" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_batch_fish_rsa</span>
+<span id="cb68-88"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-88" tabindex="-1"></a>   <span class="kw">WITH</span> bap3 <span class="kw">AS</span> (</span>
+<span id="cb68-89"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-89" tabindex="-1"></a>    <span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> france.dbeel_batch_ope_rsa boa </span>
+<span id="cb68-90"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-90" tabindex="-1"></a>    <span class="kw">JOIN</span> dbeel_nomenclature.biological_characteristic_type bc <span class="kw">ON</span> bc.no_id<span class="op">=</span>boa.ba_no_biological_characteristic_type</span>
+<span id="cb68-91"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-91" tabindex="-1"></a>    <span class="kw">WHERE</span> bc.no_name<span class="op">=</span><span class="st">&#39;Number p3&#39;</span>  </span>
+<span id="cb68-92"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-92" tabindex="-1"></a>  ),</span>
+<span id="cb68-93"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-93" tabindex="-1"></a></span>
+<span id="cb68-94"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-94" tabindex="-1"></a>  bafp3 <span class="kw">AS</span> (<span class="kw">SELECT</span> <span class="op">*</span> <span class="kw">FROM</span> rsa.anguille_ang</span>
+<span id="cb68-95"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-95" tabindex="-1"></a>          <span class="kw">WHERE</span> ang_pas <span class="op">=</span> <span class="dv">3</span>) <span class="co">-- AS we entered ALL fish AS p1 even IF they ARE point sample</span></span>
+<span id="cb68-96"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-96" tabindex="-1"></a>  <span class="kw">SELECT</span> uuid_generate_v4() <span class="kw">AS</span> ba_id,</span>
+<span id="cb68-97"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-97" tabindex="-1"></a>  species.no_id <span class="kw">AS</span> ba_no_species,</span>
+<span id="cb68-98"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-98" tabindex="-1"></a>  stage.no_id <span class="kw">AS</span> ba_no_stage,</span>
+<span id="cb68-99"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-99" tabindex="-1"></a>  value_type.no_id <span class="kw">AS</span> ba_no_value_type,</span>
+<span id="cb68-100"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-100" tabindex="-1"></a>  biological_characteristic_type.no_id <span class="kw">AS</span> ba_no_biological_characteristic_type,</span>
+<span id="cb68-101"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-101" tabindex="-1"></a>  <span class="dv">1</span> <span class="kw">AS</span> ba_quantity,</span>
+<span id="cb68-102"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-102" tabindex="-1"></a>  individual_status.no_id <span class="kw">AS</span> ba_no_individual_status,</span>
+<span id="cb68-103"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-103" tabindex="-1"></a>  <span class="dv">2</span> <span class="kw">AS</span> ba_batch_level,</span>
+<span id="cb68-104"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-104" tabindex="-1"></a>  bap3.ba_ob_id <span class="kw">as</span> ba_ob_id, </span>
+<span id="cb68-105"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-105" tabindex="-1"></a>  ba_id <span class="kw">as</span> ba_ba_id,</span>
+<span id="cb68-106"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-106" tabindex="-1"></a>  ang_id,</span>
+<span id="cb68-107"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-107" tabindex="-1"></a>  ang_op_id,</span>
+<span id="cb68-108"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-108" tabindex="-1"></a>  ang_lot,</span>
+<span id="cb68-109"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-109" tabindex="-1"></a>  ang_nlot, </span>
+<span id="cb68-110"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-110" tabindex="-1"></a>  ang_zone ,</span>
+<span id="cb68-111"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-111" tabindex="-1"></a>  ang_cod </span>
+<span id="cb68-112"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-112" tabindex="-1"></a>  <span class="kw">FROM</span> bafp3</span>
+<span id="cb68-113"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-113" tabindex="-1"></a>  <span class="kw">JOIN</span> bap3 <span class="kw">ON</span> (bap3.op_id, bap3.op_zone) <span class="op">=</span>(bafp3.ang_op_id, bafp3.ang_zone),</span>
+<span id="cb68-114"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-114" tabindex="-1"></a>  dbeel_nomenclature.species, </span>
+<span id="cb68-115"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-115" tabindex="-1"></a>  dbeel_nomenclature.stage, </span>
+<span id="cb68-116"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-116" tabindex="-1"></a>  dbeel_nomenclature.biological_characteristic_type,</span>
+<span id="cb68-117"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-117" tabindex="-1"></a>  dbeel_nomenclature.value_type,</span>
+<span id="cb68-118"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-118" tabindex="-1"></a>  dbeel_nomenclature.individual_status </span>
+<span id="cb68-119"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-119" tabindex="-1"></a>  <span class="kw">WHERE</span> species.no_name<span class="op">=</span><span class="st">&#39;Anguilla anguilla&#39;</span> </span>
+<span id="cb68-120"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-120" tabindex="-1"></a>  <span class="kw">AND</span> stage.no_name<span class="op">=</span><span class="st">&#39;Yellow eel&#39;</span> </span>
+<span id="cb68-121"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-121" tabindex="-1"></a>    <span class="kw">AND</span> biological_characteristic_type.no_name<span class="op">=</span><span class="st">&#39;Number p3&#39;</span></span>
+<span id="cb68-122"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-122" tabindex="-1"></a>    <span class="co">--AND biological_characteristic_type.no_name=&#39;Number&#39; -- should refer to Number p3 instead ?</span></span>
+<span id="cb68-123"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-123" tabindex="-1"></a>  <span class="kw">AND</span> individual_status.no_name<span class="op">=</span><span class="st">&#39;Alive&#39;</span> </span>
+<span id="cb68-124"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-124" tabindex="-1"></a>  <span class="kw">AND</span> value_type.no_name<span class="op">=</span><span class="st">&#39;Raw data or Individual data&#39;</span></span>
+<span id="cb68-125"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb68-125" tabindex="-1"></a>  ;   <span class="co">--467</span></span></code></pre></div>
+<p>Au 02/10/2023, 136827, 17700 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table <strong>dbeel_batch_fish_rsa</strong>.</p>
 <div class="sourceCode" id="cb69"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb69-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-1" tabindex="-1"></a><span class="kw">INSERT</span> <span class="kw">INTO</span> france.dbeel_mensurationindiv_biol_charac_rsa(</span>
 <span id="cb69-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-2" tabindex="-1"></a>  bc_id,</span>
 <span id="cb69-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-3" tabindex="-1"></a>  bc_ba_id,</span>
@@ -2388,13 +2388,26 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb69-49"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-49" tabindex="-1"></a>  <span class="kw">WHERE</span> biological_characteristic_type.no_name <span class="op">=</span> <span class="st">&#39;Length&#39;</span></span>
 <span id="cb69-50"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-50" tabindex="-1"></a>  <span class="kw">AND</span> baf.ang_lot<span class="op">=</span><span class="st">&#39;N&#39;</span></span>
 <span id="cb69-51"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb69-51" tabindex="-1"></a>    <span class="kw">AND</span> baf.ang_taille <span class="kw">is</span> <span class="kw">not</span> <span class="kw">null</span>; <span class="co">--to prevent from inserting NULL length values</span></span></code></pre></div>
-<p>Problème dans <strong>dbeel_mensurationindiv_biol_charac_rsa</strong> : en contrôlant les données, on constate que seul le champs <strong>ang_id</strong> est utilisé pour faire la jointure avec <strong>france.dbeel_batch_fish_rsa</strong>. Ce qui n’est pas correct puisque le <strong>ang_id</strong> n’est pas unique entre des zones de pêches différentes. Il faut donc rajouter le champs <strong>ang_zone</strong> dans cette table. De plus l’ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. <strong>Cela a été corrigé le 07/09. L’insertion résultante est de 72376 lignes de données poids, et 145619 mesures de longueur.</strong></p>
-<p><strong>Attention, au 04/09/23</strong>, problème dans <strong>rsa.anguille_ang</strong> sur certaines pêches : en contrôlant les données il apparaît que dans la table <strong>rsa.anguille_ang</strong>, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone ‘lcv’.</p>
+<p>Problème dans <strong>dbeel_mensurationindiv_biol_charac_rsa</strong> : en contrôlant les données, on constate que seul le champs <strong>ang_id</strong> est utilisé pour faire la jointure avec <strong>france.dbeel_batch_fish_rsa</strong>. Ce qui n’est pas correct puisque le <strong>ang_id</strong> n’est pas unique entre des zones de pêches différentes. Il faut donc rajouter le champs <strong>ang_zone</strong> dans cette table. De plus l’ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. <strong>Cela a été corrigé le 07/09. Au 02/10, l’insertion résultante est de 69162 lignes de données poids, et 144187 mesures de longueur.</strong></p>
+<p>Au 04/09/23, problème dans <strong>rsa.anguille_ang</strong> sur certaines pêches : en contrôlant les données il apparaît que dans la table <strong>rsa.anguille_ang</strong>, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone ‘lcv’. Cela a été corrigé au 02/10. La requête suivante ne renvoie plus aucun résultat.</p>
 <div class="sourceCode" id="cb70"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb70-1"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb70-1" tabindex="-1"></a><span class="kw">SELECT</span>   <span class="fu">count</span>(<span class="op">*</span>),aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poids</span>
 <span id="cb70-2"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb70-2" tabindex="-1"></a><span class="kw">FROM</span> rsa.anguille_ang aa</span>
 <span id="cb70-3"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb70-3" tabindex="-1"></a><span class="kw">GROUP</span> <span class="kw">BY</span> aa.ang_zone,aa.ang_op_id,aa.ang_pas,aa.ang_cod,aa.ang_taille,aa.ang_poids  </span>
 <span id="cb70-4"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb70-4" tabindex="-1"></a><span class="kw">having</span> <span class="fu">count</span>(<span class="op">*</span>)<span class="op">&gt;</span><span class="dv">1</span> <span class="kw">and</span> aa.ang_cod notnull </span>
 <span id="cb70-5"><a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#cb70-5" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> <span class="fu">count</span>(<span class="op">*</span>) <span class="kw">desc</span></span></code></pre></div>
+</div>
+</div>
+<div id="vues" class="section level2 hasAnchor" number="3.3">
+<h2><span class="header-section-number">3.3</span> Vues<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#vues" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<p>Le run du modèle EDA nécessite l’utilisation de vues. Les vues utilisées sont les suivantes :
+- view_electrofishing ou view_electrofishing_loire ou view_electrofishing_loirebretatgne ( <strong>à renommer</strong> )
+- view_electrofishing_size
+- view_silvering
+- view_electrofishing_size_weight</p>
+<div id="view_electrofishing" class="section level3 hasAnchor" number="3.3.1">
+<h3><span class="header-section-number">3.3.1</span> view_electrofishing<a href="insertion-des-données-dans-les-tables-de-la-dbeel.html#view_electrofishing" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>Au 19/09, cette requête renvoie 8329677 lignes. Elle liste l’ensemble des opérations de pêches qui ont été menées en précisant notamment la source de données (ASPE/RSA), la station et sa localisation, quelques éléments sur la méthode de pêche et enfin des résultats de pêches. (totaux et par passages).</p>
+<p>A modifier pour ne renvoyer que la France. Dans le nouveau schéma france, on tapera directement sur les tables.</p>
 
 </div>
 </div>
@@ -2405,7 +2418,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
         </div>
       </div>
 <a href="préparation-des-données.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
-<a href="gestion-des-doublons-éventuels-rsaaspe.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+<a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>
