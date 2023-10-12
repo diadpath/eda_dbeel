@@ -40,6 +40,7 @@ SELECT row_number() OVER() AS "id",
     ba3.ba_quantity AS nbp1,				--captured eels, 1st pass
     ba4.ba_quantity AS nbp2,				--captured eels, 2nd pass
     ba5.ba_quantity AS nbp3,				--captured eels, 3rd pass
+	ba6.ba_quantity AS nbp4,				--captured eels, 4th pass
     cl.nb_meas AS nb_size_measured, 		--count of eels measured (size)
     op.the_geom								--station coordinates (geometry)
 from dbeel.observation_places op 
@@ -57,7 +58,8 @@ left join dbeel.batch ba1 on ba1.ba_ob_id = e.ob_id and ba1.ba_no_biological_cha
 left join dbeel.batch ba2 on ba2.ba_ob_id = e.ob_id and ba2.ba_no_biological_characteristic_type = 47 and ba2.ba_batch_level = 1 	-- for total catches, is left join necessary ? every op should have a total number
 left join dbeel.batch ba3 on ba3.ba_ob_id = e.ob_id and ba3.ba_no_biological_characteristic_type = 231 and ba3.ba_batch_level = 1 	-- for 1st pass catches, is left join necessary ? every of should have a 1st pass1
 left join dbeel.batch ba4 on ba4.ba_ob_id = e.ob_id and ba4.ba_no_biological_characteristic_type = 232 and ba4.ba_batch_level = 1 	-- for 2nd pass catches, left join necessary
-left join dbeel.batch ba5 on ba5.ba_ob_id = e.ob_id and ba5.ba_no_biological_characteristic_type = 234 and ba5.ba_batch_level = 1	-- for 3rd pass catches, left join necessary 
+left join dbeel.batch ba5 on ba5.ba_ob_id = e.ob_id and ba5.ba_no_biological_characteristic_type = 233 and ba5.ba_batch_level = 1	-- for 3rd pass catches, left join necessary 
+left join dbeel.batch ba6 on ba6.ba_ob_id = e.ob_id and ba6.ba_no_biological_characteristic_type = 234 and ba6.ba_batch_level = 1	-- for 4th pass catches, left join necessary 
 -- getting count of length measured
 left join count_length cl on cl.ob_id = e.ob_id 
 --to be replaced when France data would be stored in dbeel_france scheme

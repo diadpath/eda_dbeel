@@ -289,6 +289,7 @@ Sur les 10 couples d'opérations différents, 8 présentent une différence de m
 - une différence de 129mm avec notamment une anguille manquante dans RSA
 - une différence de 73mm, une seule anguille mesurée, 282mm dans ASPE, 355mm dans RSA
 
+<<<<<<< HEAD
 __Solution proposée__ : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.
 
 # Opérations de pêches dupliquées ASPE/RSA
@@ -505,3 +506,5 @@ Il est par la suite nécessaire de contrôler chacun de ces doublons dans ASPE e
 Au 09/10/23 : 
 pour les doublons RSA (action Guirec André): il existait 18 couples d'opérations potentiellement doublons, 16 en Bretagne et 2 en Normandie. Celles de Bretagne étaient effectivement des doublons et ont été épurés, celles de Normandie ne sont pas des doublons.
 pour les doublons ASPE : en cours de traitement par Eddy Cosson. 
+=======
+__Solution proposée__ : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.

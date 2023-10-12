@@ -1154,14 +1154,6 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=4; -- 4  
 
---  11/04/2022 for code commit #e9572d44da8c96c1fceff7b2f4f45ab940817b0a
-
-
-
-
-
-
-
 
 -- *************************************************
 -- *************************************************
@@ -1214,7 +1206,131 @@ join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama
 ) AS subquery
 WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
 
- 
+--
+--insert silvering data in dbeel_mensurationindiv_biol_charac_aspe
+--
+
+--insert Eyes, vertical diameter
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.eye_diam_vert, 			--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_vert'
+  --19/10/23 : 14264 records
+
+--insert Eyes, horizontal diameter
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.eye_diam_horiz, 		--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz'
+  --19/10/23 : 14264 records
+  
+--insert pectoral length
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.length_pect, 			--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect'
+  --19/10/23 : 14264 records
+
+--insert presence of neuromast
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.presence_neuromast, 	--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct 
+  WHERE bct.no_name = 'presence_neuromast'
+  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0
+  --19/10/23 : 0 record
+
+
+--insert contrast observations
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.contrast, 				--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct 
+  WHERE bct.no_name = 'contrast'
+  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0
+  --19/10/23 : 0 record
+
+
 /*  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb
  WHERE bc_no_characteristic_type =39
