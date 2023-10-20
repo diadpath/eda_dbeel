@@ -1,5 +1,5 @@
 -- dbeel.view_silvering source
-
+--19/10/2023
 CREATE OR REPLACE VIEW sudoang.view_silvering
 AS SELECT op.op_id,
     --locationid, what is it ?
