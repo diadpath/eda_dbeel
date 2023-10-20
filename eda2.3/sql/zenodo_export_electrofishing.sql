@@ -15,16 +15,17 @@ WHEN institution IS NULL AND op_gis_layername = 'Valencia Council (VAERSA)' THEN
 WHEN institution IS NULL AND op_gis_layername ilike 'Xunta' THEN 'Xunta de Galicia, Consellería de Medio Ambiente, Territorio e Vivenda'
 WHEN institution IS NULL THEN op_gis_layername
 ELSE institution END AS institution, -- institution IF DATA come FROM the sibic
-ref_article,
+CASE WHEN  op_gis_layername= 'FCUL/MARE' AND sta_source IS NOT NULL THEN sta_source ELSE ref_article END AS ref_article,
 articletitle, -- article title IF DATA come FROM the sibic
 op_placename, -- Name OF the place
-st_x(st_transform(geom_reproj , 4326)) AS x_espg_4326, --x(EPSG 4326)
-st_y(st_transform(geom_reproj,4326)) AS y_espg_4326, --y (EPSG 4326)
+st_x(st_transform(s.geom_reproj , 4326)) AS x_espg_4326, --x(EPSG 4326)
+st_y(st_transform(s.geom_reproj,4326)) AS y_espg_4326, --y (EPSG 4326)
 country -- country
 FROM sudoang.dbeel_station s 
 LEFT JOIN species_location_uk l
 ON l.locationid = s.locationid 
-WHERE geom_reproj IS NOT NULL
+LEFT JOIN sudoang.portugal_location_bis ON op_id = dbeel_op_id
+WHERE s.geom_reproj IS NOT NULL
 )
 --SELECT count(*) FROM station --13793
 SELECT * FROM station
@@ -33,6 +34,18 @@ SELECT * FROM station
  TO '/temp/station.csv' WITH (FORMAT CSV, HEADER TRUE, DELIMITER ';', ENCODING 'UTF8');
  --13793
  
+WITH species_location_uk AS (
+SELECT DISTINCT ON (locationid) * FROM sudoang.species_location s 
+JOIN sudoang."references" AS r  ON r.idref = s.idref
+)
+
+SELECT * 
+FROM sudoang.dbeel_station s 
+LEFT JOIN species_location_uk l
+ON l.locationid = s.locationid 
+LEFT JOIN sudoang.portugal_location_bis ON op_id = dbeel_op_id
+WHERE s.geom_reproj IS NOT NULL
+AND s.op_gis_layername = 'FCUL/MARE'
  
  -- operations 
 --ICNF- (this data is not obtained by ICNF and is restricted for use) 
