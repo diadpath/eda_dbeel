@@ -266,4 +266,3 @@ Au 28/09 : Le problème a été identifié. Dans le script d'insertion _import_r
 <!-- cohérence de la taille de la nageoire pectorale, du diamètre oculaire, -->
 <!-- --- -->
 
-

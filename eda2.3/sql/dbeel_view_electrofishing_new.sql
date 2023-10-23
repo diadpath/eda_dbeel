@@ -2,7 +2,7 @@
 --Elle est utilisée par le modèle EDA
 --Elle présente le détail des résultats, pour chaque passage, par opérations de pêches
 --le détail par poisson n'est pas présenté (il est réalisé dans une autre vue)
---il faut donc un filtre pour ne remonter que les données totaux (en travaillant sur ba_batch_level ou ba_no_biological_characteristic_type)
+--il faut donc un filtre pour ne remonter que les données totales (en travaillant sur ba_batch_level ou ba_no_biological_characteristic_type)
 --durée sur postgres_local : environ 18s (avec 200 lignes remontées)
 
 DROP VIEW IF EXISTS dbeel.view_electrofishing_new CASCADE;

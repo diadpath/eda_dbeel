@@ -27,7 +27,7 @@
 -- 3) Electrofishing details
 -- 4) Batch informations 
 -- 5) Batch informations (fish level)
--- 6) Silvering data
+-- 6) Silvering data (dbeel.view_electrofishing_size_weight_new needed)
 -- *************************************************
 -- *************************************************
 -- *************************************************
@@ -1158,7 +1158,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 -- *************************************************
 -- *************************************************
 -- *************************************************
--- 6) Silvering data
+-- 6) Silvering data (dbeel.view_electrofishing_size_weight_new)
 -- *************************************************
 -- *************************************************
 -- *************************************************
@@ -1205,6 +1205,39 @@ FROM (select ob_id,bsw.ope_code_wama  from batch_silver_wama bsw
 join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama 
 ) AS subquery
 WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
+
+
+--
+--we then need to include silvering data into dbeel_mensurationindiv_biol_charac_aspe
+--but to do so, we need each measure in batch_silver_wama to be associated with a unique fish id (ba_id in dbeel.batch for ba_batch_level = 2)
+--for that purpose, we create a temporary table which would be created by linking batch_silver_wama data and the list of fish measurments already none in dbeel which are listed in dbeel.view_electrofishing_size_weight_new
+--we also need to manage the case of eels with identical length/weight measured (but different silvering data) during a given electrofishing operation. We do so with a partition trick.
+drop table if exists france.temp_batch_wama_with_id ;
+CREATE TABLE france.temp_batch_wama_with_id
+AS 
+with 
+part_wama as (
+select 
+tbw.*,
+row_number () OVER(PARTITION BY (tbw.ope_dbeel_ob_id, tbw.length, tbw.weight) ORDER BY (tbw.ope_dbeel_ob_id, tbw.length, tbw.weight) asc) AS row_wama--,
+from france.batch_silver_wama tbw),
+--on fait la même chose côté dbeel pour les ob_id connus dans wama
+part_dbeel as (
+select ve.bc_id, ve.bc_ba_id ,ve.ob_id, ve.length, ve.weight,
+row_number () OVER(PARTITION BY (ve.ob_id, ve.length, ve.weight) ORDER BY (ve.ob_id, ve.length, ve.weight) asc) AS row_dbeel--,
+--concat(ve.ob_id, ve.length, ve.weight,
+--row_number () OVER(PARTITION BY (ve.ob_id, ve.length, ve.weight) ORDER BY (ve.ob_id, ve.length, ve.weight) asc)) as concat_dbeel
+from dbeel.view_electrofishing_size_weight_new ve 
+where ve.ob_id::text in (select distinct tb.ope_dbeel_ob_id::text from france.batch_silver_wama tb))
+--et au final on update la table wama, en prenant en compte le quator ob_id, length,weight,numéro de partition
+--l'update n'est pas encore fait mais je vérifie ici que j'arrive bien à assigner un id de poisson (ve.bc_ba_id) à chaque mesure batch_wama
+select pw.*, pd.row_dbeel, pd.bc_id, pd.bc_ba_id, pd.ob_id
+from part_wama pw
+join part_dbeel pd on (pd.ob_id::text,pd.length,pd.weight,pd.row_dbeel) = (pw.ope_dbeel_ob_id::text,pw.length,pw.weight,pw.row_wama);
+--14264 sur 14351 initialement existantes dans WAMA
+--87 lines lost due mainly to dpulicates in WAMA or other issues in ASPE.
+
+
 
 --
 --insert silvering data in dbeel_mensurationindiv_biol_charac_aspe
@@ -1330,6 +1363,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0
   --19/10/23 : 0 record
 
+drop table if exists france.temp_batch_wama_with_id ;
 
 /*  WITH bc_size AS (
  SELECT bc_id, bc_ba_id, bc_numvalue AS size FROM france.dbeel_mensurationindiv_biol_charac_aspe  bb

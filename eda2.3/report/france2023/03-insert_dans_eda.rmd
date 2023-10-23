@@ -908,7 +908,7 @@ where bsw2.ope_code_wama  not in
 
 Ces données perdues sont rattachées à 18 code WAMA qui font références à des opérations de pêches dont l'identifiant de la station **sta_id** n'est pas connu (NULL en base). Ce problème a été évoqué dans la [Préparations des données](.\préparation-des-données.html#opérations) et est en attente de décision.
 
-Il reste à ce stade uniquement à mettre à jour le **ope_dbeel_ob_id** comme suit.
+Il est nécessaire ensuite de mettre à jour le **ope_dbeel_ob_id** comme suit.
 
 ```{sql update_wama_id, eval = FALSE, echo = TRUE}
 UPDATE batch_silver_wama
@@ -917,6 +917,168 @@ FROM (select ob_id,bsw.ope_code_wama  from batch_silver_wama bsw
 join dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_wama 
 ) AS subquery
 WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
+```
+
+Afin d'assurer un bon fonctionnement de EDA, il est nécessaire de disposer de ces données d'argenture dans la table _france.dbeel_mensurationindiv_biol_charac_aspe_ où sont stockées toutes les mesures biométriques associées aux anguilles capturées. Le mécanisme d'héritage assure ensuite la remontée de ces infos dans la table _dbeel.biological_characteristic_. Les données d'argenture à insérer sont : les diamètres verticaux et horizontaux de l'oeil, la longueur de la pectorale, la présence de neuromastes, l'observation de contrastes (?).
+
+Néanmoins les données d'argenture dans la BDMap possèdent un identifiant relatif à l'opération de pêche mais pas à l'anguille. Pour faire le lien avec l'anguille, il est nécessaire de faire une jointure qui se basera sur l'identifiant de l'opération, le poids et la taille de l'anguille. Dans le cas ou des anguilles de même taille/poids sont connues dans les deux bases, alors un incrément unique est générée pour les différencier au sein de chacune des bases.
+
+L'insertion dans la table _dbeel_mensurationindiv_biol_charac_aspe_ passe enfin par une table temporaire pour plus de simplicité dans les traitements.
+A noter que la création de la table temporaire nécessite l'utilisation de la vue __dbeel.view_electrofishing_size_weight_new__.
+
+```{sql insert_silvering_dbeel, eval = FALSE, echo = TRUE}
+drop table if exists france.temp_batch_wama_with_id ;
+
+CREATE TABLE france.temp_batch_wama_with_id
+AS 
+with 
+part_wama as (
+select 
+tbw.*,
+row_number () OVER(PARTITION BY (tbw.ope_dbeel_ob_id, tbw.length, tbw.weight) ORDER BY (tbw.ope_dbeel_ob_id, tbw.length, tbw.weight) asc) AS row_wama--,
+from france.batch_silver_wama tbw),
+--on fait la même chose côté dbeel pour les ob_id connus dans wama
+part_dbeel as (
+select ve.bc_id, ve.bc_ba_id ,ve.ob_id, ve.length, ve.weight,
+row_number () OVER(PARTITION BY (ve.ob_id, ve.length, ve.weight) ORDER BY (ve.ob_id, ve.length, ve.weight) asc) AS row_dbeel--,
+--concat(ve.ob_id, ve.length, ve.weight,
+--row_number () OVER(PARTITION BY (ve.ob_id, ve.length, ve.weight) ORDER BY (ve.ob_id, ve.length, ve.weight) asc)) as concat_dbeel
+from dbeel.view_electrofishing_size_weight_new ve 
+where ve.ob_id::text in (select distinct tb.ope_dbeel_ob_id::text from france.batch_silver_wama tb))
+--et au final on update la table wama, en prenant en compte le quator ob_id, length,weight,numéro de partition
+--l'update n'est pas encore fait mais je vérifie ici que j'arrive bien à assigner un id de poisson (ve.bc_ba_id) à chaque mesure batch_wama
+select pw.*, pd.row_dbeel, pd.bc_id, pd.bc_ba_id, pd.ob_id
+from part_wama pw
+join part_dbeel pd on (pd.ob_id::text,pd.length,pd.weight,pd.row_dbeel) = (pw.ope_dbeel_ob_id::text,pw.length,pw.weight,pw.row_wama);
+--14264 sur 14351 initialement existantes dans WAMA
+--87 lines lost due mainly to duplicates in WAMA or other issues in ASPE.
+```
+
+Au 23/10/2023, 14264 lignes anguilles ont donné lieu à des mesures biométriqsues (autre que longueur/poids) sur 14351 initialement stockées. Cette différence s'explique principalement par l'existence de doublons dans la table batch_silver_wama, doublons présents à l'origine dans le dump de la BDMap. __Informations transmis à L. Beaulaton__. 
+
+Par la suite, il reste à insérer, mesure par mesure, les données d'argenture.
+```{sql insert_silvering_dbeel_2, eval = FALSE, echo = TRUE}
+--insert Eyes, vertical diameter
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.eye_diam_vert, 			--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_vert'
+  --19/10/23 : 14264 records
+
+--insert Eyes, horizontal diameter
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.eye_diam_horiz, 		--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz'
+  --19/10/23 : 14264 records
+  
+--insert pectoral length
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.length_pect, 			--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect'
+  --19/10/23 : 14264 records
+
+--insert presence of neuromast
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.presence_neuromast, 	--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct 
+  WHERE bct.no_name = 'presence_neuromast'
+  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0
+  --19/10/23 : 0 record
+
+
+--insert contrast observations
+INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
+  bc_id,
+  bc_ba_id,
+  bc_no_characteristic_type,
+  bc_no_value_type,
+  bc_numvalue,
+  mei_id,
+  ope_id)  
+  SELECT 
+  uuid_generate_v4() AS bc_id, 	--generated id of measurment
+  tbwwi.bc_ba_id, 				--fish id (from batch)
+  bct.no_id,					--id of type of measurment (eye_diam_vert, eye_diam_horiz, length_pect, presence_neuromast, contrast) 
+  dbfa.ba_no_value_type, 		--id of type of value (raw or elaborated)
+  tbwwi.contrast, 				--silvering measurment
+  dbfa.mei_id,					-- id of measurment from ASPE database
+  dbfa.ope_id 					-- id of operation from ASPE
+  FROM 
+  france.temp_batch_wama_with_id tbwwi 
+  join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
+  dbeel_nomenclature.biological_characteristic_type bct 
+  WHERE bct.no_name = 'contrast'
+  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0
+  --19/10/23 : 0 record
+
+drop table if exists france.temp_batch_wama_with_id ;
 ```
 
 ## RSA
@@ -2392,16 +2554,283 @@ having count(*)>1 and aa.ang_cod notnull
 order by count(*) desc
 ```
 
-## Vues
+## Vues et autres tables
 
 Le run du modèle EDA nécessite l'utilisation de vues. Les vues utilisées sont les suivantes :
-- view_electrofishing ou view_electrofishing_loire ou view_electrofishing_loirebretatgne ( __à renommer__ )
-- view_electrofishing_size
-- view_silvering
-- view_electrofishing_size_weight
+- view_electrofishing_new 
+- view_electrofishing_size_new
+- view_electrofishing_size_weight_new
+- view_silvering et view_silvering_bc
 
-### view_electrofishing
+Enfin, EDA nécessite également l'utilisation d'une table, _join_france_2023_rn_, listant les stations dans le territoire français et le lien avec des les segments de rivières du RHT.
+t
+### view_electrofishing(_new)
 
-Au 19/09, cette requête renvoie 8329677 lignes. Elle liste l'ensemble des opérations de pêches qui ont été menées en précisant notamment la source de données (ASPE/RSA), la station et sa localisation, quelques éléments sur la méthode de pêche et enfin des résultats de pêches. (totaux et par passages).
+Cette vue liste l'ensemble des opérations de pêches qui ont été menées en précisant notamment la source de données (ASPE/RSA), la station et sa localisation, quelques éléments sur la méthode de pêche et enfin des résultats de pêches. (totaux et par passages).
 
-A modifier pour ne renvoyer que la France. Dans le nouveau schéma france, on tapera directement sur les tables.
+Par rapport à l'ancien code de la vue _view_electrofishing_, la vue _view_electrofishing_new_ a été revue et simplifiée pour le même résultat. De plus il a été pensé pour pouvoir foncitonner directement sur les tables mère et donc être facilement transposable d'un pays à l'autre et être utilisable lors de la mise en place du schéma _Dbeel_France_.
+
+```{sql view_electrofishing_new_code, eval = FALSE, echo = TRUE}
+
+DROP VIEW IF EXISTS dbeel.view_electrofishing_new CASCADE;
+CREATE OR REPLACE VIEW dbeel.view_electrofishing_new AS 
+ -- first a sided select to calculate the number of eels measured for each electrofishing
+with count_length as (
+SELECT el.ob_id,
+            count(*) AS nb_meas
+           FROM dbeel.electrofishing el
+           	 join dbeel.observation_places opl on opl.op_id = el.ob_op_id  
+             JOIN dbeel.batch ba ON el.ob_id = ba.ba_ob_id
+             JOIN dbeel.biological_characteristic bchar ON bchar.bc_ba_id = ba.ba_id
+          WHERE bchar.bc_no_characteristic_type = 39
+          and opl.op_gis_layername in ('ASPE','RSA')--to limit the number of electrofishing in the select		
+          GROUP BY el.ob_id)
+--then the main query
+SELECT row_number() OVER() AS "id",
+    op.op_id,								--station id
+    op.op_gis_layername,					--station source (ex : ASPE, RSA, ...)
+    op.op_placename,						--station label	
+    e.ob_id,								--operation id
+    e.ob_starting_date,						--operation date
+    e.ef_wetted_area,						--electrofished area (length * width)
+    e.ef_nbpas,								--number of passes
+    e.ef_fished_length,						--electrofished length
+    e.ef_fished_width,						--electrofished width
+    dp.dp_name AS ob_dp_name,				--data provider name
+    n1.no_name AS ob_origin,				--origin of data (label from dbeel_nomenclature.nomenclature)
+    n2.no_name AS ob_type,					--type of operation (label from dbeel_nomenclature.nomenclature)
+    n3.no_name AS ob_period,				--periodicity of operation (label from dbeel_nomenclature.nomenclature)
+    n4.no_name AS ef_fishingmethod,			--method of electrofishing (label from dbeel_nomenclature.nomenclature)
+    n5.no_name AS ef_electrofishing_mean,	--mean of electrofishing (label from dbeel_nomenclature.nomenclature)
+	ba1.ba_quantity AS density,				--estimated density of eels
+    ba2.ba_quantity AS totalnumber,			--captured eels (for all passes)
+    ba3.ba_quantity AS nbp1,				--captured eels, 1st pass
+    ba4.ba_quantity AS nbp2,				--captured eels, 2nd pass
+    ba5.ba_quantity AS nbp3,				--captured eels, 3rd pass
+	ba6.ba_quantity AS nbp4,				--captured eels, 4th pass
+    cl.nb_meas AS nb_size_measured, 		--count of eels measured (size)
+    op.the_geom								--station coordinates (geometry)
+from dbeel.observation_places op 
+join dbeel.electrofishing e on e.ob_op_id = op.op_id 
+--data provider
+join dbeel.data_provider dp on dp.dp_id = e.ob_dp_id 								
+--detailing electrofishing means, method, etc...
+left join dbeel_nomenclature.nomenclature n1 on n1.no_id = e.ob_no_origin 				-- to get origin label
+left join dbeel_nomenclature.nomenclature n2 on n2.no_id = e.ob_no_type  				-- to get type label
+left join dbeel_nomenclature.nomenclature n3 on n3.no_id = e.ob_no_period  				-- to get period label
+left join dbeel_nomenclature.nomenclature n4 on n4.no_id = e.ef_no_fishingmethod 		-- to get method label
+left join dbeel_nomenclature.nomenclature n5 on n5.no_id = e.ef_no_electrofishing_mean 	-- to get means label
+-- getting operations results	
+left join dbeel.batch ba1 on ba1.ba_ob_id = e.ob_id and ba1.ba_no_biological_characteristic_type = 48 and ba1.ba_batch_level = 1	-- for density estimate, left join because some operations didn't have a density measure
+left join dbeel.batch ba2 on ba2.ba_ob_id = e.ob_id and ba2.ba_no_biological_characteristic_type = 47 and ba2.ba_batch_level = 1 	-- for total catches, is left join necessary ? every op should have a total number
+left join dbeel.batch ba3 on ba3.ba_ob_id = e.ob_id and ba3.ba_no_biological_characteristic_type = 231 and ba3.ba_batch_level = 1 	-- for 1st pass catches, is left join necessary ? every of should have a 1st pass1
+left join dbeel.batch ba4 on ba4.ba_ob_id = e.ob_id and ba4.ba_no_biological_characteristic_type = 232 and ba4.ba_batch_level = 1 	-- for 2nd pass catches, left join necessary
+left join dbeel.batch ba5 on ba5.ba_ob_id = e.ob_id and ba5.ba_no_biological_characteristic_type = 233 and ba5.ba_batch_level = 1	-- for 3rd pass catches, left join necessary 
+left join dbeel.batch ba6 on ba6.ba_ob_id = e.ob_id and ba6.ba_no_biological_characteristic_type = 234 and ba6.ba_batch_level = 1	-- for 4th pass catches, left join necessary 
+-- getting count of length measured
+left join count_length cl on cl.ob_id = e.ob_id 
+--to be replaced when France data would be stored in dbeel_france scheme
+where op.op_gis_layername in ('ASPE','RSA');											
+
+ALTER TABLE dbeel.view_electrofishing_new
+  OWNER TO postgres;
+```
+
+Au 23/10/2023, cette vue remonte 39541 opérations de pêches, ASPE et RSA.
+
+
+### view_electrofishing_size_new
+
+Cette vue a pour objectif de remonter le décompte du nombre d'anguilles "mesurées" par catégories de taille et ce pour chaque opération de pêche électriques connues dans ASPE ou RSA. Elle présente le détail des résultats, pour chaque classe de taille, par opérations de pêches
+
+```{sql view_electrofishing_size_new_code, eval = FALSE, echo = TRUE}
+--first we create the list of size categories
+with cate_list as (
+ SELECT * FROM (VALUES (0, '0 - error'), (1, '1 - <150'), (2, '2 - [150-300['),
+						(3, '3 - [300-450['), (4, '4 - [450-600['), (5, '5 - [600-750['),
+					(6,'6 - >=750')) AS t (cat_id,cat_label)
+ ),
+--the we count the number of eels in each category for each fishing operations
+--in this query, when a size category is not met, it isn't retrieve in the 'select'
+--this is why we need the cate_list above  
+cate_query as(
+SELECT 
+el.ob_id,
+CASE
+	WHEN bc.bc_numvalue < 50::double precision THEN '0 - error'::text
+	WHEN bc.bc_numvalue >= 50::double precision AND bc.bc_numvalue < 150::double precision THEN '1 - <150'::text
+	WHEN bc.bc_numvalue >= 150::double precision AND bc.bc_numvalue < 300::double precision THEN '2 - [150-300['::text
+	WHEN bc.bc_numvalue >= 300::double precision AND bc.bc_numvalue < 450::double precision THEN '3 - [300-450['::text
+	WHEN bc.bc_numvalue >= 450::double precision AND bc.bc_numvalue < 600::double precision THEN '4 - [450-600['::text
+	WHEN bc.bc_numvalue >= 600::double precision AND bc.bc_numvalue < 750::double precision THEN '5 - [600-750['::text
+	WHEN bc.bc_numvalue >= 750::double precision THEN '6 - >=750'::text
+	ELSE NULL::text
+END AS length_class,
+count(*) AS nb_meas
+FROM dbeel.electrofishing el
+--joined with station tables to limit the records only in ASPE and RSA.
+--this join statement could be omited when the futur dbeel_france schema would be online
+JOIN dbeel.observation_places opl on opl.op_id = el.ob_op_id  and opl.op_gis_layername in ('ASPE','RSA')
+--to get list of fishes, working only with batch_level = 2
+JOIN dbeel.batch ba ON el.ob_id = ba.ba_ob_id and ba.ba_batch_level=2
+--to get size measurement
+JOIN dbeel.biological_characteristic bc ON bc.bc_ba_id = ba.ba_id and bc.bc_no_characteristic_type = 39 
+GROUP BY (el.ob_id,length_class))
+--
+--main select
+--
+SELECT 
+e.ob_id, 									--operation id
+dp.dp_name,									--provider name
+cl.cat_label as length_class,				--label of length_class
+coalesce (cq.nb_meas,0) as number			--count in each class
+--to work only with ASPE ou RSA stations
+from dbeel.observation_places op 
+-- getting operations results	
+join dbeel.electrofishing e on e.ob_op_id = op.op_id and op.op_gis_layername in ('ASPE','RSA')
+-- to get provider name
+join dbeel.data_provider dp on dp.dp_id = e.ob_dp_id 
+-- to get the full list of size category for each operation
+cross join cate_list cl
+-- to get the count of eels in each size category, previously calculated
+left join cate_query cq on cq.ob_id = e.ob_id and cq.length_class = cl.cat_label
+```
+
+Au 23/10/2023, cette vue remonte 276787 lignes.
+
+### view_electrofishing_size_weight_new
+
+Cette vue remonte l'ensemble des mesures de taille/poids par anguille avec les identifiants opérations/anguille/mesure. La mesure de longueur est obligatoire, celle de poids non. Un filtre est par ailleurs appliqué pour limiter les anguilles sur un intervalle de taille ]50mm,1400mm[.
+
+```{sql view_electrofishing_size_new_code, eval = FALSE, echo = TRUE}
+--505339 records on  16/10
+--505288 records on 16/10 with ]50,1400[ filter
+select 
+dp.dp_name,																										--provider name
+e.ob_id,																										--operation id
+bc.bc_id,																										--biological characteristic id (for length only)
+bc.bc_ba_id,																									--eel id from dbeel.batch
+null as fish_id,																								--no fish_id in ASPE/RSA, bc_ba_id sufficient ?
+bc.bc_numvalue as length,																						--length
+bc2.bc_numvalue as weight																						--weight
+from dbeel.observation_places op 
+join dbeel.electrofishing e on e.ob_op_id = op.op_id 
+join dbeel.batch b on b.ba_ob_id = e.ob_id and b.ba_batch_level = 2												--to retrieve only fish-level data
+join dbeel.data_provider dp on dp.dp_id = e.ob_dp_id 
+--this query retrieve only eels with at least length measurement (inner join)
+--weight measurement is not mandatory (left join)
+join dbeel.biological_characteristic bc on bc.bc_ba_id = b.ba_id and bc.bc_no_characteristic_type = 39			--length measurement			
+left join dbeel.biological_characteristic bc2 on bc2.bc_ba_id = b.ba_id and bc2.bc_no_characteristic_type = 42	--weight measurement
+where op.op_gis_layername in ('ASPE','RSA')																		--to retrieve only ASPE and RSA data, to be deleted when new dbeel_france scheme 
+-- filter on eel size ]50,1400[
+-- nb : this filter is not applied in dbeel.view_electrofishing_size_new
+and bc.bc_numvalue>50 
+AND bc.bc_numvalue<1400 
+)
+
+```
+Au 23/10/2023, cette vue remonte 505288 lignes.
+
+### view_silvering et view_silvering_bc
+
+Ces deux vues fonctionnent conjointement. La vue _view_silvering_bc_ étant utilisée par la vue _view_silvering_. L'objectif est ici de lister l'ensemble des données d'argenture connues pour les anguilles capturées. A noter que 
+
+```{sql view_silvering_bc_code, eval = FALSE, echo = TRUE}
+--this select is the result of a crosstab() function defined thereafter.
+--505340 lines
+SELECT crosstab.ba_id,--id of fish measured
+    crosstab.length,
+    crosstab.weight,
+    crosstab.sex,
+    crosstab.stage,
+    crosstab.eye_diam_vert,
+    crosstab.eye_diam_horiz,
+    crosstab.length_pect,
+    crosstab.presence_neuromast,
+    crosstab.contrast
+   FROM crosstab(
+   --first we define the "source" select returning the list of records to be "crosstabed"
+   --the element defining the crosstab are :
+   --key : ba_id = the fish measured
+   --categories : biological_characteristic_type.no_name = the type of measurement (weight, length, sex, etc...)
+   --values : bc_numvalue
+   --748650 measures, on 2023/10/16
+	'SELECT b.ba_id, bct.no_name, bc.bc_numvalue 
+					FROM dbeel.batch b
+					join dbeel.electrofishing e on e.ob_id = b.ba_ob_id
+					join dbeel.observation_places op on op.op_id = e.ob_op_id and op.op_gis_layername in (''ASPE'', ''RSA'')
+					JOIN dbeel.biological_characteristic bc ON bc_ba_id=b.ba_id
+					-- nomenclature table
+					JOIN dbeel_nomenclature.biological_characteristic_type bct ON bc.bc_no_characteristic_type = bct.no_id
+					where b.ba_batch_level=2 --only fishes
+					and bct.no_name in (''Length'',
+							''Weight'',
+							''Sex'',
+							''Stage'',
+							''eye_diam_vert'',
+							''eye_diam_horiz'',
+							''length_pect'',
+							''presence_neuromast'',
+							''contrast'')
+					ORDER by 1,2'::text, 
+	--the we defined the "category" select 
+	--these are the type of measurements value listed in dbeel_nomenclature.biological_characteristic_type
+					'SELECT * FROM (VALUES 
+							(''Length''),
+							(''Weight''),
+							(''Sex''),
+							(''Stage''),
+							(''eye_diam_vert''),
+							(''eye_diam_horiz''),
+							(''length_pect''),
+							(''presence_neuromast''),
+							(''contrast'')
+							)  AS t (no_name)'::text
+				) 
+	--finally we define the column names of the crosstab and their datatypes
+	as crosstab(
+		ba_id uuid, 
+		length numeric, 
+		weight numeric, 
+		sex numeric, 
+		stage numeric, 
+		eye_diam_vert numeric, 
+		eye_diam_horiz numeric, 
+		length_pect numeric, 
+		presence_neuromast numeric, 
+		contrast numeric);
+```
+
+Au 23/10, la vue _view_silvering_bc_ remonte 505340 lignes
+
+```{sql view_silvering_code, eval = FALSE, echo = TRUE}
+SELECT op.op_id,
+    --locationid, what is it ?
+    --country, FR ?
+    es.et_establishment_name,
+    --,--x ?
+    --,--y ?
+    e.ob_id,
+    e.ob_starting_date,
+    vsb.ba_id,
+    vsb.length,
+    vsb.weight,
+    vsb.sex,
+    vsb.stage,
+    vsb.eye_diam_vert,
+    vsb.eye_diam_horiz,
+    vsb.length_pect,
+    vsb.presence_neuromast,
+    vsb.contrast
+   FROM dbeel.observation_places op 
+     JOIN dbeel.electrofishing e ON op.op_id = e.ob_op_id
+     JOIN dbeel.batch b ON e.ob_id = b.ba_ob_id
+     JOIN dbeel.view_silvering_bc vsb ON vsb.ba_id = b.ba_id
+     JOIN dbeel.data_provider dp ON dp.dp_id = e.ob_dp_id
+     JOIN dbeel.establishment es ON es.et_id = dp.dp_et_id
+	 where op.op_gis_layername in ('ASPE', 'RSA');
+```
+
+Au 23/10, la vue _view_silvering_ remonte 505340 lignes
+
+### join_france_2023_rn

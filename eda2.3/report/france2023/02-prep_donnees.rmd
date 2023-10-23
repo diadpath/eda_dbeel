@@ -474,7 +474,7 @@ DBI::dbExecute(con, "ALTER TABLE batch_fish_aspe set schema france")
 
 ### Données d'argenture
 
-Enfin pour l'estimation des biomasses par différents stades de maturité des anguilles, il est nécessaire de disposer des données d'argenture (taille pectorale, diamètre oculaire, ...). Ces données ne sont pas disponibles dans la base ASPE mais uniquement dans une ancienne version de cette base de données. L'insertion de ces données se fait donc via la prise en compte d'un fichier externe nommé *table_silv_final.Rdata*. Une jointure est faite entre ce fichier de données et les opérations préalablement sauvegardées dans la table *france.operation_aspe* grâce au code WAMA *ope_code_wama* correspondant à l'ID dans l'ancienne base. Certaines données sont à exclure.
+Enfin pour l'estimation des biomasses par différents stades de maturité des anguilles, il est nécessaire de disposer des données d'argenture (taille pectorale, diamètre oculaire, ...). Ces données ne sont pas disponibles dans la base ASPE mais uniquement dans une ancienne version de cette base de données (BDMAP). L'insertion de ces données se fait donc via la prise en compte d'un fichier externe nommé *table_silv_final.Rdata*. Une jointure est faite entre ce fichier de données et les opérations préalablement sauvegardées dans la table *france.operation_aspe* grâce au code WAMA *ope_code_wama* correspondant à l'ID dans l'ancienne base. Certaines données sont à exclure.
 
 ```{r get_silv_wama, eval = FALSE, echo = TRUE}
 load( file = str_c("data/table_silv_final.Rdata")) # table_silv, synthese
@@ -539,7 +539,7 @@ batch_silver_wama <-
 				)]
 ```
 
-Enfin, les données d'argenture sont insérées dans la base EDA.
+Enfin, les données d'argenture sont insérées dans la _dbeel_, schéma _france_.
 
 ```{r write_Silv_EDA, eval = FALSE, echo = TRUE}
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_silver_wama;")
