@@ -1,6 +1,6 @@
 drop table if exists france.join_france_2023_rn;
 CREATE TABLE france.join_france_2023_rn AS ( 
---on prend toutes les rivières de france et on rattache les stations aux rivières qui sont à moins de 500m
+--on prend toutes les rivières de france et on rattache les stations aux segments de rivières qui sont à moins de 500m
 with projection as (
 SELECT frn.idsegment, 
        op.op_id,                          

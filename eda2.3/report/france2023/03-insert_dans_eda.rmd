@@ -2702,7 +2702,7 @@ Au 23/10/2023, cette vue remonte 276787 lignes.
 
 Cette vue remonte l'ensemble des mesures de taille/poids par anguille avec les identifiants opérations/anguille/mesure. La mesure de longueur est obligatoire, celle de poids non. Un filtre est par ailleurs appliqué pour limiter les anguilles sur un intervalle de taille ]50mm,1400mm[.
 
-```{sql view_electrofishing_size_new_code, eval = FALSE, echo = TRUE}
+```{sql view_electrofishing_size_weight_new_code, eval = FALSE, echo = TRUE}
 --505339 records on  16/10
 --505288 records on 16/10 with ]50,1400[ filter
 select 
@@ -2834,3 +2834,37 @@ SELECT op.op_id,
 Au 23/10, la vue _view_silvering_ remonte 505340 lignes
 
 ### join_france_2023_rn
+
+Le chargement des données pour ED nécessite également de rattacher les données stations au réseau de rivières françaises (par segment de rivière). Cette opération est réalisée en créant une table intermédiaire de "jointure".
+
+```{sql join_france_2023_rn_code, eval = FALSE, echo = TRUE}
+SELECT frn.idsegment, 
+       op.op_id,                          
+       op.the_geom,
+       st_distance(frn.geom,op.the_geom) as distance,
+       --ici on réalise un ranking pour chaque station, trié par distance
+	   --et par idsegment (pour gérer les cas où la distance entre la station et plusieurs segments de rivière est identique)
+       --ranking = 1 pour la plus petit distance
+       rank() over (partition by op.op_id order by st_distance(frn.geom,op.the_geom),frn.idsegment) as seqnum
+       FROM france.rn frn
+       join france.rna frna on frna.idsegment = frn.idsegment 
+       JOIN  dbeel.observation_places op ON st_dwithin(frn.geom, op.the_geom, 500)
+       where op.op_gis_layername in ('ASPE','RSA')
+       )
+select op_id,
+	   idsegment,
+	   the_geom,
+       distance
+ from projection 
+ --on ne garde que le couple op_id/idsegement le plus proche
+ where projection.seqnum=1
+ --34184 stations (on avait 35752 stations, on va perdre les opérations reliées à ces stations perdues) 
+```
+
+Au 24/10, la table _join_france_2023_rn_ compte 34184 couples station/segment de rivière. A l'origine il y avait 35752 stations connues (issues de ASPE, RSA). Les opérations associées à ces stations seront donc perdues (609 opérations de pêches).
+
+```{sql join_france_2023_rn_lost_code, eval = FALSE, echo = TRUE}
+select count(*) from dbeel.electrofishing e 
+join dbeel.observation_places op on op.op_id = e.ob_op_id and op.op_gis_layername in ('ASPE','RSA')--39541 opérations ASPE/RSA
+where e.ob_op_id not in (select distinct jfr.op_id from france.join_france_2023_rn jfr)--609 opérations perdues
+```

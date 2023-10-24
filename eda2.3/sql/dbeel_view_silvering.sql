@@ -1,12 +1,13 @@
 -- dbeel.view_silvering source
 --19/10/2023
+Drop VIEW if exists dbeel.view_silvering;
 CREATE OR REPLACE VIEW dbeel.view_silvering
 AS SELECT op.op_id,
-    --locationid, what is it ?
-    --country, FR ?
+    null as locationid,--locationid
+    'FR' as country, --country,
     es.et_establishment_name,
-    --,--x ?
-    --,--y ?
+    st_x(op.the_geom),--x 
+    st_y(op.the_geom),--y
     e.ob_id,
     e.ob_starting_date,
     vsb.ba_id,

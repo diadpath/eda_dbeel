@@ -27,8 +27,11 @@ dbeel_station_rsa
 dbeel_electrofishing_rsa
 dbeel_batch_ope_rsa
 dbeel_batch_fish_rsa-et-dbeel_mensurationindiv_biol_charac_rsa
-vues
-view_electrofishing
+vues-et-autres-tables
+view_electrofishing_size_new
+view_electrofishing_size_weight_new
+view_silvering-et-view_silvering_bc
+join_france_2023_rn
 gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement
 couples-de-stations-aspersa-similaires
 opérations-aspersa-communes-sur-ces-stations
