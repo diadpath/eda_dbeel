@@ -204,7 +204,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="6.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres"><i class="fa fa-check"></i><b>6.1</b> Quelques chiffres</a></li>
 <li class="chapter" data-level="6.2" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cohérence-des-données-par-opérations-de-pêches"><i class="fa fa-check"></i><b>6.2</b> Cohérence des données par opérations de pêches</a></li>
-<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#section"><i class="fa fa-check"></i><b>6.3</b> </a></li>
+<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#contrôle-de-lintégrité-des-données-taillepoids"><i class="fa fa-check"></i><b>6.3</b> Contrôle de l’intégrité des données taille/poids</a>
+<ul>
+<li class="chapter" data-level="6.3.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#comparaison-des-diamètres-oculaires-horizontaux-et-verticaux"><i class="fa fa-check"></i><b>6.3.1</b> Comparaison des diamètres oculaires horizontaux et verticaux</a></li>
+</ul></li>
 </ul></li>
 </ul>
 
@@ -231,7 +234,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="récupérations-des-détails-des-opérations-de-pêches-potentiellement-dupliquées-en-base" class="section level2 hasAnchor" number="5.1">
 <h2><span class="header-section-number">5.1</span> Récupérations des détails des opérations de pêches potentiellement dupliquées en base<a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-détails-des-opérations-de-pêches-potentiellement-dupliquées-en-base" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>La première étape est donc de récupérer dans la table <em>electrofishing</em> du schéma <em>dbeel</em> l’ensemble des opérations de pêches qui pourraient être assimilées à des doublons (cf règle énoncée précédemment). On crée une table temporaire pour stocker toutes les caractéristiques d’opérations de pêches qui apparaissent plusieurs fois dans la base. On va créer un champs “id” qui sera simplement la concaténation des champs permettant de regrouper ces “doublons” potentiels.</p>
-<p>Cette première requête a permis de mettre en évidence l’existence de 1.35^{-322} opérations dupliquées en base (ASPE et RSA confondus).</p>
+<p>Cette première requête a permis de mettre en évidence l’existence de 1.05^{-322} opérations dupliquées en base (ASPE et RSA confondus).</p>
 </div>
 <div id="récupérations-des-identifiants-et-du-détails-des-saisies-des-opérations-potentiellement-dupliquées" class="section level2 hasAnchor" number="5.2">
 <h2><span class="header-section-number">5.2</span> Récupérations des identifiants et du détails des saisies des opérations potentiellement dupliquées<a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-identifiants-et-du-détails-des-saisies-des-opérations-potentiellement-dupliquées" class="anchor-section" aria-label="Anchor link to header"></a></h2>
@@ -263,23 +266,6 @@ Taille moy. des poissons
 1
 </td>
 <td style="text-align:left;">
-614b8403-af64-413c-b980-a0fcf20d94af
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:left;">
 c5e52c25-62e8-47a0-9729-0e36f2f7b896
 </td>
 <td style="text-align:right;">
@@ -294,10 +280,10 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-2
+1
 </td>
 <td style="text-align:left;">
-30a2d20a-fc8e-4bd8-ad52-b134762cb7c8
+614b8403-af64-413c-b980-a0fcf20d94af
 </td>
 <td style="text-align:right;">
 1
@@ -312,23 +298,6 @@ NA
 <tr>
 <td style="text-align:right;">
 2
-</td>
-<td style="text-align:left;">
-e6e6f286-9c51-402b-8b6f-ae26523618c0
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-3
 </td>
 <td style="text-align:left;">
 0e8ece45-3e47-4aa2-a607-53a2263d1890
@@ -345,7 +314,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-3
+2
 </td>
 <td style="text-align:left;">
 13aa9a95-0d41-4420-a096-45b903b10a45
@@ -362,7 +331,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-4
+3
 </td>
 <td style="text-align:left;">
 3a1eb95b-031b-49ed-b5e2-e7663b44a865
@@ -379,7 +348,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-4
+3
 </td>
 <td style="text-align:left;">
 64f1184f-1ab2-4987-b1eb-3e6bd14d861f
@@ -396,7 +365,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-5
+4
 </td>
 <td style="text-align:left;">
 1f08ac71-546e-4dd5-905e-98bdb4147eb0
@@ -413,7 +382,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-5
+4
 </td>
 <td style="text-align:left;">
 75834795-0630-4fc8-9951-74df4deb533e
@@ -430,7 +399,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-6
+5
 </td>
 <td style="text-align:left;">
 364d6d3f-0de7-4d1b-8f72-042f242e0e61
@@ -447,7 +416,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-6
+5
 </td>
 <td style="text-align:left;">
 a9660293-eced-465b-b1d1-61b60261536f
@@ -464,7 +433,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-7
+6
 </td>
 <td style="text-align:left;">
 091a3104-c81d-45e6-8356-c5eb5e7ee21a
@@ -481,7 +450,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-7
+6
 </td>
 <td style="text-align:left;">
 318267e2-5491-4a5b-bc93-0ecc6c32ac76
@@ -498,194 +467,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-8
-</td>
-<td style="text-align:left;">
-1c4fe3bc-9b55-46f3-b1a7-fff0941c4283
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-8
-</td>
-<td style="text-align:left;">
-fcfebdc3-6656-4361-9527-b88ec3244ad4
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-8
-</td>
-<td style="text-align:left;">
-fcfebdc3-6656-4361-9527-b88ec3244ad4
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-110
-</td>
-<td style="text-align:right;">
-286.0545
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-8
-</td>
-<td style="text-align:left;">
-1c4fe3bc-9b55-46f3-b1a7-fff0941c4283
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-110
-</td>
-<td style="text-align:right;">
-286.0545
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-9
-</td>
-<td style="text-align:left;">
-1a8830ff-e4cd-40f7-9672-542a30276d8a
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-9
-</td>
-<td style="text-align:left;">
-1c199f65-8cf7-406e-97b3-45a9dfe4fc89
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-10
-</td>
-<td style="text-align:left;">
-0f8b86be-9381-46b6-b6b5-635ea36884fa
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-10
-</td>
-<td style="text-align:left;">
-994cfe5f-d216-4909-b9b3-a5abff83f916
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-10
-</td>
-<td style="text-align:left;">
-0f8b86be-9381-46b6-b6b5-635ea36884fa
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-28
-</td>
-<td style="text-align:right;">
-461.4286
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-10
-</td>
-<td style="text-align:left;">
-994cfe5f-d216-4909-b9b3-a5abff83f916
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-28
-</td>
-<td style="text-align:right;">
-461.4286
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-11
-</td>
-<td style="text-align:left;">
-ab7d7d80-85af-4c13-9cc0-12358e878483
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-11
+7
 </td>
 <td style="text-align:left;">
 98f080fc-c5d1-48f2-a7aa-c96784bf45ae
@@ -702,10 +484,10 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-12
+7
 </td>
 <td style="text-align:left;">
-e3f5773b-ada5-493e-bc74-158b4920efb9
+ab7d7d80-85af-4c13-9cc0-12358e878483
 </td>
 <td style="text-align:right;">
 1
@@ -719,7 +501,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-12
+8
 </td>
 <td style="text-align:left;">
 ff374c19-ab90-4c79-9b50-86f1f8cff62c
@@ -736,7 +518,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-13
+8
+</td>
+<td style="text-align:left;">
+e3f5773b-ada5-493e-bc74-158b4920efb9
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
 </td>
 <td style="text-align:left;">
 1113013a-987d-47c0-b076-8f7eb2037927
@@ -753,7 +552,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-13
+9
 </td>
 <td style="text-align:left;">
 c09acfa2-b898-491a-8d76-ecf2cc1c6060
@@ -770,7 +569,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-14
+10
 </td>
 <td style="text-align:left;">
 46b432f7-1398-4161-b64a-e8d1b26d5ae4
@@ -787,7 +586,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-14
+10
 </td>
 <td style="text-align:left;">
 a0e4b2d2-1775-4a1d-b1cc-463dae3fcb5d
@@ -804,7 +603,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-15
+11
 </td>
 <td style="text-align:left;">
 00a8d9ee-6e9a-4301-a470-a2832d8968bf
@@ -821,7 +620,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-15
+11
 </td>
 <td style="text-align:left;">
 ec6aaf26-4055-4a64-88f9-2a5d2499b48c
@@ -838,7 +637,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+12
 </td>
 <td style="text-align:left;">
 6974cdcf-b933-4a09-a43a-e30baaf8b43e
@@ -855,7 +654,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+12
 </td>
 <td style="text-align:left;">
 69d2cd8a-6694-4e57-bb39-85945cd9d033
@@ -872,24 +671,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-17
-</td>
-<td style="text-align:left;">
-a19aea85-8215-478d-a580-8b0d227fb36c
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-17
+13
 </td>
 <td style="text-align:left;">
 407f8bf7-3e11-488b-a3b1-db65df26f40a
@@ -906,7 +688,41 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-18
+13
+</td>
+<td style="text-align:left;">
+a19aea85-8215-478d-a580-8b0d227fb36c
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:left;">
+0057ed9f-e7ab-4afa-8310-2b9261a7c756
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
 </td>
 <td style="text-align:left;">
 cc41d203-9cd0-43d1-ad7c-521ca28e5db2
@@ -923,41 +739,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-18
-</td>
-<td style="text-align:left;">
-0057ed9f-e7ab-4afa-8310-2b9261a7c756
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-18
-</td>
-<td style="text-align:left;">
-0057ed9f-e7ab-4afa-8310-2b9261a7c756
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-22
-</td>
-<td style="text-align:right;">
-234.4091
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-18
+14
 </td>
 <td style="text-align:left;">
 cc41d203-9cd0-43d1-ad7c-521ca28e5db2
@@ -974,24 +756,24 @@ cc41d203-9cd0-43d1-ad7c-521ca28e5db2
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+14
 </td>
 <td style="text-align:left;">
-fb69bec8-51f3-4e1a-a6f1-62ed0a26219b
-</td>
-<td style="text-align:right;">
-1
+0057ed9f-e7ab-4afa-8310-2b9261a7c756
 </td>
 <td style="text-align:right;">
 2
 </td>
 <td style="text-align:right;">
-NA
+22
+</td>
+<td style="text-align:right;">
+234.4091
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+15
 </td>
 <td style="text-align:left;">
 6b15d9e1-a1f6-4aed-b6ba-857f1982a908
@@ -1008,7 +790,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-20
+15
+</td>
+<td style="text-align:left;">
+fb69bec8-51f3-4e1a-a6f1-62ed0a26219b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
 </td>
 <td style="text-align:left;">
 08709b62-3f0a-45e2-b7d4-4a355c3c1eaf
@@ -1025,7 +824,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-20
+16
 </td>
 <td style="text-align:left;">
 541d3ce5-4a8b-4cf1-9faf-de71e5f93c47
@@ -1042,24 +841,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-20
-</td>
-<td style="text-align:left;">
-08709b62-3f0a-45e2-b7d4-4a355c3c1eaf
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-492.0000
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-20
+16
 </td>
 <td style="text-align:left;">
 541d3ce5-4a8b-4cf1-9faf-de71e5f93c47
@@ -1076,143 +858,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-21
+16
 </td>
 <td style="text-align:left;">
-66e2ab89-91a9-49b3-bc0d-c5f63cbc7f1a
+08709b62-3f0a-45e2-b7d4-4a355c3c1eaf
+</td>
+<td style="text-align:right;">
+2
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
+492.0000
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-21
-</td>
-<td style="text-align:left;">
-e8b56345-9605-4b15-8613-6d7c2e15166d
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-21
-</td>
-<td style="text-align:left;">
-e8b56345-9605-4b15-8613-6d7c2e15166d
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-201.0000
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-21
-</td>
-<td style="text-align:left;">
-66e2ab89-91a9-49b3-bc0d-c5f63cbc7f1a
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:right;">
-259.3333
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-22
-</td>
-<td style="text-align:left;">
-2b70a9af-88fe-4cc8-8791-235b9541e5ea
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-22
-</td>
-<td style="text-align:left;">
-db81ae87-9ad1-468a-bf88-c8324a1cef21
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-22
-</td>
-<td style="text-align:left;">
-2b70a9af-88fe-4cc8-8791-235b9541e5ea
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-74
-</td>
-<td style="text-align:right;">
-123.7432
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-22
-</td>
-<td style="text-align:left;">
-db81ae87-9ad1-468a-bf88-c8324a1cef21
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-74
-</td>
-<td style="text-align:right;">
-123.7432
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-23
+17
 </td>
 <td style="text-align:left;">
 240bcde9-18eb-439e-9bb0-8b301902335f
@@ -1229,7 +892,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-23
+17
 </td>
 <td style="text-align:left;">
 2b5920b0-f108-40e1-882b-cdcb7f469a47
@@ -1246,24 +909,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-23
-</td>
-<td style="text-align:left;">
-2b5920b0-f108-40e1-882b-cdcb7f469a47
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-237.0000
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-23
+17
 </td>
 <td style="text-align:left;">
 240bcde9-18eb-439e-9bb0-8b301902335f
@@ -1280,7 +926,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-24
+17
+</td>
+<td style="text-align:left;">
+2b5920b0-f108-40e1-882b-cdcb7f469a47
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+237.0000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+18
 </td>
 <td style="text-align:left;">
 48647f19-595e-48d6-a1c7-19d52dcf0ace
@@ -1297,7 +960,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-24
+18
 </td>
 <td style="text-align:left;">
 3737bdc7-ef83-4099-b124-e85f7ee1a5fc
@@ -1314,24 +977,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-24
-</td>
-<td style="text-align:left;">
-48647f19-595e-48d6-a1c7-19d52dcf0ace
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:right;">
-656.5000
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-24
+18
 </td>
 <td style="text-align:left;">
 3737bdc7-ef83-4099-b124-e85f7ee1a5fc
@@ -1348,7 +994,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-25
+18
+</td>
+<td style="text-align:left;">
+48647f19-595e-48d6-a1c7-19d52dcf0ace
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+656.5000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+19
 </td>
 <td style="text-align:left;">
 c005f431-d704-478a-ae88-92c5f4756b38
@@ -1365,7 +1028,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-25
+19
 </td>
 <td style="text-align:left;">
 ba2e99f2-d903-4a16-a14b-f59572f2cfd5
@@ -1382,7 +1045,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-25
+19
 </td>
 <td style="text-align:left;">
 c005f431-d704-478a-ae88-92c5f4756b38
@@ -1399,7 +1062,7 @@ c005f431-d704-478a-ae88-92c5f4756b38
 </tr>
 <tr>
 <td style="text-align:right;">
-25
+19
 </td>
 <td style="text-align:left;">
 ba2e99f2-d903-4a16-a14b-f59572f2cfd5
@@ -1416,24 +1079,7 @@ ba2e99f2-d903-4a16-a14b-f59572f2cfd5
 </tr>
 <tr>
 <td style="text-align:right;">
-26
-</td>
-<td style="text-align:left;">
-bf909e5d-253d-4423-89a6-38ed1017c7e4
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-26
+20
 </td>
 <td style="text-align:left;">
 2631c831-331e-44e9-89e5-61cb8812efb6
@@ -1450,24 +1096,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-26
+20
 </td>
 <td style="text-align:left;">
 bf909e5d-253d-4423-89a6-38ed1017c7e4
 </td>
 <td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
 2
 </td>
 <td style="text-align:right;">
-7
-</td>
-<td style="text-align:right;">
-429.1429
+NA
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-26
+20
 </td>
 <td style="text-align:left;">
 2631c831-331e-44e9-89e5-61cb8812efb6
@@ -1484,24 +1130,24 @@ bf909e5d-253d-4423-89a6-38ed1017c7e4
 </tr>
 <tr>
 <td style="text-align:right;">
-27
+20
 </td>
 <td style="text-align:left;">
-9bbe342b-98f8-4998-9262-edb1edfdb22b
-</td>
-<td style="text-align:right;">
-1
+bf909e5d-253d-4423-89a6-38ed1017c7e4
 </td>
 <td style="text-align:right;">
 2
 </td>
 <td style="text-align:right;">
-NA
+7
+</td>
+<td style="text-align:right;">
+429.1429
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-27
+21
 </td>
 <td style="text-align:left;">
 bcbfdfea-501f-43e2-b59a-33e0ef05664e
@@ -1518,7 +1164,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-27
+21
+</td>
+<td style="text-align:left;">
+9bbe342b-98f8-4998-9262-edb1edfdb22b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+21
 </td>
 <td style="text-align:left;">
 9bbe342b-98f8-4998-9262-edb1edfdb22b
@@ -1535,7 +1198,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-27
+21
 </td>
 <td style="text-align:left;">
 bcbfdfea-501f-43e2-b59a-33e0ef05664e
@@ -1554,9 +1217,9 @@ bcbfdfea-501f-43e2-b59a-33e0ef05664e
 </table>
 <p>Il est par la suite nécessaire de contrôler chacun de ces doublons dans ASPE et RSA (si nécessaire) afin de déterminer si ce sont de véritables doublons ou des opérations de pêches véritablement réalisées le même jour au même endroit avec les mêmes résultats.</p>
 <p>Au 09/10/23 :
-pour les doublons RSA (action Guirec André): il existait 18 couples d’opérations potentiellement doublons, 16 en Bretagne et 2 en Normandie. Celles de Bretagne étaient effectivement des doublons et ont été épurées, celles de Normandie ne sont pas des doublons.
-pour les doublons ASPE : en cours de traitement par Eddy Cosson.</p>
-<p><strong>Solution proposée</strong> : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.</p>
+pour les doublons RSA (action Guirec André): il existait 18 couples d’opérations potentiellement doublons. Celles de Bretagne étaient effectivement des doublons et ont été épurées, celles de Normandie ne sont pas des doublons.
+pour les doublons ASPE : en cours de traitement par Eddy Cosson + réponse fournie le 13/10 “supprimer les opérations dbeel avec les id ASPE (2668,4413,9753,10527,83135,89356).
+<strong>Au 25/10/2023</strong> : <strong>Fait</strong> (Le traitement de suppression de ces doublons est réalisé dans le fichier script_recherche_doublons_ASPE_RSA).</p>
 
 </div>
 </div>

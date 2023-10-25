@@ -61,6 +61,20 @@ var_biochar_nomen <- "bc_no_characteristic_type"
 #filtre temporaire (en attendant le schéma dbeel_france)
 #mettre var_filter_aspe_rsa à '' si utilisation du schéma dbeel_france
 var_filter_aspe_rsa <- "op_gis_layername in ('ASPE','RSA')"
+#views useful from dbeel
+#
+var_dbeel_view_electrofishing <- "view_electrofishing_size_weight_new"
+var_dbeel_view_electrofishing_ob_id <- var_electrofishing_ope_id
+var_dbeel_view_electrofishing_bc_id <- var_biochar_id
+var_dbeel_view_electrofishing_ba_id <- var_biochar_batch
+var_dbeel_view_electrofishing_length <- "length"
+var_dbeel_view_electrofishing_weight <- "weight"
+#
+var_dbeel_view_silvering <- "view_silvering"
+var_dbeel_view_silvering_ob_id <- var_electrofishing_ope_id
+var_dbeel_view_silvering_diam_vert <- "eye_diam_vert"
+var_dbeel_view_silvering_diam_hor <- "eye_diam_horiz"
+var_dbeel_view_silvering_length_pect <- "length_pect"
 
 #load stations
 query <- paste0("SELECT * FROM ",var_schema,".",var_stations)
@@ -262,4 +276,774 @@ Au 28/09 : Le problème a été identifié. Dans le script d'insertion _import_r
 <!-- les données de taille/poids sont cohérentes -->
 <!-- cohérence de la taille de la nageoire pectorale, du diamètre oculaire, -->
 <!-- --- -->
+## Contrôle de l'intégrité des données taille/poids
 
+Cette partie a pour objectif de contrôler que les données taille/poids sur les anguilles sont cohérentes. Si des données erronnées ou suspectes sont détectées, elles seront écartées.
+
+```{r taille_poids_load_data, message=F, warning=F}
+
+query <- paste0("SELECT ve.* FROM ",
+                       var_schema,".",var_dbeel_view_electrofishing, " ve"
+                       )
+return <- dbSendQuery(con,query)
+view_taille_poids <- dbFetch(return)
+dbClearResult(return)
+
+```
+#### Taille
+
+Dans le jeu de données ASPE/RSA, au `r format(Sys.Date(), "%d/%m/%Y")`, il existe `r sum(!is.na(view_taille_poids$length))` mesures de longueur. La taille minimale mesurée est de `r min(view_taille_poids$length,na.rm=T)`mm (à noter que les anguilles de 50mm ou moins on été supprimées des vues utilisées par le modèle EDA), la maximale est `r max(view_taille_poids$length,na.rm=T)`mm.
+
+```{r taille_plots, message=F, warning=F}
+dt_taille <- view_taille_poids[!is.na(view_taille_poids$length),]
+#dt_taille$lo_taille <- log(dt_taille$length)
+quantile_taille = data.frame(prob = seq(0,100,0.5), taille = quantile(dt_taille[, "length"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_taille,aes(x=length)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="quantile (%)",x="Taille (mm)",title="Histogramme des tailles") +
+  scale_x_continuous(breaks = seq(0,max(dt_taille$length)+50, by = 50),limits =c(0,max(dt_taille$length)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_taille,aes(x=taille,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Taille (mm)",title="Distribution cumulée des tailles") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,max(dt_taille$length)+50, by = 50),limits =c(0,max(dt_taille$length))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+#### Poids
+
+Dans le jeu de données ASPE/RSA, au `r format(Sys.Date(), "%d/%m/%Y")`, il existe `r sum(!is.na(view_taille_poids$weight))` mesures de poids. La poids minimal mesuré est de `r min(view_taille_poids$weight,na.rm=T)`g , la maximal est `r max(view_taille_poids$weight,na.rm=T)`g.
+
+Ci dessous la représentation graphique des données brutes de poids.
+```{r poids_plot, message=F, warning=F}
+
+
+dt_poids <- view_taille_poids[!is.na(view_taille_poids$weight),]#sans NA sur le poids
+
+quantile_poids = data.frame(prob = seq(0,100,0.5), poids = quantile(dt_poids[, "weight"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_poids,aes(x=weight)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="poids (mm)",title="Histogramme des poids") +
+  scale_x_continuous(breaks = seq(0,max(dt_poids$weight), by = 500),limits =c(0,max(dt_poids$weight)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_poids,aes(x=poids,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="poids (mm)",title="Distribution cumulée des poids") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,max(dt_poids$weight), by = 500),limits =c(0,max(dt_poids$weight))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+
+Au 27/10/2023, l'analyse des minima/maxima montre qu'il existe probablement des incohérences (poids nuls ou poids aberrants). La gestion de ces erreurs de mesures ou saisies se fera par le calcul du poids relatif (relative weight, Wr), méthode conseillée par Blackwell et al. (2000), telle que réalisée dans Beaulaton et al. (2015). Dans un premier temps on supprime du jeu de données, les poids qui sont supérieurs à 7000g (4 mesures). On conserve toutefois les mesures de longueurs. On ignorera également aussi tous les enregistrements qui possède un poids enregistré à 0g avec une longueur supérieure à 50mm (on va remplacer ces 0 par des NA).
+
+Attention, au 27/10/2023, ce delete sera effectué sur les tables du schéma __France__. Dans une éventuelle migration des données sur le schéma __Dbeel_France__, il faudra revoir cette partie et adapter les requêtes.
+```{r delete_weight_7000, message=F, warning=F}
+
+##ASPE records
+query <- paste0("delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+where dmbca.bc_numvalue > 7000 and dmbca.bc_no_characteristic_type = 42"
+                       )
+return <- dbSendQuery(con,query)
+res_delete <- dbFetch(return)
+dbClearResult(return)
+
+##RSA records
+query <- paste0("delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr
+where dmbcr.bc_numvalue > 7000 and dmbcr.bc_no_characteristic_type = 42"
+                       )
+return <- dbSendQuery(con,query)
+res_delete <- dbFetch(return)
+dbClearResult(return)
+```
+
+Ci dessous les différentes étapes du calcul du poids relatif par la méthode de Blackweel et al. (2000). Dans un premier temps on modélise une régression quantile sur les données de poids (en log) en fonction des longueurs (en log).
+```{r calc_wr_ws, message=F, warning=F}
+dt_poids_non_zero <- dt_poids[dt_poids$weight>0,]#poids sup. à 0
+
+#calcul de la régression
+reg_w = with(dt_poids_non_zero ,rq(log(weight)~log(length), tau=c(0.25, 0.50, 0.75)))
+predict_weight <- cbind(data.frame(length = 1:(max(dt_poids_non_zero$length)*1.1)), 
+                        exp(predict(reg_w, newdata = data.frame(length = 1:(max(dt_poids_non_zero$length)*1.1)))))
+colnames(predict_weight) <- c('length','qt25','qt50','qt75')
+
+ggplot() +
+  geom_jitter(data=dt_poids_non_zero, aes(x=length,y=weight),size=0.2) +
+  geom_line(data=predict_weight,aes(x=length,y=qt25),color="red") +
+  geom_line(data=predict_weight,aes(x=length,y=qt50),color="blue") +
+  geom_line(data=predict_weight,aes(x=length,y=qt75),color="green") +
+  labs(x="Taille (mm)",y="Poids (g)",title="Relation taille-poids (poids réellement mesuré et régression quantile") +
+  scale_y_continuous(breaks = seq(0,(max(dt_poids_non_zero$weight)*1.1), by = 500),limits =c(0,(max(dt_poids_non_zero$weight)*1.1))) +
+  scale_x_continuous(breaks = seq(0,(max(dt_poids_non_zero$length)*1.1), by = 100),limits =c(0,(max(dt_poids_non_zero$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+
+```
+
+```{r calc_wr_ws_2, message=F, warning=F}
+#calcul de Ws
+dt_poids_non_zero$ws = exp(predict(reg_w, newdata = dt_poids_non_zero))[,"tau= 0.75"]
+#calcul de Wr
+dt_poids_non_zero$wr = dt_poids_non_zero$weight / dt_poids_non_zero$ws *100
+
+#faire plot des wr par quantile
+quantile_wr = data.frame(prob = seq(0,100,0.5), wr = quantile(dt_poids_non_zero[, "wr"], prob = seq(0,100,0.5)/100))
+
+ggplot(data=dt_poids_non_zero,aes(x=wr)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="Wr(%)",title="Histogramme des wr, limités à <=500") +
+  scale_x_continuous(breaks = seq(0,500, by = 50),limits =c(0,500))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_wr,aes(x=wr,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Wr(%)",title="Distribution cumulée des wr (%)") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,500, by = 25),limits =c(0,500)) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+```
+
+Au 27/10/2023, l'analyse des 2 graphiques ci-dessus montraient que, à l'image de ce qui a été fait dans Beaulaton et al. (2015), nous pouvons traiter les individus dont le Wr n'est pas dans l'intervalle [25,200]. Ces écarts sont le résultat d'une erreur de saisie de poids poru la plupart. Sont concernées `r nrow(dt_poids_non_zero[dt_poids_non_zero$wr<25,])` lignes dont le Wr est inf. à 25 et `r nrow(dt_poids_non_zero[dt_poids_non_zero$wr>200,])` dont le Wr est sup. à 200.
+Attention, si on supprime ces poissons, on perd potentiellement des mesures de taille correctes (cas notamment de tous les poissons dont le Wr est mauvais car le poids est égal à 350g quelle que soit la taille). De plus on perd également quelques données d'argenture sur ces poissons. Une alternative est de considérer que seule la saisie du poids est fausse et donc de ne supprimer que les lignes de saisie de poids. C'est cette dernière solution qui a été privilégiée. Au 27/10, environ 15000 mesures de poids ont ainsi été "supprimées".
+
+```{r calc_wr_ws_3, message=F, warning=F}
+
+#requête à faire
+
+#récupération de la liste des poissons dont le Wr est mauvais
+fish_to_delete <- dt_poids_non_zero[dt_poids_non_zero$wr<25 | dt_poids_non_zero$wr>200,c('ob_id','bc_id','bc_ba_id')]
+#fish_to_delete <- dt_poids_non_zero[(dt_poids_non_zero$wr<25 | dt_poids_non_zero$wr>200) & dt_poids_non_zero$weight==350,]
+
+#requête à réaliser si il est nécessaire de supprimer les poissons (et pas uniquement les mesures de poids)
+# #pour cela il va falloir retrouver pour chaque poisson son numéro de passage (dans dbeel_batch_fish_aspe/rsa) 
+# fish_to_delete <- fish_to_delete %>% 
+# 		left_join(batch[,c('ba_id',
+# 								'ba_no_biological_characteristic_type')], by=c("bc_ba_id"="ba_id"))
+# 
+# #puis faire un count avec un group by ob_id et num_passage
+# ope_fish_to_delete_pass <- fish_to_delete %>%
+#                         group_by(ob_id,ba_no_biological_characteristic_type) %>%
+#                         summarise(count = n())
+# 
+# #puis faire un count avec un group by ob_id 
+# ope_fish_to_delete <- fish_to_delete %>%
+#                         group_by(ob_id) %>%
+#                         summarise(count = n())
+
+if (nrow(fish_to_delete)>0)
+{
+  #suppression des mesures de poids (si le poisson entier doit être supprimé, dans ce cas on supprime la clause Where sur le type de mesure)
+  #ASPE
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+            where dmbca.bc_ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")
+            and dmbca.bc_no_characteristic_type  = 42")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+  
+  #RSA
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+            where dmbcr.bc_ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")
+            and dmbcr.bc_no_characteristic_type  = 42")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+  
+  
+  # #suppression des poissons (pas à faire au 06/11)
+  # #ASPE
+  # query <- paste0('select * from france.dbeel_batch_fish_aspe dmbca 
+  #           where dmbca.ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_aspe <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # #RSA
+  # query <- paste0('select * from france.dbeel_batch_fish_rsa dmbcr 
+  #           where dmbcr.ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_rsa <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # #maj des totaux par passage (batch)
+  # ope_fish_to_delete_pass <- ope_fish_to_delete_pass %>%
+  #   left_join(batch[batch$ba_batch_level==1,c('ba_ob_id', 'ba_no_biological_characteristic_type','ba_quantity')],
+  # 								by=c("ob_id"="ba_ob_id","ba_no_biological_characteristic_type"="ba_no_biological_characteristic_type")
+  #   )
+  # ope_fish_to_delete_pass$new_ba_quantity <- ope_fish_to_delete_pass$ba_quantity - ope_fish_to_delete_pass$count
+  # 
+  # #maj des totaux sur opération (electrofishing)
+  # ope_fish_to_delete <- ope_fish_to_delete %>%
+  #   left_join(batch[batch$ba_batch_level==1 & batch$ba_no_biological_characteristic_type==47,c('ba_ob_id', 'ba_quantity')],
+  # 								by=c("ob_id"="ba_ob_id")
+  #   )
+  # ope_fish_to_delete$new_ba_quantity <- ope_fish_to_delete$ba_quantity - ope_fish_to_delete$count
+  # 
+  #   
+  # 
+  # #suppression des opérations si aucun poisson ne reste de l'opération de pêche
+  # #dans france.dbeel_batch_ope_rsa/aspe (totaux et passages)
+  # #RSA
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr 
+  #           where dmbcr.ba_ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_rsa <- dbFetch(return)
+  # dbClearResult(return)
+  # #ASPE
+  # query <- paste0('select * from france.dbeel_batch_ope_aspe dmbca
+  #           where dmbca.ba_ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_aspe <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # #dans dbeel_electrofishing_aspe/rsa
+  # #RSA
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr 
+  #           where dmbcr.ba_ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_rsa <- dbFetch(return)
+  # dbClearResult(return)
+  # #ASPE
+  # query <- paste0('select * from france.dbeel_electrofishing_aspe dmbca
+  #           where dmbca.ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_aspe <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # #maj des effectifs par passage puis totaux
+  # 
+  # #par passage dans  dbeel_batch_ope_aspe/rsa
+  # #on va créer une table temporaire pour plus de commodités
+  # DBI::dbExecute(con, "DROP TABLE if exists france.temp_ope_fish_to_delete_pass;")
+  # DBI::dbWriteTable(con, "temp_ope_fish_to_delete_pass", ope_fish_to_delete_pass) # written in public scheme
+  # DBI::dbExecute(con, "ALTER TABLE temp_ope_fish_to_delete_pass set schema france")
+  # 
+  # #RSA
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr ',
+  #                 'join france.temp_ope_fish_to_delete_pass td on ',
+  #                 '(td.ob_id::text,td.ba_no_biological_characteristic_type)=(dmbcr.ba_ob_id::text,dmbcr.ba_no_biological_characteristic_type)')
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_rsa <- dbFetch(return)
+  # dbClearResult(return)
+  # #ASPE
+  # query <- paste0('select * from france.dbeel_batch_ope_aspe dmbca ',
+  #                 'join france.temp_ope_fish_to_delete_pass td on ',
+  #                 '(td.ob_id::text,td.ba_no_biological_characteristic_type)=(dmbca.ba_ob_id::text,dmbca.ba_no_biological_characteristic_type)')
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_aspe <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # DBI::dbExecute(con, "DROP TABLE if exists france.temp_ope_fish_to_delete_pass;")
+  # 
+  # #par total dans  dbeel_batch_ope_aspe/rsa
+  # #on va créer une table temporaire pour plus de commodités
+  # DBI::dbExecute(con, "DROP TABLE if exists france.temp_ope_fish_to_delete;")
+  # DBI::dbWriteTable(con, "temp_ope_fish_to_delete", ope_fish_to_delete) # written in public scheme
+  # DBI::dbExecute(con, "ALTER TABLE temp_ope_fish_to_delete set schema france")
+  # 
+  # #RSA
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr ',
+  #                 'join france.temp_ope_fish_to_delete td on ',
+  #                 '(td.ob_id::text)=(dmbcr.ba_ob_id::text) and dmbcr.ba_no_biological_characteristic_type=47')
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_rsa <- dbFetch(return)
+  # dbClearResult(return)
+  # #ASPE
+  # query <- paste0('select * from france.dbeel_batch_ope_aspe dmbca ',
+  #                 'join france.temp_ope_fish_to_delete td on ',
+  #                 '(td.ob_id::text)=(dmbca.ba_ob_id::text) and dmbca.ba_no_biological_characteristic_type=47')
+  # 
+  # return <- dbSendQuery(con,query)
+  # res_delete_aspe <- dbFetch(return)
+  # dbClearResult(return)
+  # 
+  # DBI::dbExecute(con, "DROP TABLE if exists france.temp_ope_fish_to_delete;")
+}
+
+```
+
+<!-- Voici le nouveau graphe de taille en fonction du poids, en orange sont représentés les poissons dont le Wr n'est pas compris dans l'intervalle  [25,200]. -->
+
+<!-- ```{r final_plot, message=F, warning=F} -->
+<!-- ggplot() + -->
+<!--   geom_jitter(data=dt_poids_non_zero[dt_poids_non_zero$wr>=25 & dt_poids_non_zero$wr<=200,], aes(x=length,y=weight),size=0.2) + -->
+<!--   geom_jitter(data=dt_poids_non_zero[!(dt_poids_non_zero$wr>=25 & dt_poids_non_zero$wr<=200),], aes(x=length,y=weight),size=0.2,color="orange") + -->
+<!--   geom_line(data=predict_weight,aes(x=length,y=qt25),color="red") + -->
+<!--   geom_line(data=predict_weight,aes(x=length,y=qt50),color="blue") + -->
+<!--   geom_line(data=predict_weight,aes(x=length,y=qt75),color="green") + -->
+<!--   labs(x="Taille (mm)",y="Poids (g)",title="Relation taille-poids (poids réellement mesuré et régression quantile") + -->
+<!--   scale_y_continuous(breaks = seq(0,(max(dt_poids_non_zero$weight)*1.1), by = 500),limits =c(0,(max(dt_poids_non_zero$weight)*1.1))) + -->
+<!--   scale_x_continuous(breaks = seq(0,(max(dt_poids_non_zero$length)*1.1), by = 100),limits =c(0,(max(dt_poids_non_zero$length)*1.1))) + -->
+<!--   theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3), -->
+<!--         axis.text.x = element_text(angle=0,hjust = 1,size=7), -->
+<!--         axis.text.y = element_text(angle=0,hjust = 1,size=7), -->
+<!--         plot.title = element_text(size=8), -->
+<!--         panel.background = element_blank(), -->
+<!--         legend.position = "none") -->
+
+<!-- ``` -->
+#### Longueur de nageoire pectorale
+
+```{r silvering_load_data, message=F, warning=F}
+
+query <- paste0("SELECT vs.* FROM ",
+                       var_schema,".",var_dbeel_view_silvering, " vs"
+                       )
+return <- dbSendQuery(con,query)
+view_sivering <- dbFetch(return)
+dbClearResult(return)
+
+```
+
+La longueur de la nageoire pectorale est mesurée sur `r nrow(view_sivering[!is.na(view_sivering$length_pect),])`. Parmi celles-ci, `r nrow(view_sivering[!is.na(view_sivering$length_pect) & view_sivering$length_pect > 100,])` ont une longueur de nageoire pectorale supérieure à 100 mm. Elles sont à exclure des traitements ultérieurs. De même, `r nrow(view_sivering[!is.na(view_sivering$length_pect) & view_sivering$length<250,])` anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l'objet du protocole indice oculaire (Beaulaton and Pénil, 2009).
+
+La distribution de ces mesures est donnée ci-dessous.
+
+```{r pect_plot, message=F, warning=F}
+
+
+dt_pect <- view_sivering[!is.na(view_sivering$length_pect) & view_sivering$length_pect <= 100 & view_sivering$length>=250,]
+
+quantile_pect = data.frame(prob = seq(0,100,0.5), pect = quantile(dt_pect[, "length_pect"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_pect,aes(x=length_pect)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="Longueur pectorale (mm)",title="Histogramme des longueurs de pectorales") +
+  scale_x_continuous(breaks = seq(0,max(dt_pect$length_pect), by = 50),limits =c(0,max(dt_pect$length_pect)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_pect,aes(x=pect,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Longueur pectorale (mm)",title="Distribution cumulée des longueurs de pectorales") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+ scale_x_continuous(breaks = seq(0,max(dt_pect$length_pect), by = 50),limits =c(0,max(dt_pect$length_pect)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+La longueur de la nageoire pectorale en fonction de la taille est donnée ci-dessous.
+
+```{r pect_reg_qt, message=F, warning=F}
+#regression taille-pecto
+reg_lnp = rq(length_pect ~ length, data = dt_pect)
+
+# prediction
+dt_pect$lnp_pred = predict(reg_lnp, newdata = dt_pect, term = "response")
+
+#écart à la médiane de la régression
+dt_pect$lnp_ecart_med <- (dt_pect[, "length_pect"]-dt_pect[, "lnp_pred"])/dt_pect[, "lnp_pred"] * 100
+
+ggplot() +
+  geom_jitter(data=dt_pect, aes(x=length,y=length_pect),size=0.2) +
+  geom_line(data=dt_pect,aes(x=length,y=lnp_pred),color="red") +
+  labs(x="Taille (mm)",y="Longueur pectorale (mm)",title="Relation taille-pectorale (et régression quantile") +
+  scale_y_continuous(breaks = seq(0,(max(dt_pect$length_pect)*1.1), by = 2),limits =c(0,(max(dt_pect$length_pect)*1.1))) +
+  scale_x_continuous(breaks = seq(250,(max(dt_pect$length)*1.1), by = 100),limits =c(250,(max(dt_pect$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+
+
+Nous calibrons une régression quantile (50%) sur cette relation. Nous quantifions l'écart à la médiane (quantile 50%), exprimé en pourcentage, comme : (Ln−Lnp/Lnp), avec Ln la mesure et Lnp la prédiction avec la régression quantile. Ci-dessous les écarts à la médiane constatés.
+L'analyse de la distribution nous conduit à exclure les individus ayant une longueur de nageoire pectorale présentant un écart à la médiane de plus de 50 % (en orange sur le graphe). Ce sont ainsi en tout `r nrow(dt_pect[abs(dt_pect$lnp_ecart_med)>50,])` mesures qui sont à exclure (au 27/10, 43 mesures). 
+
+```{r pect_reg_qt_plot, message=F, warning=F}
+ggplot() +
+  geom_jitter(data=dt_pect[abs(dt_pect$lnp_ecart_med)<50,], aes(x=length,y=lnp_ecart_med),size=0.2) +
+  geom_jitter(data=dt_pect[abs(dt_pect$lnp_ecart_med)>50,], aes(x=length,y=lnp_ecart_med),size=0.2,color="orange") +
+  geom_hline(yintercept = 50, color="red") +
+  geom_hline(yintercept = -50, color="red") +
+  labs(x="Taille (mm)",y="Ecart Longueur pectorale (mm) à la médiane prédite",title="Relation taille-écart médiane pectorale") +
+  scale_y_continuous(breaks = seq(min(-100,round(min(dt_pect$lnp_ecart_med)*1.2,0)),round(max(dt_pect$lnp_ecart_med)*1.2,0), by = 10),
+                     limits =c(min(-100,round(min(dt_pect$lnp_ecart_med)*1.2,0)),round(max(dt_pect$lnp_ecart_med)*1.2,0))) +
+  scale_x_continuous(breaks = seq(250,(max(dt_pect$length)*1.1), by = 100),limits =c(250,(max(dt_pect$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+
+```{r pect_delete_50, message=F, warning=F}
+dt_pect_delete <- dt_pect[abs(dt_pect$lnp_ecart_med)>50,]
+
+if (nrow(dt_pect_delete)>0)
+{
+  #faire une requête dans france.dbeel_mensurationindiv_biol_charac_aspe/rsa dont les ba_id sont présents dans dt_pect_delete 
+  #ASPE
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+            where dmbca.bc_ba_id in (',paste0("'",dt_pect_delete$ba_id,"'",collapse=","),")
+            and dmbca.bc_no_characteristic_type  = 264")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+  
+  #RSA
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+            where dmbcr.bc_ba_id in (',paste0("'",dt_pect_delete$ba_id,"'",collapse=","),")
+            and dmbcr.bc_no_characteristic_type  = 264")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+}
+
+```
+#### Diamètre oculaire horizontaux
+
+Le diamètre horizontal a été mesuré sur `r nrow(view_sivering[!is.na(view_sivering$eye_diam_horiz),])` anguilles. Parmi celles-ci, `r nrow(view_sivering[!is.na(view_sivering$eye_diam_horiz) & view_sivering$eye_diam_horiz>20,])` ont un diamètre oculaire
+horizontal supérieure à 20 mm. Elles sont exclus des traitements ultérieurs. De même, `r nrow(view_sivering[!is.na(view_sivering$eye_diam_horiz) & view_sivering$length<250,])` anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l'objet du protocole indice oculaire (Beaulaton and
+Pénil, 2009). La distribution de ces mesures est donnée ci-dessous. 
+
+```{r eye_horiz_plot, message=F, warning=F}
+
+
+dt_eye_horiz <- view_sivering[!is.na(view_sivering$eye_diam_horiz) & view_sivering$eye_diam_horiz<=20 & view_sivering$length>=250,]
+
+quantile_eye_h = data.frame(prob = seq(0,100,0.5), eye_diam_horiz = quantile(dt_eye_horiz[, "eye_diam_horiz"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_eye_horiz,aes(x=eye_diam_horiz)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="Diam occulaire horizontal",title="Histogramme des diamètres occulaires horizontaux") +
+  scale_x_continuous(breaks = seq(0,max(dt_eye_horiz$eye_diam_horiz), by = 5),limits =c(0,max(dt_eye_horiz$eye_diam_horiz)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_eye_h,aes(x=eye_diam_horiz,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Diam occulaire horizontal",title="Distribution cumulée des diamètres oculaires") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,max(dt_eye_horiz$eye_diam_horiz), by = 5),limits =c(0,max(dt_eye_horiz$eye_diam_horiz)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+Le diamètre oculaire horizontal en fonction de la taille est présenté ci-dessous. 
+
+```{r eye_horiz_reg_qt, message=F, warning=F}
+#regression taille-pecto
+reg_eye_h = rq(eye_diam_horiz ~ length, data = dt_eye_horiz)
+
+# prediction
+dt_eye_horiz$eye_diam_horiz_pred = predict(reg_eye_h, newdata = dt_eye_horiz, term = "response")
+
+#écart à la médiane de la régression
+dt_eye_horiz$eye_diam_hori_ecart_med <- (dt_eye_horiz[, "eye_diam_horiz"]-dt_eye_horiz[, "eye_diam_horiz_pred"])/dt_eye_horiz[, "eye_diam_horiz_pred"] * 100
+
+ggplot() +
+  geom_jitter(data=dt_eye_horiz, aes(x=length,y=eye_diam_horiz),size=0.2) +
+  geom_line(data=dt_eye_horiz,aes(x=length,y=eye_diam_horiz_pred),color="red") +
+  labs(x="Taille (mm)",y="Diamètre oculaire horizontal (mm)",title="Relation taille-diamètre oculaire horizontale (et régression quantile") +
+  scale_y_continuous(breaks = seq(0,max(dt_eye_horiz$eye_diam_horiz), by = .5),limits =c(0,max(dt_eye_horiz$eye_diam_horiz)))+
+  scale_x_continuous(breaks = seq(250,(max(dt_eye_horiz$length)*1.1), by = 100),limits =c(250,(max(dt_eye_horiz$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+À partir d'une régression quantile (50%) sur cette relation, nous quantifions l'écart à la médiane (quantile 50%), exprimé en pourcentage, comme : (Oh−Ohp)/Ohp, avec Oh la
+mesure et Ohp la prédiction avec la régression quantile. Au vu des données, nous excluons `r nrow(dt_eye_horiz[abs(dt_eye_horiz$eye_diam_hori_ecart_med)>150,])` mesure(s) de diamètre coulaire horizontal anguilles présentant un écart à la médiane de plus de 150 %.
+
+```{r eye_h_reg_qt, message=F, warning=F}
+ggplot() +
+  geom_jitter(data=dt_eye_horiz[abs(dt_eye_horiz$eye_diam_hori_ecart_med)<=150,],aes(x=length,y=eye_diam_hori_ecart_med),size=0.2) +
+  # geom_jitter(data=dt_eye_horiz[abs(dt_eye_horiz$eye_diam_hori_ecart_med)>150,], aes(x=length,y=lnp_ecart_med),size=0.2,color="orange") +
+  geom_hline(yintercept = 150, color="red") +
+  geom_hline(yintercept = -150, color="red") +
+  labs(x="Taille (mm)",y="Diamètre oculaire horizontal (mm)",title="Relation taille-écart médiane diamètre oculaire horizontal") +
+  scale_y_continuous(breaks = seq(min(-150,round(min(dt_eye_horiz$eye_diam_hori_ecart_med)*1.2,0)),round(max(dt_eye_horiz$eye_diam_hori_ecart_med)*1.2,0), by = 10),
+                     limits =c(min(-150,round(min(dt_eye_horiz$eye_diam_hori_ecart_med)*1.2,0)),round(max(dt_eye_horiz$eye_diam_hori_ecart_med)*1.2,0))) +
+  scale_x_continuous(breaks = seq(250,(max(dt_eye_horiz$length)*1.1), by = 100),limits =c(250,(max(dt_eye_horiz$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+
+```{r eyeh_delete_150, message=F, warning=F}
+dt_eyeh_delete <- dt_eye_horiz[abs(dt_eye_horiz$eye_diam_hori_ecart_med)>150,]
+
+# au 06/11 : 0 lignes
+# #faire une requête dans france.dbeel_mensurationindiv_biol_charac_aspe/rsa dont les ba_id sont présents dans dt_eyeh_delete 
+# #ASPE
+# query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+#           where dmbca.bc_ba_id in (',paste0("'",dt_eyeh_delete$ba_id,"'",collapse=","),")
+#           and dmbca.bc_no_characteristic_type  = 263")
+# 
+# return <- dbSendQuery(con,query)
+# res_delete_aspe <- dbFetch(return)
+# dbClearResult(return)
+# 
+# #RSA
+# query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+#           where dmbcr.bc_ba_id in (',paste0("'",dt_eyeh_delete$ba_id,"'",collapse=","),")
+#           and dmbcr.bc_no_characteristic_type  = 263")
+# 
+# return <- dbSendQuery(con,query)
+# res_delete_rsa <- dbFetch(return)
+# dbClearResult(return)
+```
+
+#### Diamètre oculaire verticaux
+Le diamètre vertical a été mesuré sur `r nrow(view_sivering[!is.na(view_sivering$eye_diam_vert),])` anguilles. Parmi celles-ci, `r nrow(view_sivering[!is.na(view_sivering$eye_diam_vert) & view_sivering$eye_diam_vert>20,])` ont un diamètre oculaire horizontal supérieure à 20 mm. Elles sont exclus des traitements ultérieurs. De même, `r nrow(view_sivering[!is.na(view_sivering$eye_diam_vert) & view_sivering$length<250,])` anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l'objet du protocole indice oculaire (Beaulaton and Pénil, 2009). La distribution de ces mesures est donnée ci-dessous. 
+
+```{r eye_vert_plot, message=F, warning=F}
+
+
+dt_eye_vert <- view_sivering[!is.na(view_sivering$eye_diam_vert) & view_sivering$eye_diam_vert<=20 & view_sivering$length>=250,]
+
+quantile_eye_v = data.frame(prob = seq(0,100,0.5), eye_diam_vert = quantile(dt_eye_vert[, "eye_diam_vert"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_eye_vert,aes(x=eye_diam_vert)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="Diam occulaire vertical",title="Histogramme des diamètres occulaires verticaux") +
+  scale_x_continuous(breaks = seq(0,max(dt_eye_vert$eye_diam_vert), by = 5),limits =c(0,max(dt_eye_vert$eye_diam_vert)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_eye_v,aes(x=eye_diam_vert,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Diam occulaire vertical",title="Distribution cumulée des diamètres oculaires") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,max(dt_eye_vert$eye_diam_vert), by = 5),limits =c(0,max(dt_eye_vert$eye_diam_vert)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+Le diamètre oculaire vertical en fonction de la taille est présenté ci-dessous. 
+
+```{r eye_vert_reg_qt, message=F, warning=F}
+#regression taille-pecto
+reg_eye_h = rq(eye_diam_vert ~ length, data = dt_eye_vert)
+
+# prediction
+dt_eye_vert$eye_diam_vert_pred = predict(reg_eye_h, newdata = dt_eye_vert, term = "response")
+
+#écart à la médiane de la régression
+dt_eye_vert$eye_diam_vert_ecart_med <- (dt_eye_vert[, "eye_diam_vert"]-dt_eye_vert[, "eye_diam_vert_pred"])/dt_eye_vert[, "eye_diam_vert_pred"] * 100
+
+ggplot() +
+  geom_jitter(data=dt_eye_vert, aes(x=length,y=eye_diam_vert),size=0.2) +
+  geom_line(data=dt_eye_vert,aes(x=length,y=eye_diam_vert_pred),color="red") +
+  labs(x="Taille (mm)",y="Diamètre oculaire vertical (mm)",title="Relation taille-diamètre oculaire verticale (et régression quantile") +
+  scale_y_continuous(breaks = seq(0,max(dt_eye_vert$eye_diam_vert), by = .5),limits =c(0,max(dt_eye_vert$eye_diam_vert)))+
+  scale_x_continuous(breaks = seq(250,(max(dt_eye_vert$length)*1.1), by = 100),limits =c(250,(max(dt_eye_vert$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+À partir d'une régression quantile (50%) sur cette relation, nous quantifions l'écart à la médiane (quantile 50%), exprimé en pourcentage, comme : (Ov−Ovp)/Ovp, avec Ov la
+mesure et Ovp la prédiction avec la régression quantile. Au vu des données, nous excluons `r nrow(dt_eye_vert[abs(dt_eye_vert$eye_diam_vert_ecart_med)>150,])` mesure(s) de diamètre coulaire vertical anguilles présentant un écart à la médiane de plus de 150 %.
+
+```{r eye_v_reg_qt, message=F, warning=F}
+ggplot() +
+  geom_jitter(data=dt_eye_vert[abs(dt_eye_vert$eye_diam_vert_ecart_med)<=150,],aes(x=length,y=eye_diam_vert_ecart_med),size=0.2) +
+  # geom_jitter(data=dt_eye_vert[abs(dt_eye_vert$eye_diam_vert_ecart_med)>150,], aes(x=length,y=lnp_ecart_med),size=0.2,color="orange") +
+  geom_hline(yintercept = 150, color="red") +
+  geom_hline(yintercept = -150, color="red") +
+  labs(x="Taille (mm)",y="Diamètre oculaire vertical (mm)",title="Relation taille-écart médiane diamètre oculaire vertical") +
+  scale_y_continuous(breaks = seq(min(-150,round(min(dt_eye_vert$eye_diam_vert_ecart_med)*1.2,0)),round(max(dt_eye_vert$eye_diam_vert_ecart_med)*1.2,0), by = 10),
+                     limits =c(min(-150,round(min(dt_eye_vert$eye_diam_vert_ecart_med)*1.2,0)),round(max(dt_eye_vert$eye_diam_vert_ecart_med)*1.2,0))) +
+  scale_x_continuous(breaks = seq(250,(max(dt_eye_vert$length)*1.1), by = 100),limits =c(250,(max(dt_eye_vert$length)*1.1))) +
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_blank(),
+        legend.position = "none")
+```
+
+```{r eyev_delete_150, message=F, warning=F}
+dt_eyev_delete <- dt_eye_vert[abs(dt_eye_vert$eye_diam_vert_ecart_med)>150,]
+
+# au 06/11 : 0 lignes
+# #faire une requête dans france.dbeel_mensurationindiv_biol_charac_aspe/rsa dont les ba_id sont présents dans dt_eyeh_delete 
+# #ASPE
+# query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+#           where dmbca.bc_ba_id in (',paste0("'",dt_eyeh_delete$ba_id,"'",collapse=","),")
+#           and dmbca.bc_no_characteristic_type  = 263")
+# 
+# return <- dbSendQuery(con,query)
+# res_delete_aspe <- dbFetch(return)
+# dbClearResult(return)
+# 
+# #RSA
+# query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+#           where dmbcr.bc_ba_id in (',paste0("'",dt_eyeh_delete$ba_id,"'",collapse=","),")
+#           and dmbcr.bc_no_characteristic_type  = 263")
+# 
+# return <- dbSendQuery(con,query)
+# res_delete_rsa <- dbFetch(return)
+# dbClearResult(return)
+```
+
+### Comparaison des diamètres oculaires horizontaux et verticaux
+
+La distribution des diamètres oculaires horizontaux et verticaux montre que les diamètres horizontaux sont en
+général légèrement supérieurs aux diamètres verticaux.
+
+```{r eye_plot, message=F, warning=F}
+
+ggplot() +
+  geom_line(data=quantile_eye_h,aes(x=eye_diam_horiz,y=prob),size=0.5,color="red") +
+  geom_line(data=quantile_eye_v,aes(x=eye_diam_vert,y=prob),size=0.5,color="blue") +
+  labs(y="Quantile (%)",x="Diam occulaire",title="distribution des diamètres oculaires verticaux (bleu) et horizontaux (rouge)") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,max(quantile_eye_h$eye_diam_horiz), by = .5),limits =c(0,max(quantile_eye_h$eye_diam_horiz)))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+```
+
+```{r eye_excentricite, message=F, warning=F}
+
+#au 06/11 on travaille avec dt_eye_horiz car à chaque fois qu'on à une mesure de diam horiz, on a aussi une mesure de diam vert (et inversement)
+dt_eye_horiz$diam_max =  apply(dt_eye_horiz[,c("eye_diam_horiz", "eye_diam_vert")],1, max, na.rm=TRUE)
+dt_eye_horiz$diam_min =  apply(dt_eye_horiz[,c("eye_diam_horiz", "eye_diam_vert")],1, min, na.rm=TRUE)
+dt_eye_horiz$diam_delta=dt_eye_horiz$diam_max - dt_eye_horiz$diam_min
+dt_eye_horiz$distance_foyer_c = sqrt(dt_eye_horiz$diam_max^2 - dt_eye_horiz$diam_min^2)
+dt_eye_horiz$excentricite = dt_eye_horiz$distance_foyer_c / dt_eye_horiz$diam_max
+dt_eye_horiz[dt_eye_horiz$eye_diam_horiz==dt_eye_horiz$diam_max & !is.na(dt_eye_horiz$eye_diam_horiz),"grand_axe"] = "horizontal"
+dt_eye_horiz[dt_eye_horiz$eye_diam_vert==dt_eye_horiz$diam_max & !is.na(dt_eye_horiz$eye_diam_vert),"grand_axe"] = "vertical"
+dt_eye_horiz$oc_surface = pi * dt_eye_horiz$eye_diam_horiz * dt_eye_horiz$eye_diam_vert
+dt_eye_horiz$diam_moyen_surface = sqrt(dt_eye_horiz$oc_surface/pi)
+dt_eye_horiz$MD = (dt_eye_horiz$eye_diam_horiz+dt_eye_horiz$eye_diam_vert)/2
+
+```
+
+D'après ces mesures, l’œil de l'anguille n'est donc pas parfaitement rond. Nous allons donc considérer qu'il forme une ellipse dont les diamètres mesurés sont les deux axes. La forme d'une ellipse peut être caractérisé par son excentricité (notée e). Ce nombre est compris entre 0 (pour un cercle) et 1 (aplatissement infini). La figure suivante montre la distribution de l'excentricité tel que mesurée sur les anguilles. Nous excluons les mesures de diamètres oculaires dont l'excentricité est supérieure à 0,8 (`r nrow(dt_eye_horiz[dt_eye_horiz$excentricite>0.8,])` individus).
+
+```{r eye_excentricite_plot_excl, message=F, warning=F}
+
+
+quantile_excentricite = data.frame(prob = seq(0,100,0.5), excentricite = quantile(dt_eye_horiz[, "excentricite"], prob = seq(0,100,0.5)/100))
+
+#
+ggplot(data=dt_eye_horiz,aes(x=excentricite)) +
+  geom_histogram(color="black", fill="white") +
+  labs(y="Effectif",x="Excentricité",title="Histogramme des excentricités") +
+  scale_x_continuous(breaks = seq(0,1, by = .1),limits =c(0,1))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+ggplot(data=quantile_excentricite,aes(x=excentricite,y=prob)) +
+  geom_line(size=0.5) +
+  labs(y="Quantile (%)",x="Excentricité",title="Distribution cumulée des excentricités") +
+  scale_y_continuous(breaks = seq(0,100, by = 5),limits =c(0,100)) +
+  scale_x_continuous(breaks = seq(0,1, by = .1),limits =c(0,1))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=0,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey"),
+        legend.position = "none")
+
+#script d'exclusion si nécessaire
+#à faire si nrow(dt_eye_horiz[dt_eye_horiz$excentricite>0.8,])>0
+```

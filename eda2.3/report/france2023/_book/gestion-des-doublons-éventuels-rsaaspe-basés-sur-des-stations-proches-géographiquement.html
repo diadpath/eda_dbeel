@@ -204,7 +204,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="6.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres"><i class="fa fa-check"></i><b>6.1</b> Quelques chiffres</a></li>
 <li class="chapter" data-level="6.2" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cohérence-des-données-par-opérations-de-pêches"><i class="fa fa-check"></i><b>6.2</b> Cohérence des données par opérations de pêches</a></li>
-<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#section"><i class="fa fa-check"></i><b>6.3</b> </a></li>
+<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#contrôle-de-lintégrité-des-données-taillepoids"><i class="fa fa-check"></i><b>6.3</b> Contrôle de l’intégrité des données taille/poids</a>
+<ul>
+<li class="chapter" data-level="6.3.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#comparaison-des-diamètres-oculaires-horizontaux-et-verticaux"><i class="fa fa-check"></i><b>6.3.1</b> Comparaison des diamètres oculaires horizontaux et verticaux</a></li>
+</ul></li>
 </ul></li>
 </ul>
 
@@ -304,7 +307,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 <div id="opérations-aspersa-communes-sur-ces-stations" class="section level2 hasAnchor" number="4.2">
 <h2><span class="header-section-number">4.2</span> Opérations ASPE/RSA communes sur ces stations<a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#opérations-aspersa-communes-sur-ces-stations" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>A partir de ces couples de stations, nous recherchons ensuite les opérations de pêches potentiellement “doublons”. Aussi nous réalisons une requête qui va travailler à la fois sur dbeel_electrofishing_aspe et dbeel_electrofishing_rsa en lien avec temp_stations_dup_aspe_rsa.</p>
+<p>A partir de ces couples de stations, nous recherchons ensuite les opérations de pêches potentiellement “doublons”. Aussi nous réalisons une requête qui va travailler à la fois sur <em>dbeel_electrofishing_aspe</em> et <em>dbeel_electrofishing_rsa</em> en lien avec <em>temp_stations_dup_aspe_rsa</em>.</p>
 <p>Le principe de la requête est de remonter séparément les opérations ASPE et RSA sur des stations connues comme potentiellement en doublons (sachant qu’une station ASPE/RSA peut être doublon d’une ou plusieurs stations RSA/ASPE). Ensuite ne sont retenus que les couples d’opérations sur des couples de doublons connus.</p>
 <div class="sourceCode" id="cb86"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb86-1"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#cb86-1" tabindex="-1"></a><span class="co">--on remonte les opérations ASPE dont la station est connu dans le fichier des duplicats ASPE/RSA</span></span>
 <span id="cb86-2"><a href="gestion-des-doublons-éventuels-rsaaspe-basés-sur-des-stations-proches-géographiquement.html#cb86-2" tabindex="-1"></a><span class="kw">with</span> select_ope_aspe <span class="kw">as</span>(</span>
@@ -453,7 +456,8 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 2 couples d’opérations sont présentent des différences significatives :
 - une différence de 129mm avec notamment une anguille manquante dans RSA
 - une différence de 73mm, une seule anguille mesurée, 282mm dans ASPE, 355mm dans RSA</p>
-<p><strong>Solution proposée</strong> : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.</p>
+<p><strong>Solution proposée</strong> : On conserve les opérations de pêches ASPE pour toutes ces opérations car les données semblent plus complètes et le référentiel de station plus récent.
+<strong>OK au 25/10, les 60 opérations RSA ont été supprimées, ainsi que tous les poissons capturées et mesurées correspondants</strong>.</p>
 </div>
 </div>
             </section>

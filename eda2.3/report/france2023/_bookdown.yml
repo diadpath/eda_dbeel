@@ -1,18 +1,9 @@
 # voir : https://bookdown.org/yihui/rmarkdown/bookdown-project.html
 # pour executer sur linux / eclipse executer a partir du index.rmd: bookdown::render_book(input= ".", output_format = "bookdown::pdf_document2", output_dir= "${container_loc:${out_file_path}}", encoding= "${resource_enc}")
 
-# Phase de test
-rmd_files: ["index.Rmd", "01-introduction.rmd" , "02-prep_donnees.rmd", "03-insert_dans_eda.rmd", "04-gestion_doublons.rmd","05-check_integrity.rmd"]
-
-# Rapport Bresle
-#rmd_files: ["index_bre.Rmd", "01-introduction_bre.rmd", "02-donnees_environnementales_bre.rmd", "03-piegeage_bre.rmd", "04-peches_elec_bre.rmd", "06-estimations_bre.rmd", "07-faits_notables_bre.rmd", "08-references_bre.rmd", "09-annexes_bre.rmd"] # defini les fichiers a inclure dans la compilaton
-
-# Rapport Scorff 
-#rmd_files: ["index_sco.Rmd", "01-introduction_sco.rmd", "02-donnees_environnementales_sco.rmd", "03-piegeage_sco.rmd", "04-peches_elec_sco.rmd", "06-estimations_sco.rmd", "07-faits_notables_sco.rmd", "08-references_sco.rmd", "09-annexes_sco.rmd"] # defini les fichiers a inclure dans la compilaton
-
-# Rapport Oir 
-#rmd_files: ["index_oir.Rmd", "01-introduction_oir.rmd", "02-donnees_environnementales_oir.rmd", "03-piegeage_oir.rmd", "04-peches_elec_oir.rmd", "06-estimations_oir.rmd", "07-faits_notables_oir.rmd", "08-references_oir.rmd", "09-annexes_oir.rmd"]
-
-# Rapport Nivelle
-#rmd_files: ["index_niv.Rmd", "01-introduction_niv.rmd", "02-donnees_environnementales_niv.rmd", "03-piegeage_niv.rmd", "04-peches_elec_niv.rmd", "06-estimations_niv.rmd", "07-faits_notables_niv.rmd", "08-references_niv.rmd", "09-annexes_niv.rmd"]
-
+rmd_files: ["index.Rmd", 
+            "01-introduction.rmd" , 
+            "02-prep_donnees.rmd", 
+            "03-insert_dans_eda.rmd",
+            "04-gestion_doublons.rmd",
+            "05-check_integrity.rmd"]

@@ -89,5 +89,6 @@ load_library(c('sqldf',  # for executing SQL queries
 				'kableExtra', # for pub-ready tables
 				'RCurl',
 				'tidyverse',
-				'sf')) 
+				'sf',
+				'quantreg')) 
 ```
