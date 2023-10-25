@@ -204,7 +204,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="6.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres"><i class="fa fa-check"></i><b>6.1</b> Quelques chiffres</a></li>
 <li class="chapter" data-level="6.2" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cohérence-des-données-par-opérations-de-pêches"><i class="fa fa-check"></i><b>6.2</b> Cohérence des données par opérations de pêches</a></li>
-<li class="chapter" data-level="6.3" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#section"><i class="fa fa-check"></i><b>6.3</b> </a></li>
 </ul></li>
 </ul>
 
@@ -236,7 +235,7 @@ Il est donc nécessaire au maximum d’utiliser les tables mère (opérations, e
 <!-- -- -->
 <div id="quelques-chiffres" class="section level2 hasAnchor" number="6.1">
 <h2><span class="header-section-number">6.1</span> Quelques chiffres<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>L’insertion des données ASPE et RSA se caractérise par 39526 opérations de pêche électrique en France Métropolitaine. Ces pêches ont donné lieu à 39526 résultats de pêches décomposés comme suit :</p>
+<p>L’insertion des données ASPE et RSA se caractérise par 39460 opérations de pêche électrique en France Métropolitaine. Ces pêches ont donné lieu à 39460 résultats de pêches décomposés comme suit :</p>
 <table class="table table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -256,10 +255,10 @@ Poissons pêchés
 Number
 </td>
 <td style="text-align:right;">
-39526
+39460
 </td>
 <td style="text-align:right;">
-538848
+537820
 </td>
 </tr>
 <tr>
@@ -267,10 +266,10 @@ Number
 Number in the first pass
 </td>
 <td style="text-align:right;">
-39526
+39460
 </td>
 <td style="text-align:right;">
-478103
+477135
 </td>
 </tr>
 <tr>
@@ -278,10 +277,10 @@ Number in the first pass
 Number in the second pass
 </td>
 <td style="text-align:right;">
-10474
+10468
 </td>
 <td style="text-align:right;">
-60102
+60042
 </td>
 </tr>
 <tr>
@@ -325,7 +324,7 @@ Quantité mesurée
 Total length
 </td>
 <td style="text-align:right;">
-505317
+504289
 </td>
 </tr>
 <tr>
@@ -333,7 +332,7 @@ Total length
 Weight
 </td>
 <td style="text-align:right;">
-243407
+243386
 </td>
 </tr>
 <tr>
@@ -391,9 +390,6 @@ Nb passage batch
 <p>Au 28/09 : L’analyse de cette incohérence montre que à chaque fois il y a 2 passages dans <em>batch</em> mais un seul dans <em>electrofishing</em>.</p>
 <p>Ces deuxièmes passages intégrés dans <em>batch</em> concernent dans tous les cas des passages sans capture :</p>
 <p>Au 28/09 : Le problème a été identifié. Dans le script d’insertion <em>import_rsa_dbeel.sql</em>, lors de l’insertion des résultats de pêche, passage par passage, il manquait une condition permettant de ne filtrer que les opérations de pêches à plusieurs passages. Ainsi pour les opérations de pêches à un seul passage, on intégrait des résultats de pêches ‘NULL’. Enfin il existe certaines lignes dans RSA qui présente des pêches à 1 ou plusieurs passages mais dont les effectifs de pêches sont renseignés à ‘NULL’ au lieu de ‘0’. Les scripts d’intégration des batch rsa sont relancés le 29/09 : <strong>problème résolu</strong>.</p>
-</div>
-<div id="section" class="section level2" number="6.3">
-<h2><span class="header-section-number">6.3</span> </h2>
 <!-- -- -->
 <!-- étape 3 : s'inspirer de Beaulaton et al 2015 -->
 <!-- les données de taille/poids sont cohérentes -->
