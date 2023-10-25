@@ -30,7 +30,7 @@ La recherche de doublons se déroule en plusieurs étapes.
 
 La première étape est de remonter les couples de stations ASPE/RSA situées à moins de 200m. Cette étape est réalisée dans le fichier __check_dup_stations_ASPE_RSA.R__. Les résultats seront stockés dans une table temporaire dans la base Postgres. La connexion à la base est initialisée.
 
-```{r doub_conn_base, eval = False, echo = T}
+```{r doub_conn_base, eval = F, echo = T}
 rivernetwork <- "RIOS"
 source("../../../common/init.r")
 # Set up database connection
