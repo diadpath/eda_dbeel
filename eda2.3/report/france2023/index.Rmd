@@ -70,7 +70,7 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 output <- rmarkdown::metadata$output
 ```
 
-```{r packages, include=FALSE, echo=FALSE}
+```{r packages, message=FALSE, echo=FALSE}
 
 load_library=function(necessary)
 {

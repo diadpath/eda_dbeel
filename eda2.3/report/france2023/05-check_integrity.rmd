@@ -8,7 +8,6 @@ A cette étape, il est nécessaire de vérifier que les données intégrées dan
 <!-- -- -->
 <!-- chunk de connexion à la base -->
 <!-- -- -->
-<!--
 ```{r conn_database, include=FALSE}
 #EDALoad23.xml a été copié dans le répertoire france2023 car c'est le répertoire par défaut de knitr 
 #peut être à améliorer via knitr::opts_chunk$set ?
@@ -24,7 +23,6 @@ con = dbConnect(Postgres(),
 		user=baseODBCrios[2], 
 		password=baseODBCrios[3])
 ```
--->
 <!-- -- -->
 <!-- chunk d'import des données -->
 <!-- -- -->
@@ -259,7 +257,6 @@ if (nrow(electro_batch_coher[which(electro_batch_coher$ef_nbpas != electro_batch
 
 Au 28/09 : Le problème a été identifié. Dans le script d'insertion _import_rsa_dbeel.sql_, lors de l'insertion des résultats de pêche, passage par passage, il manquait une condition permettant de ne filtrer que les opérations de pêches à plusieurs passages. Ainsi pour les opérations de pêches à un seul passage, on intégrait des résultats de pêches 'NULL'. Enfin il existe certaines lignes dans RSA qui présente des pêches à 1 ou plusieurs passages mais dont les effectifs de pêches sont renseignés à 'NULL' au lieu de '0'. Les scripts d'intégration des batch rsa sont relancés le 29/09 : __problème résolu__.
 
-## 
 <!-- -- -->
 <!-- étape 3 : s'inspirer de Beaulaton et al 2015 -->
 <!-- les données de taille/poids sont cohérentes -->

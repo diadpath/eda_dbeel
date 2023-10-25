@@ -1260,13 +1260,12 @@ SELECT
 	; --950 ROWS 28s
 
 ```
-Au 02/10, il existe 1090 opérations à insérer.
+Au 24/10, il existe 1090 opérations à insérer.
 
-
-Ci-dessous le code d'insertion des epa à pied.
-```{sql insert_elec_rsa_epap, eval = FALSE, echo = TRUE}
--------------------------------------
--- echantillonage pontctuel d'abondance, pêche par points (à pied ?)
+Ci-dessous le code d'insertion des indices d'abondances à pied.
+```{sql insert_elec_rsa_iaa, eval = FALSE, echo = TRUE}
+--------------------------------------
+-- Indice d'abondance à pied
 --------------------------------------
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
@@ -1297,9 +1296,9 @@ SELECT
   ope.op_date::date AS ob_starting_date,
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
-  306 AS ef_no_fishingmethod,
+  303 AS ef_no_fishingmethod,
   71 AS ef_no_electrofishing_mean, 
-  op_epap.epap_npnt * 12.5 AS ef_wetted_area, 
+  op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
   NULL AS ef_fished_length,
   NULL AS ef_fished_width,
   NULL AS ef_duration,
@@ -1314,7 +1313,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone) 
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -1322,10 +1321,9 @@ SELECT
   WHERE observation_origin.no_name='Raw data' 
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
-  ; --132 ROWS 28s
-  	--J. RAITIF, 29/08 : 145  
+  ; --2221 ROWS 28s (2499 avant)
 ```
-Au 29/08, il existe 145 opérations à insérer.
+Au 24/10, il existe 2770 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa en bateau.
 ```{sql insert_elec_rsa_epab, eval = FALSE, echo = TRUE}
@@ -1389,67 +1387,7 @@ SELECT
   ; --152 ROWS 28s
   	--J. RAITIF, 29/08 : 162
 ```
-Au 29/08, il existe 162 opérations à insérer.
-
-Ci-dessous le code d'insertion des pêches des berges à pied.
-```{sql insert_elec_rsa_pcbgp, eval = FALSE, echo = TRUE}
-INSERT INTO france.dbeel_electrofishing_rsa (
-  ob_id,
-  ob_no_origin,
-  ob_no_type,
-  ob_no_period,
-  ob_starting_date,
-  ob_ending_date,
-  ob_dp_id,
-  ef_no_fishingmethod,
-  ef_no_electrofishing_mean,
-  ef_wetted_area,
-  ef_fished_length,
-  ef_fished_width,
-  ef_duration,
-  ef_nbpas,
-  ob_op_id,
-  op_id ,
- op_zone,
- op_typ ,
-  op_sta_id
-  )
-SELECT 
-  uuid_generate_v4() AS ob_id ,
-  observation_origin.no_id AS ob_no_origin,
-  observation_type.no_id AS ob_no_type, 
-  period_type.no_id AS ob_no_period,
-  ope.op_date::date AS ob_starting_date,
-  CAST(NULL AS date) as ob_ending_date,
-  data_provider.dp_id AS ob_dp_id, 
-  302 AS ef_no_fishingmethod,
-  71 AS ef_no_electrofishing_mean, 
-  op_pcbgp.pcbgp_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
-  pcbgp_long AS ef_fished_length,
-  pcbgp_larg AS ef_fished_width,
-  NULL AS ef_duration,
-  pcbgp_npas AS ef_nbpas,       
-  sta.op_id as ob_op_id,
-  ope.op_id,
-  ope.op_zone,
-  ope.op_typ, 
-  ope.op_sta_id 
-  FROM  
-  france.dbeel_station_rsa sta
-  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
-  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)
-  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone)
-  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
-   dbeel_nomenclature.observation_origin,
-  dbeel_nomenclature.observation_type,
-   dbeel_nomenclature.period_type       
-  WHERE observation_origin.no_name='Raw data' 
-  AND observation_type.no_name='Electro-fishing' 
-  AND period_type.no_name='Daily' 
-  ; --17 ROWS 28s 
-```
-Au 02/10, il existe 19 opérations à insérer.
+Au 24/10, il existe 162 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_elec_rsa_pcbgb, eval = FALSE, echo = TRUE}
@@ -1512,10 +1450,70 @@ SELECT
 ```
 Au 29/08, il existe 186 opérations à insérer.
 
-Ci-dessous le code d'insertion des indices d'abondances à pied.
-```{sql insert_elec_rsa_iaa, eval = FALSE, echo = TRUE}
---------------------------------------
--- Indice d'abondance à pied
+Ci-dessous le code d'insertion des pêches des berges à pied.
+```{sql insert_elec_rsa_pcbgp, eval = FALSE, echo = TRUE}
+INSERT INTO france.dbeel_electrofishing_rsa (
+  ob_id,
+  ob_no_origin,
+  ob_no_type,
+  ob_no_period,
+  ob_starting_date,
+  ob_ending_date,
+  ob_dp_id,
+  ef_no_fishingmethod,
+  ef_no_electrofishing_mean,
+  ef_wetted_area,
+  ef_fished_length,
+  ef_fished_width,
+  ef_duration,
+  ef_nbpas,
+  ob_op_id,
+  op_id ,
+ op_zone,
+ op_typ ,
+  op_sta_id
+  )
+SELECT 
+  uuid_generate_v4() AS ob_id ,
+  observation_origin.no_id AS ob_no_origin,
+  observation_type.no_id AS ob_no_type, 
+  period_type.no_id AS ob_no_period,
+  ope.op_date::date AS ob_starting_date,
+  CAST(NULL AS date) as ob_ending_date,
+  data_provider.dp_id AS ob_dp_id, 
+  302 AS ef_no_fishingmethod,
+  71 AS ef_no_electrofishing_mean, 
+  op_pcbgp.pcbgp_long * 4 AS ef_wetted_area, -- two banks * 2 = 2*2
+  pcbgp_long AS ef_fished_length,
+  pcbgp_larg AS ef_fished_width,
+  NULL AS ef_duration,
+  pcbgp_npas AS ef_nbpas,       
+  sta.op_id as ob_op_id,
+  ope.op_id,
+  ope.op_zone,
+  ope.op_typ, 
+  ope.op_sta_id 
+  FROM  
+  france.dbeel_station_rsa sta
+  JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
+  JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone)
+  JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
+  JOIN rsa.op_pcbgp  ON (op_pcbgp.pcbgp_op_id, op_pcbgp.pcbgp_zone)= (ope.op_id, ope.op_zone)
+  LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
+   dbeel_nomenclature.observation_origin,
+  dbeel_nomenclature.observation_type,
+   dbeel_nomenclature.period_type       
+  WHERE observation_origin.no_name='Raw data' 
+  AND observation_type.no_name='Electro-fishing' 
+  AND period_type.no_name='Daily' 
+  ; --17 ROWS 28s 
+```
+Au 24/10, il existe 19 opérations à insérer.
+
+Ci-dessous le code d'insertion des epa à pied.
+```{sql insert_elec_rsa_epap, eval = FALSE, echo = TRUE}
+-------------------------------------
+-- echantillonage pontctuel d'abondance, pêche par points (à pied ?)
 --------------------------------------
 INSERT INTO france.dbeel_electrofishing_rsa (
   ob_id,
@@ -1546,9 +1544,9 @@ SELECT
   ope.op_date::date AS ob_starting_date,
   CAST(NULL AS date) as ob_ending_date,
   data_provider.dp_id AS ob_dp_id, 
-  303 AS ef_no_fishingmethod,
+  306 AS ef_no_fishingmethod,
   71 AS ef_no_electrofishing_mean, 
-  op_iaa.iaa_npnt * 12.5 AS ef_wetted_area, 
+  op_epap.epap_npnt * 12.5 AS ef_wetted_area, 
   NULL AS ef_fished_length,
   NULL AS ef_fished_width,
   NULL AS ef_duration,
@@ -1563,7 +1561,7 @@ SELECT
   JOIN rsa.station  starsa ON (starsa.sta_id, starsa.sta_zone) = (sta.sta_id, sta.sta_zone)   
   JOIN rsa.operation ope ON (sta.sta_id, sta.sta_zone) = (op_sta_id, op_zone) 
   JOIN rsa.producteurs_prod ON prod_id=starsa.sta_prod_id
-  JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone)
+  JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone)
   LEFT JOIN dbeel.data_provider ON dp_name= prod_libelle,
    dbeel_nomenclature.observation_origin,
   dbeel_nomenclature.observation_type,
@@ -1571,9 +1569,10 @@ SELECT
   WHERE observation_origin.no_name='Raw data' 
   AND observation_type.no_name='Electro-fishing' 
   AND period_type.no_name='Daily' 
-  ; --2221 ROWS 28s (2499 avant)
+  ; --132 ROWS 28s
+  	--J. RAITIF, 29/08 : 145  
 ```
-Au 02/10, il existe 2785 opérations à insérer.
+Au 24/10, il existe 145 opérations à insérer.
 
 Ensuite, on récupère les __op_id__ de la table __france.dbeel_electrofishing_rsa__ pour les ajouter dans le champs __ope_dbeel_ob_id__ de la table __rsa.operation__. Ils seront utilisés plus tard pour insérer le détail des résultats de pêche dans __dbeel_batch_ope_rsa__.
 
@@ -1591,7 +1590,7 @@ WHERE (operation.op_id, operation.op_zone) =  (the_join.op_id, the_join.op_zone)
 AND  operation.ope_dbeel_ob_id IS NULL; 
 ```
 
-On met ainsi à jour 4387 lignes d'opérations. On vérifier ensuite que chaque opération dans __rsa.operation__ possède bien un nouvel id.
+On met ainsi à jour 4387 lignes d'opérations au 24/10. On vérifier ensuite que chaque opération dans __rsa.operation__ possède bien un nouvel id.
 
 ```{sql check_rsa_ope_id, eval = FALSE, echo = TRUE}
 -- contrôle d'intégrité
@@ -1681,29 +1680,27 @@ INSERT INTO france.dbeel_batch_ope_rsa
   --950
 
 ```
-Au 02/10, il existe 1090 opérations à insérer.
+Au 24/10, il existe 1090 opérations à insérer.
 
-Ci-dessous le code d'insertion des epa à pied.
-```{sql insert_batch_rsa_epap, eval = FALSE, echo = TRUE}
------------------
--- echantillonage pontctuel d'abondance, pêche par points (à pied ?), totaux
+Ci-dessous le code d'insertion des indices d'abondances à pied.
+```{sql insert_batch_rsa_iaa, eval = FALSE, echo = TRUE}
 INSERT INTO france.dbeel_batch_ope_rsa
   SELECT uuid_generate_v4() AS ba_id,
   species.no_id AS ba_no_species,
   stage.no_id AS ba_no_stage,
   value_type.no_id AS ba_no_value_type,
   biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  epap_ang AS ba_quantity,
+  iaa_ang AS ba_quantity,
   individual_status.no_id AS ba_no_individual_status,
   1 AS ba_batch_level,
   ee.ob_id as ba_ob_id, 
   cast(NULL as uuid) as ba_ba_id,
   ope.op_id,
-  ope.op_zone-- JRT, 31/08 : correctif, il manquait la zone pour ce type de pêche. Ce problème est présent en prod également
+  ope.op_zone 
   FROM 
   france.dbeel_electrofishing_rsa ee 
     JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
-    JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone),
+    JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone),
   dbeel_nomenclature.species, 
   dbeel_nomenclature.stage, 
   dbeel_nomenclature.biological_characteristic_type,
@@ -1714,47 +1711,10 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; --132 
--- JRT? 30/08 : 145  
-
+  ; --2221
+  -- JRT, 30/08 : 2775
 ```
-Au 02/10, il existe 145 opérations à insérer.
-
-Ci-dessous le code d'insertion des epa en bateau.
-```{sql insert_batch_rsa_epab, eval = FALSE, echo = TRUE}
------------------
--- echantillonage pontctuel d'abondance, pêche par points (en bateau ?), totaux  
-INSERT INTO france.dbeel_batch_ope_rsa
-  SELECT uuid_generate_v4() AS ba_id,
-  species.no_id AS ba_no_species,
-  stage.no_id AS ba_no_stage,
-  value_type.no_id AS ba_no_value_type,
-  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  epab_ang AS ba_quantity,
-  individual_status.no_id AS ba_no_individual_status,
-  1 AS ba_batch_level,
-  ee.ob_id as ba_ob_id, 
-  cast(NULL as uuid) as ba_ba_id,
-  ope.op_id,
-  ope.op_zone
-  FROM 
-  france.dbeel_electrofishing_rsa ee 
-    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
-    JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone),
-  dbeel_nomenclature.species, 
-  dbeel_nomenclature.stage, 
-  dbeel_nomenclature.biological_characteristic_type,
-  dbeel_nomenclature.value_type,
-  dbeel_nomenclature.individual_status 
-  WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' -- we actually don't know that...
-  AND biological_characteristic_type.no_name='Number' 
-  AND individual_status.no_name='Alive' 
-  AND value_type.no_name='Raw data or Individual data'
-  ; --152   
-
-```
-Au 02/10, il existe 162 opérations à insérer.
+Au 24/10 il existe 2770 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp, eval = FALSE, echo = TRUE}
@@ -1792,7 +1752,80 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --17
 
 ```
-Au 02/10, il existe 19 opérations à insérer.
+Au 24/10, il existe 19 opérations à insérer.
+
+Ci-dessous le code d'insertion des epa à pied.
+```{sql insert_batch_rsa_epap, eval = FALSE, echo = TRUE}
+-----------------
+-- echantillonage pontctuel d'abondance, pêche par points (à pied ?), totaux
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epap_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id,
+  ope.op_zone-- JRT, 31/08 : correctif, il manquait la zone pour ce type de pêche. Ce problème est présent en prod également
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epap  ON (op_epap.epap_op_id, op_epap.epap_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --132 
+-- JRT? 30/08 : 145  
+
+```
+Au 24/10, il existe 145 opérations à insérer.
+
+Ci-dessous le code d'insertion des epa en bateau.
+```{sql insert_batch_rsa_epab, eval = FALSE, echo = TRUE}
+-----------------
+-- echantillonage pontctuel d'abondance, pêche par points (en bateau ?), totaux  
+INSERT INTO france.dbeel_batch_ope_rsa
+  SELECT uuid_generate_v4() AS ba_id,
+  species.no_id AS ba_no_species,
+  stage.no_id AS ba_no_stage,
+  value_type.no_id AS ba_no_value_type,
+  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
+  epab_ang AS ba_quantity,
+  individual_status.no_id AS ba_no_individual_status,
+  1 AS ba_batch_level,
+  ee.ob_id as ba_ob_id, 
+  cast(NULL as uuid) as ba_ba_id,
+  ope.op_id,
+  ope.op_zone
+  FROM 
+  france.dbeel_electrofishing_rsa ee 
+    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
+    JOIN rsa.op_epab  ON (op_epab.epab_op_id, op_epab.epab_zone)= (ope.op_id, ope.op_zone),
+  dbeel_nomenclature.species, 
+  dbeel_nomenclature.stage, 
+  dbeel_nomenclature.biological_characteristic_type,
+  dbeel_nomenclature.value_type,
+  dbeel_nomenclature.individual_status 
+  WHERE species.no_name='Anguilla anguilla'
+  AND stage.no_name='Yellow eel' -- we actually don't know that...
+  AND biological_characteristic_type.no_name='Number' 
+  AND individual_status.no_name='Alive' 
+  AND value_type.no_name='Raw data or Individual data'
+  ; --152   
+
+```
+Au 24/10, il existe 162 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb, eval = FALSE, echo = TRUE}
@@ -1829,43 +1862,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --177
 ```
-Au 02/10, il existe 186 opérations à insérer.
+Au 24/10, il existe 186 opérations à insérer.
 
-Ci-dessous le code d'insertion des indices d'abondances à pied.
-```{sql insert_batch_rsa_iaa, eval = FALSE, echo = TRUE}
-INSERT INTO france.dbeel_batch_ope_rsa
-  SELECT uuid_generate_v4() AS ba_id,
-  species.no_id AS ba_no_species,
-  stage.no_id AS ba_no_stage,
-  value_type.no_id AS ba_no_value_type,
-  biological_characteristic_type.no_id AS ba_no_biological_characteristic_type,
-  iaa_ang AS ba_quantity,
-  individual_status.no_id AS ba_no_individual_status,
-  1 AS ba_batch_level,
-  ee.ob_id as ba_ob_id, 
-  cast(NULL as uuid) as ba_ba_id,
-  ope.op_id,
-  ope.op_zone 
-  FROM 
-  france.dbeel_electrofishing_rsa ee 
-    JOIN rsa.operation ope ON ob_id = ope_dbeel_ob_id 
-    JOIN rsa.op_iaa  ON (op_iaa.iaa_op_id, op_iaa.iaa_zone)= (ope.op_id, ope.op_zone),
-  dbeel_nomenclature.species, 
-  dbeel_nomenclature.stage, 
-  dbeel_nomenclature.biological_characteristic_type,
-  dbeel_nomenclature.value_type,
-  dbeel_nomenclature.individual_status 
-  WHERE species.no_name='Anguilla anguilla'
-  AND stage.no_name='Yellow eel' -- we actually don't know that...
-  AND biological_characteristic_type.no_name='Number' 
-  AND individual_status.no_name='Alive' 
-  AND value_type.no_name='Raw data or Individual data'
-  ; --2221
-  -- JRT, 30/08 : 2775
-```
-Au 02/10 il existe 2785 opérations à insérer.
-
-Ensuite sont insérées les lignes de premiers passages.
+Ensuite sont insérées les lignes de __premiers passages__.
 
 Ci-dessous le code d'insertion des inventaires à pied.
 ```{sql insert_batch_rsa_inv_1, eval = FALSE, echo = TRUE}
@@ -1900,7 +1899,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --950
 ```
-Au 02/10, il existe 1090 opérations à insérer.
+Au 24/10, il existe 1090 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa à pied.
 ```{sql insert_batch_rsa_epap_1, eval = FALSE, echo = TRUE}
@@ -1935,7 +1934,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --132    
 ```
-Au 02/10, il existe 145 opérations à insérer.
+Au 24/10, il existe 145 opérations à insérer.
 
 Ci-dessous le code d'insertion des epa en bateau.
 ```{sql insert_batch_rsa_epab_1, eval = FALSE, echo = TRUE}
@@ -1970,7 +1969,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --152   
 ```
-Au 02/10, il existe 162 opérations à insérer.
+Au 24/10, il existe 162 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_1, eval = FALSE, echo = TRUE}
@@ -2005,7 +2004,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --17
 ```
-Au 02/10, il existe 19 opérations à insérer.
+Au 24/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_1, eval = FALSE, echo = TRUE}
@@ -2040,7 +2039,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND value_type.no_name='Raw data or Individual data'
   ; --177
 ```
-Au 02/10, il existe 186 opérations à insérer.
+Au 24/10, il existe 186 opérations à insérer.
 
 Ci-dessous le code d'insertion des indices d'abondances à pied.
 ```{sql insert_batch_rsa_iaa_1, eval = FALSE, echo = TRUE}
@@ -2076,9 +2075,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --2221
   
 ```
-Au 02/10, il existe 2785 opérations à insérer.
+Au 24/10, il existe 2770 opérations à insérer.
 
-Ensuite sont insérées les lignes de seconds passages.
+Ensuite sont insérées les lignes du __second passage__.
 
 Ci-dessous le code d'insertion des inventaires à pied.
 ```{sql insert_batch_rsa_inv_2, eval = FALSE, echo = TRUE}
@@ -2114,7 +2113,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   and op_inv.inv_npas > 1 -- ce filtre est nécessaire sinon on insère des lignes de résultats d'opérations avec une quantité NULL (alors qu'il n'y avait qu'un seul passage)
   ; --950 
 ```
-Au 02/10, il existe 1039 opérations à insérer.
+Au 24/10, il existe 1039 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_2, eval = FALSE, echo = TRUE}
@@ -2150,7 +2149,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   AND op_pcbgp.pcbgp_npas > 1
   ; --17
 ```
-Au 02/10, il existe 19 opérations à insérer.
+Au 24/10, il existe 19 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_2, eval = FALSE, echo = TRUE}
@@ -2187,9 +2186,9 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --177
 
 ```
-Au 02/10, il existe 186 opérations à insérer.
+Au 24/10, il existe 186 opérations à insérer.
 
-Et enfin ceux du troisième passage.
+Et enfin ceux du __troisième passage__.
 
 Ci-dessous le code d'insertion des inventaires à pied.
 ```{sql insert_batch_rsa_inv_3, eval = FALSE, echo = TRUE}
@@ -2226,7 +2225,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --59
   -- JRT, 30/08 : 60
 ```
-Au 02/10, il existe 60 opérations à insérer.
+Au 24/10, il existe 60 opérations à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges à pied.
 ```{sql insert_batch_rsa_pcbgp_3, eval = FALSE, echo = TRUE}
@@ -2263,7 +2262,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --0
   -- JRT, 30/08 : 0
 ```
-Au 02/10, il n'existe aucune opération à insérer.
+Au 24/10, il n'existe aucune opération à insérer.
 
 Ci-dessous le code d'insertion des pêches des berges en bateau.
 ```{sql insert_batch_rsa_pcbgb_3, eval = FALSE, echo = TRUE}
@@ -2300,7 +2299,7 @@ INSERT INTO france.dbeel_batch_ope_rsa
   ; --0  
   -- JRT, 30/08 : 0
 ```
-Au 02/10, il n'existe aucune opération à insérer.
+Au 24/10, il n'existe aucune opération à insérer.
 
 
 ### dbeel_batch_fish_rsa et dbeel_mensurationindiv_biol_charac_rsa
@@ -2485,7 +2484,7 @@ INSERT INTO france.dbeel_batch_fish_rsa
   AND value_type.no_name='Raw data or Individual data'
   ;   --467
 ```
-Au 02/10/2023, 136827, 17700 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table **dbeel_batch_fish_rsa**.
+Au 24/10/2023, 136704, 17775 et 492 anguilles capturées au 1er, 2nd et 3eme passages sont ajoutées dans la table **dbeel_batch_fish_rsa**.
 
 
 ```{sql insert_batch_fish_rsa_2, eval = FALSE, echo = TRUE}
@@ -2542,7 +2541,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_rsa(
 	AND baf.ang_taille is not null; --to prevent from inserting NULL length values
 ```
 
-Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. Au 02/10, l'insertion résultante est de 69162 lignes de données poids, et 144187 mesures de longueur.**
+Problème dans __dbeel_mensurationindiv_biol_charac_rsa__ : en contrôlant les données, on constate que seul le champs __ang_id__ est utilisé pour faire la jointure avec __france.dbeel_batch_fish_rsa__. Ce qui n'est pas correct puisque le __ang_id__ n'est pas unique entre  des zones de pêches différentes. Il faut donc rajouter le champs __ang_zone__ dans cette table. De plus l'ancien script insérait le poids a deux reprises (comme poids, et comme taille). Les données RSA de biométrie étaient donc erronées. **Cela a été corrigé le 07/09. Au 02/10, l'insertion résultante est de 69258 lignes de données poids, et 144165 mesures de longueur.**
 
 Au 04/09/23, problème dans __rsa.anguille_ang__ sur certaines pêches : en contrôlant les données il apparaît que dans la table __rsa.anguille_ang__, il y a des doublons (même mesures de poissons répétées deux fois). Cf ci-dessous dans le cas ou on filtre sur le code anguille non NULL. On notera que tous ces duplicas proviennent de la zone 'lcv'. Cela a été corrigé au 02/10. La requête suivante ne renvoie plus aucun résultat.
 
@@ -2636,7 +2635,7 @@ ALTER TABLE dbeel.view_electrofishing_new
   OWNER TO postgres;
 ```
 
-Au 23/10/2023, cette vue remonte 39541 opérations de pêches, ASPE et RSA.
+Au 24/10/2023, cette vue remonte 39526 opérations de pêches, ASPE et RSA.
 
 
 ### view_electrofishing_size_new
@@ -2696,7 +2695,7 @@ cross join cate_list cl
 left join cate_query cq on cq.ob_id = e.ob_id and cq.length_class = cl.cat_label
 ```
 
-Au 23/10/2023, cette vue remonte 276787 lignes.
+Au 24/10/2023, cette vue remonte 276682 lignes.
 
 ### view_electrofishing_size_weight_new
 
@@ -2729,7 +2728,7 @@ AND bc.bc_numvalue<1400
 )
 
 ```
-Au 23/10/2023, cette vue remonte 505288 lignes.
+Au 23/10/2023, cette vue remonte 505266 lignes.
 
 ### view_silvering et view_silvering_bc
 
@@ -2801,15 +2800,15 @@ SELECT crosstab.ba_id,--id of fish measured
 		contrast numeric);
 ```
 
-Au 23/10, la vue _view_silvering_bc_ remonte 505340 lignes
+Au 24/10, la vue _view_silvering_bc_ remonte 505318 lignes
 
 ```{sql view_silvering_code, eval = FALSE, echo = TRUE}
 SELECT op.op_id,
-    --locationid, what is it ?
-    --country, FR ?
+    null as locationid,--locationid, no use
+    'FR' as country, --country,
     es.et_establishment_name,
-    --,--x ?
-    --,--y ?
+    st_x(op.the_geom),--x 
+    st_y(op.the_geom),--y
     e.ob_id,
     e.ob_starting_date,
     vsb.ba_id,
@@ -2831,7 +2830,7 @@ SELECT op.op_id,
 	 where op.op_gis_layername in ('ASPE', 'RSA');
 ```
 
-Au 23/10, la vue _view_silvering_ remonte 505340 lignes
+Au 24/10, la vue _view_silvering_ remonte 505318 lignes
 
 ### join_france_2023_rn
 
@@ -2861,10 +2860,10 @@ select op_id,
  --34184 stations (on avait 35752 stations, on va perdre les opérations reliées à ces stations perdues) 
 ```
 
-Au 24/10, la table _join_france_2023_rn_ compte 34184 couples station/segment de rivière. A l'origine il y avait 35752 stations connues (issues de ASPE, RSA). Les opérations associées à ces stations seront donc perdues (609 opérations de pêches).
+Au 24/10, la table _join_france_2023_rn_ compte 34184 couples station/segment de rivière. A l'origine il y avait 35752 stations connues (issues de ASPE, RSA). Les opérations associées à ces stations seront donc perdues (608 opérations de pêches).
 
 ```{sql join_france_2023_rn_lost_code, eval = FALSE, echo = TRUE}
 select count(*) from dbeel.electrofishing e 
 join dbeel.observation_places op on op.op_id = e.ob_op_id and op.op_gis_layername in ('ASPE','RSA')--39541 opérations ASPE/RSA
-where e.ob_op_id not in (select distinct jfr.op_id from france.join_france_2023_rn jfr)--609 opérations perdues
+where e.ob_op_id not in (select distinct jfr.op_id from france.join_france_2023_rn jfr)--608 opérations perdues
 ```
