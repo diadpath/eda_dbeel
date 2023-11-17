@@ -1047,3 +1047,95 @@ ggplot(data=quantile_excentricite,aes(x=excentricite,y=prob)) +
 #script d'exclusion si nécessaire
 #à faire si nrow(dt_eye_horiz[dt_eye_horiz$excentricite>0.8,])>0
 ```
+
+## Cas particuliers
+### Pêches à plus de 3 passages
+
+```{r ope_3_pass_plus, message=F, warning=F}
+ope_3_pass_plus <- electrofishing %>%
+  filter(ef_nbpas >3 )
+``` 
+
+Au 09/11, il existait 4 opération de pêches qui ont été réalisées sur plus de 3 passages, ayant comptabilisé au total 137 anguilles pêchées.
+
+Le modèle EDA (version 2.3) ne peut traiter que des opérations de pêches à 3 passages maximum. Il est donc nécessaire de supprimer ces opérations (et les poissons liés) de la base __dbeel__ pour éviter toute incohérence dans les prédictions.
+
+__Au 09/11 : Opérations de pêches supprimées. Problème résolu.__
+
+```{r ope_3_pass_plus_del, message=F, warning=F}
+if (nrow(ope_3_pass_plus)>0)
+{
+  fish_to_delete <- ope_3_pass_plus %>%
+                    inner_join(batch[batch$ba_batch_level==2,],#only fishes
+                               by = join_by(ob_id == ba_ob_id))
+  
+  #suppression des mesures
+  #ASPE
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbca 
+            where dmbca.bc_ba_id in (',paste0("'",fish_to_delete$ba_id,"'",collapse=","),")")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+  
+  #RSA
+  query <- paste0('delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+            where dmbcr.bc_ba_id in (',paste0("'",fish_to_delete$ba_id,"'",collapse=","),")")
+  
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+  
+  
+  #suppression des poissons
+  #ASPE
+  query <- paste0('delete from france.dbeel_batch_fish_aspe dmbca
+            where dmbca.ba_id in (',paste0("'",fish_to_delete$ba_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+
+  #RSA
+  query <- paste0('delete from france.dbeel_batch_fish_rsa dmbcr
+            where dmbcr.ba_id in (',paste0("'",fish_to_delete$ba_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+
+  #suppression des opérations
+  #dans france.dbeel_batch_ope_rsa/aspe (totaux et passages)
+  #RSA
+  query <- paste0('delete from france.dbeel_batch_ope_rsa dmbcr
+            where dmbcr.ba_ob_id in (',paste0("'",ope_3_pass_plus$ob_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+  #ASPE
+  query <-  paste0('delete from france.dbeel_batch_ope_aspe dmbca
+            where dmbca.ba_ob_id in (',paste0("'",ope_3_pass_plus$ob_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+
+  #dans dbeel_electrofishing_aspe/rsa
+  #RSA
+  query <- paste0('delete from france.dbeel_electrofishing_rsa dmbcr
+            where dmbcr.ob_id in (',paste0("'",ope_3_pass_plus$ob_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_rsa <- dbFetch(return)
+  dbClearResult(return)
+  #ASPE
+  query <- paste0('delete from france.dbeel_electrofishing_aspe dmbca
+            where dmbca.ob_id in (',paste0("'",ope_3_pass_plus$ob_id,"'",collapse=","),")")
+
+  return <- dbSendQuery(con,query)
+  res_delete_aspe <- dbFetch(return)
+  dbClearResult(return)
+
+}
+``` 
