@@ -473,28 +473,35 @@ DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 
 #How many ASPE operation are recorded without station id 
 #(point of prelevement is not properly attached to station)
-lost_pop <- pop_aspe_france_buff %>%
-  inner_join(operation_aspe, by=c("pop_id"="pop_id")) %>%
+lost_ope <- operation_aspe %>%
+  inner_join(pop_aspe_france_buff, by=c("pop_id"="pop_id")) %>%
   filter(is.na(sta_id))
-#21/08 : 24 operations (same as previous EDA runs in 2020) without proper sta_id
-lost_pop_sf <- st_as_sf(lost_pop, coords=c("X","Y"),crs=3035)
+#20/11/2023 : 10135 opérations ASPE sans sta_id, 7008 points de prélèvements sans sta_id
+lost_ope_sf <- st_as_sf(lost_ope,crs=3035)
 
-mapview::mapview(lost_pop_sf, color = "red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1)
+mapview::mapview(lost_ope_sf, color = "red",alpha.regions = 0.2, aplha = 0.1,legend=FALSE,cex =1)
 
 # show the nearest actual station
-lost_near <- st_nearest_feature(lost_pop_sf,station_aspe_france_buff)
-near_station <- station_aspe_france_buff[lost_near,]
+lost_near <- st_nearest_feature(lost_ope_sf,station_aspe_france_buff)
+near_station <- station_aspe_france_buff[lost_near,c("sta_id",
+                                                     "sta_code_sandre",
+                                                     "sta_libelle_sandre",
+                                                     "sta_coordonnees_x",
+                                                     "sta_coordonnees_y",
+                                                     "geometry")]
 
 mapview::mapview(near_station, color="green",alpha.regions = 0.2, aplha = 0.4,legend=FALSE,cex =2) +
-  mapview::mapview(lost_pop_sf, color="purple",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
+  mapview::mapview(lost_ope_sf, color="purple",alpha.regions = 0.2, aplha = 0.3,legend=FALSE,cex =1)
 
 #compute the distance between the unregistered pop and the nearest station
-dist <- st_distance(lost_pop_sf, station_aspe_france_buff[lost_near,], by_element=TRUE)
-min(dist) #minimal distance is 25m
-max(dist) #maximal distance is 1711m
+dist <- st_distance(lost_ope_sf, station_aspe_france_buff[lost_near,], by_element=TRUE)
+min(dist) #minimal distance is <1m
+max(dist) #maximal distance is 33km
 
+#construction du dataset pour récupération des stations correspondantes
+lost_ope_with_nearest <- cbind.data.frame(lost_ope,near_station,dist)
 #####
-#### Au 22/08 : Attente de validation Cédric/Laurent. A priori pour 24 opérations, pas indispensable
+#### Au 23/11 : pour ces opérations de pêches sans station, on va récupérer le point de prélèvement en lieu et place de la station. Effectué dans import_aspe_dbeel.sql
 #####
 
 ##############################################

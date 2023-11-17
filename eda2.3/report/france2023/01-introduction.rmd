@@ -28,4 +28,4 @@ Une autre technique d'accès aux données a été développée en se basant sur 
 
 La base de données RSA est complémentaire de la base de données ASPE et accessible à un plus grand nombre d'utilisateurs, notamment les associations de pêches et autres partenaires des réseaux de surveillance des amphihalins. L'accès à ces données se fait par un dump de la base fourni par XXXX.
 
-Cette version du rapportage anguille 2024 se base sur un dump en date du `07/07/2023`.
+Cette version du rapportage anguille 2024 se base sur un dump en date du `05/10/2023`.

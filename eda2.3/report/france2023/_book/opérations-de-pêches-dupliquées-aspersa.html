@@ -208,6 +208,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="6.3.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#comparaison-des-diamètres-oculaires-horizontaux-et-verticaux"><i class="fa fa-check"></i><b>6.3.1</b> Comparaison des diamètres oculaires horizontaux et verticaux</a></li>
 </ul></li>
+<li class="chapter" data-level="6.4" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cas-particuliers"><i class="fa fa-check"></i><b>6.4</b> Cas particuliers</a>
+<ul>
+<li class="chapter" data-level="6.4.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#pêches-à-plus-de-3-passages"><i class="fa fa-check"></i><b>6.4.1</b> Pêches à plus de 3 passages</a></li>
+</ul></li>
 </ul></li>
 </ul>
 
@@ -234,7 +238,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="récupérations-des-détails-des-opérations-de-pêches-potentiellement-dupliquées-en-base" class="section level2 hasAnchor" number="5.1">
 <h2><span class="header-section-number">5.1</span> Récupérations des détails des opérations de pêches potentiellement dupliquées en base<a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-détails-des-opérations-de-pêches-potentiellement-dupliquées-en-base" class="anchor-section" aria-label="Anchor link to header"></a></h2>
 <p>La première étape est donc de récupérer dans la table <em>electrofishing</em> du schéma <em>dbeel</em> l’ensemble des opérations de pêches qui pourraient être assimilées à des doublons (cf règle énoncée précédemment). On crée une table temporaire pour stocker toutes les caractéristiques d’opérations de pêches qui apparaissent plusieurs fois dans la base. On va créer un champs “id” qui sera simplement la concaténation des champs permettant de regrouper ces “doublons” potentiels.</p>
-<p>Cette première requête a permis de mettre en évidence l’existence de 1.05^{-322} opérations dupliquées en base (ASPE et RSA confondus).</p>
+<p>Cette première requête a permis de mettre en évidence l’existence de 2.7^{-322} opérations dupliquées en base (ASPE et RSA confondus).</p>
 </div>
 <div id="récupérations-des-identifiants-et-du-détails-des-saisies-des-opérations-potentiellement-dupliquées" class="section level2 hasAnchor" number="5.2">
 <h2><span class="header-section-number">5.2</span> Récupérations des identifiants et du détails des saisies des opérations potentiellement dupliquées<a href="opérations-de-pêches-dupliquées-aspersa.html#récupérations-des-identifiants-et-du-détails-des-saisies-des-opérations-potentiellement-dupliquées" class="anchor-section" aria-label="Anchor link to header"></a></h2>
@@ -266,13 +270,13 @@ Taille moy. des poissons
 1
 </td>
 <td style="text-align:left;">
-c5e52c25-62e8-47a0-9729-0e36f2f7b896
+ab100a42-9221-4f4d-96f2-07eb5970ebca
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -283,13 +287,13 @@ NA
 1
 </td>
 <td style="text-align:left;">
-614b8403-af64-413c-b980-a0fcf20d94af
+365036d3-0cb9-4992-9641-b96fa4ee26e2
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -300,13 +304,13 @@ NA
 2
 </td>
 <td style="text-align:left;">
-0e8ece45-3e47-4aa2-a607-53a2263d1890
+3e551832-5953-4532-87d6-6555569cf8f2
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -317,7 +321,24 @@ NA
 2
 </td>
 <td style="text-align:left;">
-13aa9a95-0d41-4420-a096-45b903b10a45
+d8724783-5b3a-4498-b6af-e99954e6f567
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:left;">
+686b9612-3a73-4944-b7ff-47f098701742
 </td>
 <td style="text-align:right;">
 1
@@ -334,24 +355,7 @@ NA
 3
 </td>
 <td style="text-align:left;">
-3a1eb95b-031b-49ed-b5e2-e7663b44a865
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-3
-</td>
-<td style="text-align:left;">
-64f1184f-1ab2-4987-b1eb-3e6bd14d861f
+f3adff6c-4e57-4f69-be98-df3a3e82ad1f
 </td>
 <td style="text-align:right;">
 1
@@ -368,7 +372,7 @@ NA
 4
 </td>
 <td style="text-align:left;">
-1f08ac71-546e-4dd5-905e-98bdb4147eb0
+4eeac0b2-6d07-4048-b4dc-831689925f11
 </td>
 <td style="text-align:right;">
 1
@@ -385,7 +389,7 @@ NA
 4
 </td>
 <td style="text-align:left;">
-75834795-0630-4fc8-9951-74df4deb533e
+cdcb85d2-105d-4b2a-a976-be005a43f830
 </td>
 <td style="text-align:right;">
 1
@@ -402,7 +406,7 @@ NA
 5
 </td>
 <td style="text-align:left;">
-364d6d3f-0de7-4d1b-8f72-042f242e0e61
+29dd5a4b-54d9-4cf1-aa82-86531159d05a
 </td>
 <td style="text-align:right;">
 1
@@ -419,7 +423,7 @@ NA
 5
 </td>
 <td style="text-align:left;">
-a9660293-eced-465b-b1d1-61b60261536f
+fff246bd-871e-48db-8c93-a49a6034dd53
 </td>
 <td style="text-align:right;">
 1
@@ -436,7 +440,7 @@ NA
 6
 </td>
 <td style="text-align:left;">
-091a3104-c81d-45e6-8356-c5eb5e7ee21a
+4e44f33f-3170-4fe4-8299-96e0cfccc7db
 </td>
 <td style="text-align:right;">
 1
@@ -453,7 +457,7 @@ NA
 6
 </td>
 <td style="text-align:left;">
-318267e2-5491-4a5b-bc93-0ecc6c32ac76
+58468923-1eb5-4119-ad61-64cde15c97af
 </td>
 <td style="text-align:right;">
 1
@@ -470,13 +474,13 @@ NA
 7
 </td>
 <td style="text-align:left;">
-98f080fc-c5d1-48f2-a7aa-c96784bf45ae
+c2ce7b4b-6138-426f-b31d-80fc8d80f910
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -487,7 +491,24 @@ NA
 7
 </td>
 <td style="text-align:left;">
-ab7d7d80-85af-4c13-9cc0-12358e878483
+ff723784-8b1d-4323-a459-337b3fb95ff4
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:left;">
+440bba05-85b3-4cbb-928d-18530f536895
 </td>
 <td style="text-align:right;">
 1
@@ -504,7 +525,7 @@ NA
 8
 </td>
 <td style="text-align:left;">
-ff374c19-ab90-4c79-9b50-86f1f8cff62c
+ca028925-7315-40c0-9f5f-e470be61b343
 </td>
 <td style="text-align:right;">
 1
@@ -521,13 +542,47 @@ NA
 8
 </td>
 <td style="text-align:left;">
-e3f5773b-ada5-493e-bc74-158b4920efb9
+ca028925-7315-40c0-9f5f-e470be61b343
+</td>
+<td style="text-align:right;">
+2
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
+400.0000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:left;">
+440bba05-85b3-4cbb-928d-18530f536895
+</td>
+<td style="text-align:right;">
 2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+53.0000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:left;">
+8849e988-a880-4f16-a593-12f86ba5d80e
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -538,13 +593,13 @@ NA
 9
 </td>
 <td style="text-align:left;">
-1113013a-987d-47c0-b076-8f7eb2037927
+2e63532e-2fac-4153-b7fb-d784a878ddc0
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -552,10 +607,10 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-9
+10
 </td>
 <td style="text-align:left;">
-c09acfa2-b898-491a-8d76-ecf2cc1c6060
+a551cce2-e410-4c2e-872b-86eebb6fe386
 </td>
 <td style="text-align:right;">
 1
@@ -572,24 +627,7 @@ NA
 10
 </td>
 <td style="text-align:left;">
-46b432f7-1398-4161-b64a-e8d1b26d5ae4
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-10
-</td>
-<td style="text-align:left;">
-a0e4b2d2-1775-4a1d-b1cc-463dae3fcb5d
+bbc3a94d-2984-4ef3-829b-84483f87603a
 </td>
 <td style="text-align:right;">
 1
@@ -606,13 +644,13 @@ NA
 11
 </td>
 <td style="text-align:left;">
-00a8d9ee-6e9a-4301-a470-a2832d8968bf
+2310c11b-d1f9-453a-96ec-769c9d1a5a13
 </td>
 <td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-2
+3
 </td>
 <td style="text-align:right;">
 NA
@@ -623,7 +661,24 @@ NA
 11
 </td>
 <td style="text-align:left;">
-ec6aaf26-4055-4a64-88f9-2a5d2499b48c
+e92b2aba-d272-46b3-9bfa-e3a8d88e87f7
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:left;">
+46cf1865-e132-4a8e-ad81-7b02061158b8
 </td>
 <td style="text-align:right;">
 1
@@ -640,7 +695,7 @@ NA
 12
 </td>
 <td style="text-align:left;">
-6974cdcf-b933-4a09-a43a-e30baaf8b43e
+d23686ac-9ac5-4b3f-b31d-ca84e4611ecd
 </td>
 <td style="text-align:right;">
 1
@@ -657,7 +712,24 @@ NA
 12
 </td>
 <td style="text-align:left;">
-69d2cd8a-6694-4e57-bb39-85945cd9d033
+0c61107a-ae53-481c-9e3e-1d7a08f41459
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:left;">
+128d575b-fcc5-458f-8392-189b853ca95e
 </td>
 <td style="text-align:right;">
 1
@@ -674,7 +746,7 @@ NA
 13
 </td>
 <td style="text-align:left;">
-407f8bf7-3e11-488b-a3b1-db65df26f40a
+80a59af8-2a00-4710-b03b-b031077a8fff
 </td>
 <td style="text-align:right;">
 1
@@ -691,7 +763,7 @@ NA
 13
 </td>
 <td style="text-align:left;">
-a19aea85-8215-478d-a580-8b0d227fb36c
+9e51e4de-5e8e-423a-8e72-917bf1493341
 </td>
 <td style="text-align:right;">
 1
@@ -706,6 +778,1230 @@ NA
 <tr>
 <td style="text-align:right;">
 14
+</td>
+<td style="text-align:left;">
+35327d31-296d-439a-b343-539d07fde6fe
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:left;">
+efdab5be-ba3a-4672-9b1e-9cd5b6073153
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:left;">
+62740d05-1874-4119-a143-3f9bc1f7242e
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:left;">
+60cb424b-3a7b-4e3b-b90f-bc8b8aa79378
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
+</td>
+<td style="text-align:left;">
+394df888-0e08-4de1-9eff-0ef8d85d3c85
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
+</td>
+<td style="text-align:left;">
+5b633fe6-3cfd-4d29-9b8f-d6133e019b7c
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:left;">
+94ecfe74-5221-4271-8647-38f2068abe93
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:left;">
+469e05f0-e203-4b06-a449-3bd2dd457e79
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:left;">
+245421db-c39e-4562-a3a6-680f07dc7fd5
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:left;">
+201a2a81-8b56-47e4-a725-f392e3089b0d
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+19
+</td>
+<td style="text-align:left;">
+fc183cdc-057e-4f06-a2d5-5dca29e08386
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+19
+</td>
+<td style="text-align:left;">
+9953be0f-604c-47cb-af03-9d9bbe32c744
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:left;">
+5f95401d-bc33-4bed-aa9e-a5ca2cb52d48
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:left;">
+a480ab18-f146-4c60-a162-8b4a669a4395
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+21
+</td>
+<td style="text-align:left;">
+fc4151c6-be92-462b-97a8-a63b627c8fb0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+21
+</td>
+<td style="text-align:left;">
+1bdd9ba1-4b2a-4c89-9d1b-40fa8d174a8b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+22
+</td>
+<td style="text-align:left;">
+3eb744c8-d9a0-4485-9111-06af415fdfe4
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+22
+</td>
+<td style="text-align:left;">
+81a8ae83-88b2-4e71-9741-3db07e5b5875
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+23
+</td>
+<td style="text-align:left;">
+069b3335-aa24-4a7e-a1a3-d413dfad9c7c
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+23
+</td>
+<td style="text-align:left;">
+c826b341-dd5d-44b4-bcb3-2e4d4c156330
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+23
+</td>
+<td style="text-align:left;">
+069b3335-aa24-4a7e-a1a3-d413dfad9c7c
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+683.3333
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+23
+</td>
+<td style="text-align:left;">
+c826b341-dd5d-44b4-bcb3-2e4d4c156330
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+683.3333
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+24
+</td>
+<td style="text-align:left;">
+4bd84745-7a38-4f71-8b0b-ff54bceb717f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+24
+</td>
+<td style="text-align:left;">
+8d52ce2a-3b7f-4166-a393-60c7260fc87f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+25
+</td>
+<td style="text-align:left;">
+79e316af-cee4-4237-93dd-4dd42e652eae
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+25
+</td>
+<td style="text-align:left;">
+62106777-9fa9-448c-926d-e9b5e462f5e0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+26
+</td>
+<td style="text-align:left;">
+058211f9-c36a-4edc-a5ec-552544aadd63
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+26
+</td>
+<td style="text-align:left;">
+1f94fd50-6c23-4d75-bb68-875265aceabe
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+26
+</td>
+<td style="text-align:left;">
+dccb4d37-5c3e-448a-a08f-00d5906e8cad
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+26
+</td>
+<td style="text-align:left;">
+ecd60c92-8fe6-4d5b-bda3-2483a0d66250
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+27
+</td>
+<td style="text-align:left;">
+6fcb6be7-1850-408f-a786-316eb9e1fad4
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+27
+</td>
+<td style="text-align:left;">
+94340cc7-a9c9-43b5-883a-8b3e1aee47be
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+28
+</td>
+<td style="text-align:left;">
+91b22a19-6b3e-4a36-b43e-065bced92c9f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+28
+</td>
+<td style="text-align:left;">
+b8b0ad31-a461-44e3-ba17-ee51e5514132
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+29
+</td>
+<td style="text-align:left;">
+7591b637-1a70-4433-a117-550728ef2ddd
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+29
+</td>
+<td style="text-align:left;">
+90151ec1-eae3-4ec5-9c24-c09ae9f0fb6a
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+30
+</td>
+<td style="text-align:left;">
+f21c883f-4b66-4563-933b-481749a5494f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+30
+</td>
+<td style="text-align:left;">
+46e576bb-d60e-473c-9ba8-cd8e378eca9d
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+31
+</td>
+<td style="text-align:left;">
+4d72a2c0-7859-4c30-8956-3290d386d1b6
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+31
+</td>
+<td style="text-align:left;">
+242bd7e7-8e1f-4ce8-8e8c-750fa2f31a12
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+32
+</td>
+<td style="text-align:left;">
+54fda254-0056-4e08-baf5-4f595829ee88
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+32
+</td>
+<td style="text-align:left;">
+6d67fad9-32dc-4578-a1cf-4c9ba9310afc
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+33
+</td>
+<td style="text-align:left;">
+587b02f3-7d55-41a8-a4b2-dda4be72fe7b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+33
+</td>
+<td style="text-align:left;">
+42b5cd8f-6944-4fb7-9c61-8901c1734ab6
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+34
+</td>
+<td style="text-align:left;">
+3d8ea909-d07e-4a8e-8752-88614867f4a6
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+34
+</td>
+<td style="text-align:left;">
+8239aa26-b10e-4387-9087-a45955326239
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+35
+</td>
+<td style="text-align:left;">
+94466821-2f71-40ca-b3fd-63390b189a0c
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+35
+</td>
+<td style="text-align:left;">
+520f5be0-ebcb-4083-ae42-cc5e7661d360
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+36
+</td>
+<td style="text-align:left;">
+39e91e77-dc80-49bf-8567-67ec1f7938e5
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+36
+</td>
+<td style="text-align:left;">
+04a2d22d-9da7-4c57-8ea0-1a2382c7d09b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+37
+</td>
+<td style="text-align:left;">
+7fa55aec-1484-4b1d-a7b4-16514e5ab1b3
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+37
+</td>
+<td style="text-align:left;">
+92cd88cb-a48e-4e2c-82b6-c2e90074511b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+38
+</td>
+<td style="text-align:left;">
+59e3c3e6-572d-4d01-9947-91aba05b82a8
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+38
+</td>
+<td style="text-align:left;">
+400663ad-59ad-48ba-9890-7f85a91bd41f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+39
+</td>
+<td style="text-align:left;">
+716db57d-5339-4dfb-939b-81c60b58c1b9
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+39
+</td>
+<td style="text-align:left;">
+068dabfd-ac0f-4983-8194-54908433158b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+40
+</td>
+<td style="text-align:left;">
+21217987-4f80-4269-a244-74a604e95536
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+40
+</td>
+<td style="text-align:left;">
+38240c76-9320-4298-ad60-5b2158f2ace3
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+41
+</td>
+<td style="text-align:left;">
+32535615-e349-4e4a-ae3c-4f7685bce5d7
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+41
+</td>
+<td style="text-align:left;">
+65a49c7d-2be1-48a0-b5ec-cb654c43903e
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+42
+</td>
+<td style="text-align:left;">
+a6bdbc6f-8caa-4ea4-89f3-39af6b87292f
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+42
+</td>
+<td style="text-align:left;">
+81fa7e29-9d5d-4454-a135-7d0242c86511
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+43
+</td>
+<td style="text-align:left;">
+2dedb217-b200-46c3-a522-aafc27bd3069
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+43
+</td>
+<td style="text-align:left;">
+faaad40c-128a-4247-aef8-cca317a7ff55
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+44
+</td>
+<td style="text-align:left;">
+6e9f1847-bf2a-461a-8ecb-8bac1a9dfcc2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+44
+</td>
+<td style="text-align:left;">
+ae01ad8c-203c-4544-b006-a79fcd6ca475
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+45
+</td>
+<td style="text-align:left;">
+b56b3a33-01fa-408c-a27b-5d957033e78b
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+45
+</td>
+<td style="text-align:left;">
+d116b9a3-deff-4492-b116-94e8dab10c37
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+46
+</td>
+<td style="text-align:left;">
+5c93a04e-3f2b-4d8a-be45-c137c3831462
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+46
+</td>
+<td style="text-align:left;">
+44723abc-63f3-4769-b175-1a68d0fe82e9
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+46
+</td>
+<td style="text-align:left;">
+44723abc-63f3-4769-b175-1a68d0fe82e9
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+419.0000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+46
+</td>
+<td style="text-align:left;">
+5c93a04e-3f2b-4d8a-be45-c137c3831462
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+236.2500
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+47
 </td>
 <td style="text-align:left;">
 0057ed9f-e7ab-4afa-8310-2b9261a7c756
@@ -722,7 +2018,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-14
+47
 </td>
 <td style="text-align:left;">
 cc41d203-9cd0-43d1-ad7c-521ca28e5db2
@@ -739,7 +2035,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-14
+47
 </td>
 <td style="text-align:left;">
 cc41d203-9cd0-43d1-ad7c-521ca28e5db2
@@ -756,7 +2052,7 @@ cc41d203-9cd0-43d1-ad7c-521ca28e5db2
 </tr>
 <tr>
 <td style="text-align:right;">
-14
+47
 </td>
 <td style="text-align:left;">
 0057ed9f-e7ab-4afa-8310-2b9261a7c756
@@ -773,7 +2069,7 @@ cc41d203-9cd0-43d1-ad7c-521ca28e5db2
 </tr>
 <tr>
 <td style="text-align:right;">
-15
+48
 </td>
 <td style="text-align:left;">
 6b15d9e1-a1f6-4aed-b6ba-857f1982a908
@@ -790,7 +2086,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-15
+48
 </td>
 <td style="text-align:left;">
 fb69bec8-51f3-4e1a-a6f1-62ed0a26219b
@@ -807,7 +2103,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+49
 </td>
 <td style="text-align:left;">
 08709b62-3f0a-45e2-b7d4-4a355c3c1eaf
@@ -824,7 +2120,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+49
 </td>
 <td style="text-align:left;">
 541d3ce5-4a8b-4cf1-9faf-de71e5f93c47
@@ -841,7 +2137,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+49
 </td>
 <td style="text-align:left;">
 541d3ce5-4a8b-4cf1-9faf-de71e5f93c47
@@ -858,7 +2154,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-16
+49
 </td>
 <td style="text-align:left;">
 08709b62-3f0a-45e2-b7d4-4a355c3c1eaf
@@ -875,24 +2171,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-17
-</td>
-<td style="text-align:left;">
-240bcde9-18eb-439e-9bb0-8b301902335f
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-17
+50
 </td>
 <td style="text-align:left;">
 2b5920b0-f108-40e1-882b-cdcb7f469a47
@@ -909,24 +2188,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-17
+50
 </td>
 <td style="text-align:left;">
 240bcde9-18eb-439e-9bb0-8b301902335f
 </td>
 <td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
 1
 </td>
 <td style="text-align:right;">
-412.0000
+2
+</td>
+<td style="text-align:right;">
+NA
 </td>
 </tr>
 <tr>
 <td style="text-align:right;">
-17
+50
 </td>
 <td style="text-align:left;">
 2b5920b0-f108-40e1-882b-cdcb7f469a47
@@ -943,7 +2222,41 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-18
+50
+</td>
+<td style="text-align:left;">
+240bcde9-18eb-439e-9bb0-8b301902335f
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+412.0000
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+51
+</td>
+<td style="text-align:left;">
+3737bdc7-ef83-4099-b124-e85f7ee1a5fc
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+51
 </td>
 <td style="text-align:left;">
 48647f19-595e-48d6-a1c7-19d52dcf0ace
@@ -960,41 +2273,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-18
-</td>
-<td style="text-align:left;">
-3737bdc7-ef83-4099-b124-e85f7ee1a5fc
-</td>
-<td style="text-align:right;">
-1
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-18
-</td>
-<td style="text-align:left;">
-3737bdc7-ef83-4099-b124-e85f7ee1a5fc
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:right;">
-466.7500
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-18
+51
 </td>
 <td style="text-align:left;">
 48647f19-595e-48d6-a1c7-19d52dcf0ace
@@ -1011,7 +2290,24 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+51
+</td>
+<td style="text-align:left;">
+3737bdc7-ef83-4099-b124-e85f7ee1a5fc
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+466.7500
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+52
 </td>
 <td style="text-align:left;">
 c005f431-d704-478a-ae88-92c5f4756b38
@@ -1028,7 +2324,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+52
 </td>
 <td style="text-align:left;">
 ba2e99f2-d903-4a16-a14b-f59572f2cfd5
@@ -1045,7 +2341,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+52
 </td>
 <td style="text-align:left;">
 c005f431-d704-478a-ae88-92c5f4756b38
@@ -1062,7 +2358,7 @@ c005f431-d704-478a-ae88-92c5f4756b38
 </tr>
 <tr>
 <td style="text-align:right;">
-19
+52
 </td>
 <td style="text-align:left;">
 ba2e99f2-d903-4a16-a14b-f59572f2cfd5
@@ -1079,7 +2375,7 @@ ba2e99f2-d903-4a16-a14b-f59572f2cfd5
 </tr>
 <tr>
 <td style="text-align:right;">
-20
+53
 </td>
 <td style="text-align:left;">
 2631c831-331e-44e9-89e5-61cb8812efb6
@@ -1096,7 +2392,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-20
+53
 </td>
 <td style="text-align:left;">
 bf909e5d-253d-4423-89a6-38ed1017c7e4
@@ -1113,24 +2409,7 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-20
-</td>
-<td style="text-align:left;">
-2631c831-331e-44e9-89e5-61cb8812efb6
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-7
-</td>
-<td style="text-align:right;">
-206.5714
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-20
+53
 </td>
 <td style="text-align:left;">
 bf909e5d-253d-4423-89a6-38ed1017c7e4
@@ -1147,10 +2426,27 @@ bf909e5d-253d-4423-89a6-38ed1017c7e4
 </tr>
 <tr>
 <td style="text-align:right;">
-21
+53
 </td>
 <td style="text-align:left;">
-bcbfdfea-501f-43e2-b59a-33e0ef05664e
+2631c831-331e-44e9-89e5-61cb8812efb6
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+206.5714
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+54
+</td>
+<td style="text-align:left;">
+e57e5edc-dc4b-4b03-be17-1d66b5811938
 </td>
 <td style="text-align:right;">
 1
@@ -1164,10 +2460,10 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-21
+54
 </td>
 <td style="text-align:left;">
-9bbe342b-98f8-4998-9262-edb1edfdb22b
+2ef380f6-22ec-443e-a0b8-510c82269fe4
 </td>
 <td style="text-align:right;">
 1
@@ -1181,27 +2477,10 @@ NA
 </tr>
 <tr>
 <td style="text-align:right;">
-21
+54
 </td>
 <td style="text-align:left;">
-9bbe342b-98f8-4998-9262-edb1edfdb22b
-</td>
-<td style="text-align:right;">
-2
-</td>
-<td style="text-align:right;">
-20
-</td>
-<td style="text-align:right;">
-339.5000
-</td>
-</tr>
-<tr>
-<td style="text-align:right;">
-21
-</td>
-<td style="text-align:left;">
-bcbfdfea-501f-43e2-b59a-33e0ef05664e
+e57e5edc-dc4b-4b03-be17-1d66b5811938
 </td>
 <td style="text-align:right;">
 2
@@ -1211,6 +2490,23 @@ bcbfdfea-501f-43e2-b59a-33e0ef05664e
 </td>
 <td style="text-align:right;">
 339.6316
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+54
+</td>
+<td style="text-align:left;">
+2ef380f6-22ec-443e-a0b8-510c82269fe4
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:right;">
+339.5000
 </td>
 </tr>
 </tbody>

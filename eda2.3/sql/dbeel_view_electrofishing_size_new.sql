@@ -37,6 +37,7 @@ JOIN dbeel.observation_places opl on opl.op_id = el.ob_op_id  and opl.op_gis_lay
 JOIN dbeel.batch ba ON el.ob_id = ba.ba_ob_id and ba.ba_batch_level=2
 --to get size measurement
 JOIN dbeel.biological_characteristic bc ON bc.bc_ba_id = ba.ba_id and bc.bc_no_characteristic_type = 39 
+WHERE bc.bc_numvalue>50 AND bc.bc_numvalue<1400 
 GROUP BY (el.ob_id,length_class))
 --
 --main select
@@ -55,7 +56,7 @@ join dbeel.data_provider dp on dp.dp_id = e.ob_dp_id
 -- to get the full list of size category for each operation
 cross join cate_list cl
 -- to get the count of eels in each size category, previously calculated
-left join cate_query cq on cq.ob_id = e.ob_id and cq.length_class = cl.cat_label
+left join cate_query cq on cq.ob_id = e.ob_id and cq.length_class = cl.cat_label;
 
  -- Permissions
 

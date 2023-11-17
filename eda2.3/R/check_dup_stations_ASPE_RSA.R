@@ -88,6 +88,5 @@ mapview::mapview(sf_stations_aspe_3035[dist2$aspe,], color="red",alpha.regions =
 dist2$aspe <- NULL
 dist2$rsa <- NULL
 DBI::dbExecute(con, "DROP TABLE if exists france.stations_dup_aspe_rsa;")
-DBI::dbWriteTable(con, "temp_stations_dup_aspe_rsa", dist2) # written in public scheme
 DBI::dbWriteTable(con, "stations_dup_aspe_rsa", dist2) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE stations_dup_aspe_rsa set schema france")

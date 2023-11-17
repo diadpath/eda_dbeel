@@ -208,6 +208,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <ul>
 <li class="chapter" data-level="6.3.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#comparaison-des-diamètres-oculaires-horizontaux-et-verticaux"><i class="fa fa-check"></i><b>6.3.1</b> Comparaison des diamètres oculaires horizontaux et verticaux</a></li>
 </ul></li>
+<li class="chapter" data-level="6.4" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cas-particuliers"><i class="fa fa-check"></i><b>6.4</b> Cas particuliers</a>
+<ul>
+<li class="chapter" data-level="6.4.1" data-path="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html"><a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#pêches-à-plus-de-3-passages"><i class="fa fa-check"></i><b>6.4.1</b> Pêches à plus de 3 passages</a></li>
+</ul></li>
 </ul></li>
 </ul>
 
@@ -239,7 +243,7 @@ Il est donc nécessaire au maximum d’utiliser les tables mère (opérations, e
 <!-- -- -->
 <div id="quelques-chiffres" class="section level2 hasAnchor" number="6.1">
 <h2><span class="header-section-number">6.1</span> Quelques chiffres<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#quelques-chiffres" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>L’insertion des données ASPE et RSA se caractérise par 39460 opérations de pêche électrique en France Métropolitaine. Ces pêches ont donné lieu à 39460 résultats de pêches décomposés comme suit :</p>
+<p>L’insertion des données ASPE et RSA se caractérise par 49590 opérations de pêche électrique en France Métropolitaine. Ces pêches ont donné lieu à 49590 résultats de pêches décomposés comme suit :</p>
 <table class="table table table-striped table-hover table-condensed" style="width: auto !important; margin-left: auto; margin-right: auto; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -259,10 +263,10 @@ Poissons pêchés
 Number
 </td>
 <td style="text-align:right;">
-39460
+49590
 </td>
 <td style="text-align:right;">
-537820
+654095
 </td>
 </tr>
 <tr>
@@ -270,10 +274,10 @@ Number
 Number in the first pass
 </td>
 <td style="text-align:right;">
-39460
+49590
 </td>
 <td style="text-align:right;">
-477135
+569067
 </td>
 </tr>
 <tr>
@@ -281,10 +285,10 @@ Number in the first pass
 Number in the second pass
 </td>
 <td style="text-align:right;">
-10468
+16744
 </td>
 <td style="text-align:right;">
-60042
+83914
 </td>
 </tr>
 <tr>
@@ -292,21 +296,10 @@ Number in the second pass
 Number in the 3rd pass
 </td>
 <td style="text-align:right;">
-239
+388
 </td>
 <td style="text-align:right;">
-639
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Number in the 4th pass
-</td>
-<td style="text-align:right;">
-4
-</td>
-<td style="text-align:right;">
-4
+1114
 </td>
 </tr>
 </tbody>
@@ -328,7 +321,7 @@ Quantité mesurée
 Total length
 </td>
 <td style="text-align:right;">
-504289
+565685
 </td>
 </tr>
 <tr>
@@ -336,7 +329,7 @@ Total length
 Weight
 </td>
 <td style="text-align:right;">
-227427
+263988
 </td>
 </tr>
 <tr>
@@ -344,7 +337,7 @@ Weight
 Vertical eye diameter
 </td>
 <td style="text-align:right;">
-14264
+14449
 </td>
 </tr>
 <tr>
@@ -352,7 +345,7 @@ Vertical eye diameter
 Horizontal eye diameter
 </td>
 <td style="text-align:right;">
-14264
+14449
 </td>
 </tr>
 <tr>
@@ -360,7 +353,7 @@ Horizontal eye diameter
 Length of the pectoral fin
 </td>
 <td style="text-align:right;">
-14221
+14403
 </td>
 </tr>
 </tbody>
@@ -402,15 +395,15 @@ Nb passage batch
 </div>
 <div id="contrôle-de-lintégrité-des-données-taillepoids" class="section level2 hasAnchor" number="6.3">
 <h2><span class="header-section-number">6.3</span> Contrôle de l’intégrité des données taille/poids<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#contrôle-de-lintégrité-des-données-taillepoids" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>Cette partie a pour objectif de contrôler que les données taille/poids sur les anguilles sont cohérentes. Si des données erronnées ou suspectes sont détectées, elles seront écartées.</p>
+<p>Cette partie a pour objectif de contrôler que les données taille/poids sur les anguilles sont cohérentes. Si des données erronées ou suspectes sont détectées, elles seront écartées.</p>
 <div id="taille" class="section level4 hasAnchor" number="6.3.0.1">
 <h4><span class="header-section-number">6.3.0.1</span> Taille<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#taille" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>Dans le jeu de données ASPE/RSA, au 06/11/2023, il existe 504238 mesures de longueur. La taille minimale mesurée est de 51mm (à noter que les anguilles de 50mm ou moins on été supprimées des vues utilisées par le modèle EDA), la maximale est 1242mm.</p>
+<p>Dans le jeu de données ASPE/RSA, au 21/11/2023, il existe 565628 mesures de longueur. La taille minimale mesurée est de 51mm (à noter que les anguilles de 50mm ou moins on été supprimées des vues utilisées par le modèle EDA), la maximale est 1242mm.</p>
 <p><img src="_main_files/figure-html/taille_plots-1.png" width="672"  /><img src="_main_files/figure-html/taille_plots-2.png" width="672"  /></p>
 </div>
 <div id="poids" class="section level4 hasAnchor" number="6.3.0.2">
 <h4><span class="header-section-number">6.3.0.2</span> Poids<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#poids" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>Dans le jeu de données ASPE/RSA, au 06/11/2023, il existe 227414 mesures de poids. La poids minimal mesuré est de 0g , la maximal est 4162g.</p>
+<p>Dans le jeu de données ASPE/RSA, au 21/11/2023, il existe 263975 mesures de poids. La poids minimal mesuré est de 0g , la maximal est 4162g.</p>
 <p>Ci dessous la représentation graphique des données brutes de poids.
 <img src="_main_files/figure-html/poids_plot-1.png" width="672"  /><img src="_main_files/figure-html/poids_plot-2.png" width="672"  /></p>
 <p>Au 27/10/2023, l’analyse des minima/maxima montre qu’il existe probablement des incohérences (poids nuls ou poids aberrants). La gestion de ces erreurs de mesures ou saisies se fera par le calcul du poids relatif (relative weight, Wr), méthode conseillée par Blackwell et al. (2000), telle que réalisée dans Beaulaton et al. (2015). Dans un premier temps on supprime du jeu de données, les poids qui sont supérieurs à 7000g (4 mesures). On conserve toutefois les mesures de longueurs. On ignorera également aussi tous les enregistrements qui possède un poids enregistré à 0g avec une longueur supérieure à 50mm (on va remplacer ces 0 par des NA).</p>
@@ -418,7 +411,7 @@ Nb passage batch
 <p>Ci dessous les différentes étapes du calcul du poids relatif par la méthode de Blackweel et al. (2000). Dans un premier temps on modélise une régression quantile sur les données de poids (en log) en fonction des longueurs (en log).
 <img src="_main_files/figure-html/calc_wr_ws-1.png" width="672"  /></p>
 <p><img src="_main_files/figure-html/calc_wr_ws_2-1.png" width="672"  /><img src="_main_files/figure-html/calc_wr_ws_2-2.png" width="672"  /></p>
-<p>Au 27/10/2023, l’analyse des 2 graphiques ci-dessus montraient que, à l’image de ce qui a été fait dans Beaulaton et al. (2015), nous pouvons traiter les individus dont le Wr n’est pas dans l’intervalle [25,200]. Ces écarts sont le résultat d’une erreur de saisie de poids poru la plupart. Sont concernées 0 lignes dont le Wr est inf. à 25 et 0 dont le Wr est sup. à 200.
+<p>Au 27/10/2023, l’analyse des 2 graphiques ci-dessus montraient que, à l’image de ce qui a été fait dans Beaulaton et al. (2015), nous pouvons traiter les individus dont le Wr n’est pas dans l’intervalle [25,200]. Ces écarts sont le résultat d’une erreur de saisie de poids poru la plupart. Sont concernées 4 lignes dont le Wr est inf. à 25 et 124 dont le Wr est sup. à 200.
 Attention, si on supprime ces poissons, on perd potentiellement des mesures de taille correctes (cas notamment de tous les poissons dont le Wr est mauvais car le poids est égal à 350g quelle que soit la taille). De plus on perd également quelques données d’argenture sur ces poissons. Une alternative est de considérer que seule la saisie du poids est fausse et donc de ne supprimer que les lignes de saisie de poids. C’est cette dernière solution qui a été privilégiée. Au 27/10, environ 15000 mesures de poids ont ainsi été “supprimées”.</p>
 <!-- Voici le nouveau graphe de taille en fonction du poids, en orange sont représentés les poissons dont le Wr n'est pas compris dans l'intervalle  [25,200]. -->
 <!-- ```{r final_plot, message=F, warning=F} -->
@@ -441,7 +434,7 @@ Attention, si on supprime ces poissons, on perd potentiellement des mesures de t
 </div>
 <div id="longueur-de-nageoire-pectorale" class="section level4 hasAnchor" number="6.3.0.3">
 <h4><span class="header-section-number">6.3.0.3</span> Longueur de nageoire pectorale<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#longueur-de-nageoire-pectorale" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>La longueur de la nageoire pectorale est mesurée sur 14221. Parmi celles-ci, 0 ont une longueur de nageoire pectorale supérieure à 100 mm. Elles sont à exclure des traitements ultérieurs. De même, 0 anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l’objet du protocole indice oculaire (Beaulaton and Pénil, 2009).</p>
+<p>La longueur de la nageoire pectorale est mesurée sur 14403. Parmi celles-ci, 0 ont une longueur de nageoire pectorale supérieure à 100 mm. Elles sont à exclure des traitements ultérieurs. De même, 0 anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l’objet du protocole indice oculaire (Beaulaton and Pénil, 2009).</p>
 <p>La distribution de ces mesures est donnée ci-dessous.</p>
 <p><img src="_main_files/figure-html/pect_plot-1.png" width="672"  /><img src="_main_files/figure-html/pect_plot-2.png" width="672"  /></p>
 <p>La longueur de la nageoire pectorale en fonction de la taille est donnée ci-dessous.</p>
@@ -452,7 +445,7 @@ L’analyse de la distribution nous conduit à exclure les individus ayant une l
 </div>
 <div id="diamètre-oculaire-horizontaux" class="section level4 hasAnchor" number="6.3.0.4">
 <h4><span class="header-section-number">6.3.0.4</span> Diamètre oculaire horizontaux<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#diamètre-oculaire-horizontaux" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>Le diamètre horizontal a été mesuré sur 14264 anguilles. Parmi celles-ci, 0 ont un diamètre oculaire
+<p>Le diamètre horizontal a été mesuré sur 14449 anguilles. Parmi celles-ci, 0 ont un diamètre oculaire
 horizontal supérieure à 20 mm. Elles sont exclus des traitements ultérieurs. De même, 0 anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l’objet du protocole indice oculaire (Beaulaton and
 Pénil, 2009). La distribution de ces mesures est donnée ci-dessous.</p>
 <p><img src="_main_files/figure-html/eye_horiz_plot-1.png" width="672"  /><img src="_main_files/figure-html/eye_horiz_plot-2.png" width="672"  /></p>
@@ -464,7 +457,7 @@ mesure et Ohp la prédiction avec la régression quantile. Au vu des données, n
 </div>
 <div id="diamètre-oculaire-verticaux" class="section level4 hasAnchor" number="6.3.0.5">
 <h4><span class="header-section-number">6.3.0.5</span> Diamètre oculaire verticaux<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#diamètre-oculaire-verticaux" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>Le diamètre vertical a été mesuré sur 14264 anguilles. Parmi celles-ci, 0 ont un diamètre oculaire horizontal supérieure à 20 mm. Elles sont exclus des traitements ultérieurs. De même, 0 anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l’objet du protocole indice oculaire (Beaulaton and Pénil, 2009). La distribution de ces mesures est donnée ci-dessous.</p>
+<p>Le diamètre vertical a été mesuré sur 14449 anguilles. Parmi celles-ci, 0 ont un diamètre oculaire horizontal supérieure à 20 mm. Elles sont exclus des traitements ultérieurs. De même, 0 anguilles mesurent moins de 250 mm, taille minimale des anguilles devant faire l’objet du protocole indice oculaire (Beaulaton and Pénil, 2009). La distribution de ces mesures est donnée ci-dessous.</p>
 <p><img src="_main_files/figure-html/eye_vert_plot-1.png" width="672"  /><img src="_main_files/figure-html/eye_vert_plot-2.png" width="672"  /></p>
 <p>Le diamètre oculaire vertical en fonction de la taille est présenté ci-dessous.</p>
 <p><img src="_main_files/figure-html/eye_vert_reg_qt-1.png" width="672"  />
@@ -479,6 +472,15 @@ général légèrement supérieurs aux diamètres verticaux.</p>
 <p><img src="_main_files/figure-html/eye_plot-1.png" width="672"  /></p>
 <p>D’après ces mesures, l’œil de l’anguille n’est donc pas parfaitement rond. Nous allons donc considérer qu’il forme une ellipse dont les diamètres mesurés sont les deux axes. La forme d’une ellipse peut être caractérisé par son excentricité (notée e). Ce nombre est compris entre 0 (pour un cercle) et 1 (aplatissement infini). La figure suivante montre la distribution de l’excentricité tel que mesurée sur les anguilles. Nous excluons les mesures de diamètres oculaires dont l’excentricité est supérieure à 0,8 (0 individus).</p>
 <p><img src="_main_files/figure-html/eye_excentricite_plot_excl-1.png" width="672"  /><img src="_main_files/figure-html/eye_excentricite_plot_excl-2.png" width="672"  /></p>
+</div>
+</div>
+<div id="cas-particuliers" class="section level2 hasAnchor" number="6.4">
+<h2><span class="header-section-number">6.4</span> Cas particuliers<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#cas-particuliers" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<div id="pêches-à-plus-de-3-passages" class="section level3 hasAnchor" number="6.4.1">
+<h3><span class="header-section-number">6.4.1</span> Pêches à plus de 3 passages<a href="contrôle-de-lintégrité-des-données-aspersa-dans-la-dbeel.html#pêches-à-plus-de-3-passages" class="anchor-section" aria-label="Anchor link to header"></a></h3>
+<p>Au 09/11, il existait 5 opération de pêches qui ont été réalisées sur plus de 3 passages, ayant comptabilisé au total 137 anguilles pêchées.</p>
+<p>Le modèle EDA (version 2.3) ne peut traiter que des opérations de pêches à 3 passages maximum. Il est donc nécessaire de supprimer ces opérations (et les poissons liés) de la base <strong>dbeel</strong> pour éviter toute incohérence dans les prédictions.</p>
+<p><strong>Au 09/11 : Opérations de pêches supprimées. Problème résolu.</strong></p>
 
 </div>
 </div>

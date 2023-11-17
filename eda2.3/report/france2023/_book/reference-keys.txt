@@ -50,3 +50,5 @@ longueur-de-nageoire-pectorale
 diamètre-oculaire-horizontaux
 diamètre-oculaire-verticaux
 comparaison-des-diamètres-oculaires-horizontaux-et-verticaux
+cas-particuliers
+pêches-à-plus-de-3-passages
