@@ -1058,6 +1058,8 @@ ope_3_pass_plus <- electrofishing %>%
 
 Au 09/11, il existait 5 opération de pêches qui ont été réalisées sur plus de 3 passages, ayant comptabilisé au total 137 anguilles pêchées.
 
+Au 09/11, il existait 4 opération de pêches qui ont été réalisées sur plus de 3 passages, ayant comptabilisé au total 137 anguilles pêchées.
+
 Le modèle EDA (version 2.3) ne peut traiter que des opérations de pêches à 3 passages maximum. Il est donc nécessaire de supprimer ces opérations (et les poissons liés) de la base __dbeel__ pour éviter toute incohérence dans les prédictions.
 
 __Au 09/11 : Opérations de pêches supprimées. Problème résolu.__

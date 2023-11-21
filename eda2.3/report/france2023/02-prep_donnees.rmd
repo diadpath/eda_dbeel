@@ -305,7 +305,7 @@ DBI::dbWriteTable(con, "operation_aspe", operation_aspe)
 DBI::dbExecute(con, "ALTER TABLE operation_aspe set schema france")
 ```
 
-A ce stade on insère donc 45589 ligne d'opérations dans la base EDA mais dont 24 opérations sont attachés à des points de prélèvement sans identifiant de station (sta_id). Le code ci-dessous permet de charger ces opérations sans station puis de les visualiser avec la station la plus proche connu dans le dataset [Station ASPE](#stations-en-france-métropolitaine)
+A ce stade on insère donc 45589 ligne d'opérations dans la base EDA mais dont 10135 opérations sont attachés à des points de prélèvement sans identifiant de station (sta_id). Le code ci-dessous permet de charger ces opérations sans station puis de les visualiser avec la station la plus proche connu dans le dataset [Station ASPE](#stations-en-france-métropolitaine)
 
 ```{r ope_without_sta, eval = FALSE, echo = TRUE}
 #How many ASPE operation are recorded without station id 
@@ -332,11 +332,11 @@ min(dist) #minimal distance is 25m
 max(dist) #maximal distance is 1711m
 ```
 
-Sur la carte ci-dessous figure l'ensemble des opération sans identifiant de station en \textcolor{purple}{violet} avec les stations connues les plus proches en \textcolor{green}{vert}. A noter que le rapprochement le plus efficace se fait avec une distance opération \<-\> station de 25m, alors que le plus éloigné est de 1711m.
+Sur la carte ci-dessous figure l'ensemble des opération sans identifiant de station en \textcolor{purple}{violet} avec les stations connues les plus proches en \textcolor{green}{vert}. A noter que le rapprochement le plus efficace se fait avec une distance opération \<-\> station de 25m, alors que le plus éloigné est de 33000m.
 
 ![(#fig:carte-france_ope_station) Visualisation des opérations sans station.](images/ope_sans_station.png)
 
-Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.**Au 22/08 : Attente de validation Cédric/Laurent. : réponse Laurent 08/09 : a priori on laisse tel quel. **
+Nous proposons donc à ce stade de conserver l'identifiant de la station la plus proche.**Au 21/11 : Cette solution n'a pas été privilégiée. En lieu et place on préfèrera enregistrer les ponts de prélèvements comme "station" dans la base dbeel. Cette solution est traitée dans le fichier import_aspe_dbeel.sql**
 
 \newpage
 

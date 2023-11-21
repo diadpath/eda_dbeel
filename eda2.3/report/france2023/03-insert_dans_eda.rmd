@@ -77,8 +77,39 @@ INSERT INTO france.dbeel_station_aspe
 	FROM france.station_aspe;
 ```
 
-Au 24/08, il existe 33985 stations à insérer.
+Au 24/08, il existe 33985 stations à insérer avec un identifiant de sta_id connu. Toutefois, certaines opérations de pêches (10135 au 21/11/2023) n'ont pas de sta_id, mais uniquement un pop_id. On va donc insérer ces points de prélèvements en les considérant comme des stations.
 
+```{sql insert_stations_2, eval = FALSE, echo = TRUE}
+--insert point of prelevement as 10135 ASPE operation have no sta_id (but only a pop_id)
+-- beware : some pop have the same pop_id as the sta_id of some station
+/* select * from operation_aspe oa where oa.pop_id in (
+select distinct pop_id from france.point_prelevement_aspe ppa 
+where ppa.pop_id in (select sta_id from france.station_aspe sa)
+and pop_sta_id is null)--18 distinctpop but for only 22 operations 
+*/
+--21/11 : for only 22 operations, we chose to ignore those pop
+INSERT INTO france.dbeel_station_aspe 
+SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
+	'3035' AS op_gis_systemname ,
+	'ASPE' AS op_gis_layername, 
+	NULL AS op_gislocation, 
+	ppa.pop_libelle_wama  AS op_placename,
+	9 AS op_no_observationplacetype, -- River stretch
+	NULL AS  op_op_id,
+	ppa.geometry  as the_geom, -- already 3035
+   ppa.pop_id,
+   ppa.pop_code_wama  ,
+  'FR' AS country 
+	FROM france.point_prelevement_aspe ppa 
+	where ppa.pop_id in (select distinct oa.pop_id from france.operation_aspe oa where oa.sta_id is null)
+	and ppa.pop_id not in (select distinct ppa2.pop_id from france.point_prelevement_aspe ppa2 
+							where ppa2.pop_id in (select sta_id from france.station_aspe sa)
+							and ppa2.pop_sta_id is null)
+
+--21/11/2023 : 6990 pop	
+```
+
+**Attention : au 21/11/2023, il existe 18 points de prélèvement avec un pop_ip (sans sta_id), comptabilisant 22 opérations de pêches dans ASPE, dont le pop_id est aussi connu comme étant un sta_id. Ce doublon d'id provoque de nombreux doublons ensuite sur les opérations de pêches. Il a été décidé au 21/11/2023 de mettre de côté ces 22 opérations et ces 18 points de prélèvements.**  
 ### dbeel_electrofishing_aspe
 
 Dans le schéma France, la table **dbeel_electrofishing_aspe** hérite de la table **electrofishing** du schéma dbeel. Cette table va regrouper l'ensemble des opérations de pêches électriques référencées dans ASPE avec certaines informations techniques ainsi que des références externes vers la station, le point de prélèvement (**est ce encore utile ?**), etc.... Dans un premier temps, la table est supprimée (ainsi que toutes ces dépendances) puis recréée.
@@ -134,6 +165,7 @@ CREATE TABLE france.dbeel_electrofishing_aspe(
 Ensuite, l'ensemble des opérations depuis ASPE est inséré dans la table en générant un identifiant unique, via **uuid_generate_v4()** pour chaque opération.
 
 ```{sql insert_elec_aspe, eval = FALSE, echo = TRUE}
+
 INSERT INTO france.dbeel_electrofishing_aspe (
 	ob_id,
 	ob_no_origin,
@@ -216,27 +248,115 @@ SELECT
   ope.ope_id_wama
 	FROM 	
         france.dbeel_station_aspe sta
-   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,  
-   -- JRT, 24/08 : ça ne me semble pas correct
-   -- si on veut toutes les opérations même celles qui n'ont pas de sta_id, 
-   -- il faudrait un right join
-   -- 
-   -- old comment : JOIN donc les operations sans sta_id sont gardées
-   -- nomenclatures 	 
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.sta_id,   
 	 dbeel_nomenclature.observation_origin,
 	 dbeel_nomenclature.observation_type,
 	 dbeel_nomenclature.period_type,
 	 dbeel.data_provider  			
-	WHERE observation_origin.no_name='Raw data' 
+	WHERE ope.sta_id is not null --only operations with actual sta_id
+	and observation_origin.no_name='Raw data' 
 	AND observation_type.no_name='Electro-fishing' 
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
-	;
+	; --21/11 : 35154 operations
+
+	--and then operation with pop_id instead of sta_id
+	INSERT INTO france.dbeel_electrofishing_aspe (
+	ob_id,
+	ob_no_origin,
+	ob_no_type,
+	ob_no_period,
+	ob_starting_date,
+	ob_ending_date,
+	ob_dp_id,
+	ef_no_fishingmethod,
+	ef_no_electrofishing_mean,
+	ef_wetted_area,
+	ef_fished_length,
+	ef_fished_width,
+	ef_duration,
+	ef_nbpas,
+	ob_op_id,
+	odp_tension,
+	odp_intensite,
+	odp_puissance,
+	odp_nombre_anodes ,
+  odp_nombre_epuisettes,
+  odp_maille_epuisette,
+  odp_nombre_points_anguilles,
+  nb_point,
+  odp_duree_peche,
+  op_typ,
+  mom_libelle,
+  ope_id,
+  pop_id,
+  sta_id,
+  sta_code_sandre,
+  pop_code_wama,
+  ope_code_wama,
+  ope_id_wama
+	)
+SELECT 
+	uuid_generate_v4() AS ob_id ,
+	observation_origin.no_id AS ob_no_origin,
+	observation_type.no_id AS ob_no_type, 
+	period_type.no_id AS ob_no_period,
+	ope.ope_date::date AS ob_starting_date,
+	CAST(NULL AS date) as ob_ending_date,
+	data_provider.dp_id AS ob_dp_id, 
+	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
+	     WHEN op_typ ILIKE '%compl%' THEN 62
+	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
+	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
+       WHEN op_typ ILIKE '%anguille%' THEN 303	
+       ELSE 61 -- si y a des des 61 se m�fier
+	END AS ef_no_fishingmethod,
+	CASE WHEN mop_libelle ILIKE '%pied%'  THEN 71
+	     WHEN mop_libelle ILIKE '%bateau%' THEN 72
+	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
+	     ELSE 70 -- unknown
+	END AS ef_no_electrofishing_mean,	
+	ope.ope_surface_calculee AS ef_wetted_area, 
+	odp_longueur AS ef_fished_length,
+	odp_largeur_lame_eau AS ef_fished_width,
+	odp_duree_peche AS ef_duration,
+	CASE WHEN nb_pas IS NULL THEN 1 ELSE nb_pas END AS ef_nbpas,	     
+	sta.op_id as ob_op_id,
+	ope.odp_tension,
+  ope.odp_intensite,
+  ope.odp_puissance,
+  ope.odp_nombre_anodes ,
+  ope.odp_nombre_epuisettes,
+  ope.odp_maille_epuisette,
+  ope.odp_nombre_points_anguilles,
+  ope.nb_point,
+  ope.odp_duree_peche,
+  ope.op_typ,
+  ope.mom_libelle,
+  ope.ope_id,
+  ope.pop_id,
+  ope.pop_id,--because non sta_id in operation_aspe
+  ope.pop_code_wama,--because no sta_code_sandre
+  ope.pop_code_wama,
+  ope.ope_code_wama,
+  ope.ope_id_wama
+	FROM 	
+        france.dbeel_station_aspe sta
+   JOIN france.operation_aspe ope ON sta.sta_id=ope.pop_id,  
+   	 dbeel_nomenclature.observation_origin,
+	 dbeel_nomenclature.observation_type,
+	 dbeel_nomenclature.period_type,
+	 dbeel.data_provider  			
+	WHERE ope.sta_id is null --only operation with no sta_id
+	and observation_origin.no_name='Raw data' 
+	AND observation_type.no_name='Electro-fishing' 
+	AND period_type.no_name='Daily' 
+	AND data_provider.dp_name='Pascal Irz'
+	; --21/11 : 10135 operations --> total 45289 operations
 ```
 
-Au 24/08, il existe 35154 opérations à insérer.
-
-**Attention**, il existe dans la base ASPE 24 opérations référencées sur des points de prélèvements connus qui ne sont associées à aucune station. Aussi, une solution est proposée dans le fichier **import_aspe.R** pour rattacher ces 24 opérations de pêches électriques aux stations de pêches les plus proches géographiquement (cf [Préparations des données](.\préparation-des-données.html#opérations)).
+Au 21/11, il existe 45289 opérations à insérer.
 
 ### dbeel_batch_ope_aspe
 
@@ -405,7 +525,7 @@ SELECT uuid_generate_v4() AS ba_id,
   ; -- 4 ROWS
 ```
 
-Au 24/08/2023, les résultats des INSERT sont les suivants : - 35154 enreg. pour les totaux par pêches - 35154 enreg. pour le premier passage - 9230 enreg. pour le second passage - 179 enreg. pour le troisième passage - 4 enreg. pour le quatrième passage
+Au 21/11/2023, les résultats des INSERT sont les suivants : - 45289 enreg. pour les totaux par pêches - 45289 enreg. pour le premier passage - 15511 enreg. pour le second passage - 333 enreg. pour le troisième passage - 5 enreg. pour le quatrième passage
 
 ### dbeel_batch_fish_aspe et dbeel_mensurationindiv_biol_charac_aspe
 
@@ -562,7 +682,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   WHERE biological_characteristic_type.no_name = 'Length'; 
 ```
 
-Au 25/08/2023, 324484 anguilles capturées au 1er passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 154541 mesures de poids et 324484 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
+Au 25/08/2023, 373250 anguilles capturées au 1er passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 183525 mesures de poids et 324484 373250 de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
 
 ```{sql insert_batch_fish_2, eval = FALSE, echo = TRUE}
 -- Fish caught during 2nd pass
@@ -665,7 +785,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 
 ```
 
-Au 25/08/2023, 36522 anguilles capturées au 2nd passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 19570 mesures de poids et 36522 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
+Au 25/08/2023, 49008 anguilles capturées au 2nd passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 27213 mesures de poids et 49008 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
 
 ```{sql insert_batch_fish_3, eval = FALSE, echo = TRUE}
 -- Fish caught during 3rd pass
@@ -766,7 +886,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
     AND baf.pas_numero=3; 
 ```
 
-Au 25/08/2023, 142 anguilles capturées au 3eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 34 mesures de poids et 142 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**
+Au 25/08/2023, 423 anguilles capturées au 3eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 252 mesures de poids et 423 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**
 
 ```{sql insert_batch_fish_4, eval = FALSE, echo = TRUE}
 -- Fish caught during 4th pass
@@ -869,7 +989,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 
 Au 25/08/2023, 4 anguilles capturées au 4eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 4 mesures de poids et 4 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
 
-Au final, au 25/08/2023, il existe 361152 anguilles référencées dans **dbeel_batch_fish_aspe**, donnant lieu à 174149 mesures de poids et 361152 mesures de taille dans **dbeel_mensurationindiv_biol_charac_aspe**.
+Au final, au 25/08/2023, il existe 422333 anguilles référencées dans **dbeel_batch_fish_aspe**.
 
 ### batch_silver_wama
 
@@ -887,7 +1007,7 @@ join dbeel_electrofishing_aspe dea
 on bsw.ope_code_wama = dea.ope_code_wama 
 ```
 
-Au 25/08, il y a 14575 enregistrement d'argentures et 14351 lignes pour lesquels on va pouvoir récupérer un id de **dbeel_electrofishing_aspe**. Il en résulte que 224 données d'argentures vont être perdues.
+Au 25/08, il y a 14575 enregistrement d'argentures et 14449 lignes pour lesquels on va pouvoir récupérer un id de **dbeel_electrofishing_aspe**.
 
 Nous en apprenons un peu plus sur ces données perdues.
 
@@ -906,7 +1026,7 @@ where bsw2.ope_code_wama  not in
 	join dbeel_electrofishing_aspe dea on dea.ope_code_wama = bsw.ope_code_wama ))
 ```
 
-Ces données perdues sont rattachées à 18 code WAMA qui font références à des opérations de pêches dont l'identifiant de la station **sta_id** n'est pas connu (NULL en base). Ce problème a été évoqué dans la [Préparations des données](.\préparation-des-données.html#opérations) et est en attente de décision.
+Ces données perdues sont rattachées à 18 code WAMA qui font références à des opérations de pêches dont l'identifiant de la station **sta_id** n'est pas connu (NULL en base). 
 
 Il est nécessaire ensuite de mettre à jour le **ope_dbeel_ob_id** comme suit.
 
@@ -950,11 +1070,11 @@ where ve.ob_id::text in (select distinct tb.ope_dbeel_ob_id::text from france.ba
 select pw.*, pd.row_dbeel, pd.bc_id, pd.bc_ba_id, pd.ob_id
 from part_wama pw
 join part_dbeel pd on (pd.ob_id::text,pd.length,pd.weight,pd.row_dbeel) = (pw.ope_dbeel_ob_id::text,pw.length,pw.weight,pw.row_wama);
---14264 sur 14351 initialement existantes dans WAMA
---87 lines lost due mainly to duplicates in WAMA or other issues in ASPE.
+--14449 sur 14575 initialement existantes dans WAMA
+--lines lost due mainly to duplicates in WAMA or other issues in ASPE.
 ```
 
-Au 23/10/2023, 14264 lignes anguilles ont donné lieu à des mesures biométriqsues (autre que longueur/poids) sur 14351 initialement stockées. Cette différence s'explique principalement par l'existence de doublons dans la table batch_silver_wama, doublons présents à l'origine dans le dump de la BDMap. __Informations transmis à L. Beaulaton__. 
+Au 21/11/2023, 1449 lignes anguilles ont donné lieu à des mesures biométriqsues (autre que longueur/poids) sur 14575 initialement stockées. Cette différence s'explique principalement par l'existence de doublons dans la table batch_silver_wama, doublons présents à l'origine dans le dump de la BDMap. __Informations transmis à L. Beaulaton__. 
 
 Par la suite, il reste à insérer, mesure par mesure, les données d'argenture.
 ```{sql insert_silvering_dbeel_2, eval = FALSE, echo = TRUE}
@@ -979,7 +1099,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_vert'
-  --19/10/23 : 14264 records
+  --19/10/23 : 1449 records
 
 --insert Eyes, horizontal diameter
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
