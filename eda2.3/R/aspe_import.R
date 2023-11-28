@@ -411,8 +411,8 @@ DBI::dbExecute(con, "ALTER TABLE point_prelevement_aspe set schema france")
 
 # Cette étape a pour objectif de récupérer les opérations de pêches réalisées sur chaque point de prélèvement/stations.
 # On notera qu'à cette étape la jointure avec le dataset nouvellement créé station_aspe_france n'est pas effectué. 
-# On travaille avec station et un left join... donc on prend tous les prélèvements, même ceux n'ayant pas de sta_id ou ne figurant pas dans la table station.
-# ce qui n'est pas optimale puisque certaines stations ne sont pas sélectionnées.
+# On travaille avec station et un left join... donc on prend tous les points de prélèvements, même ceux n'ayant pas de sta_id 
+# ou ne figurant pas dans la table station.
 # Toutefois la jointure avec station_aspe est faite plus tard en SQL (fichier import_aspe_dbeel.sql)
 
 # 18/08 : 45589 opérations avec station
@@ -450,20 +450,62 @@ operation_aspe <-
 						group_by(pre_ope_id) %>%
 						summarize(nb_pas=max(pas_numero)), 
 				by=c("ope_id"="pre_ope_id")) %>%
-		filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # remove IA SAT and vigie truite
+		filter(ope_pro_id %in% c(1,2,4,7)) %>% # remove IA SAT and vigie truite and pêches par ambiance (id= 3) (cf ci-dessous)
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)
 
-# nrow(operation_aspe[is.na(operation_aspe$sta_id),])
-#nrow(operation_aspe[is.na(operation_aspe$pop_id),])
+#27/11 : 43019 operations
 
-#18/08 : 10391 lignes sans sta_id
-# #avec pop_aspe_france_buff
-# 08/09 : 10135 lignes sans sta_id, 0 lign sans pop_id
+############### DEBUT : filtre sur le type d'opérations ou de prélèvements ##########################
+# #27/11 :
+# - les opérations de pêches par ambiance (operation_aspe$op_typ == "Pêche par ambiances") sont supprimées car 
+#   le choix des ambiances sur le terrain   biaisent le résultat des pêches et donc l'estimation de densité dans EDA
+#   cf ci-dessus sur le filter(ope_pro_id %in% c(1,2,4,7))
+# - les opérations de pêche en grand milieu (operation_aspe$op_typ == "Pêche partielle par points (grand milieu)") sont réalisées sur des
+#   points de pêches principaux (souvent 75 ou 100, parfois <75) mais également sur des points complémentaires. Ce choix de points complémentaire
+#   a pu être biaisés et donc conduire à des estimations de densités également biaisées. il convient donc d'ignorer ces points complémentaires
+#   (table groupe_points, champs grp_tgp_id = 2)
+# - les opérations de pêches partielle sur berge (op_typ=="Pêche partielle sur berge") nécessitent l'exitence d'une longueur de station cohérente
+#   et d'une surface de pêche calculée correcte. Les opés sans longueur sont ignorées, les opé avec une longueur < 30m sont ignorées, 
+#   les opés dont la surface_calc est null ou à 0 sont ignorées
+#############################################################################################
+
+#pêches par ambiances
+# fait ci-dessus
+
+##pêche grands milieux, 27/11 : 9529 ope
+new_peche_gd_milieu <- operation_aspe %>%  
+  select(-nb_point) %>%#on enlève l'ancienne colonne du nb de points
+  filter(op_typ == 'Pêche partielle par points (grand milieu)') %>%
+    left_join(
+      prelevement_elementaire %>%
+        left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+        filter(grp_tgp_id == 1) %>%#on ne conserve que les prélèvements principaux
+        group_by(pre_ope_id) %>%
+        summarize(nb_point=sum(grp_nombre)), 
+      by=c("ope_id"="pre_ope_id"))
+
+  operation_aspe <- operation_aspe %>%  
+    filter(!(op_typ == 'Pêche partielle par points (grand milieu)'))
+#merge dataframes
+operation_aspe <- rbind.data.frame(operation_aspe,new_peche_gd_milieu)
+
+
+#pêches partielles sur berges
+op_aspe_bg <- operation_aspe %>%
+  filter(op_typ=="Pêche partielle sur berge") %>%
+  filter(ope_surface_calculee>0 & !is.na(ope_surface_calculee)) %>% #surf>0 ET sur != NA
+  filter(odp_longueur>30) #longueur de berge > 30m
+operation_aspe <- operation_aspe %>%
+  filter(!op_typ=="Pêche partielle sur berge")
+operation_aspe <- rbind.data.frame(operation_aspe,op_aspe_bg)#42699
+
+################FIN : filtre sur le type d'opérations ou de prélèvements###########################
 
 # nrow(operation_aspe)
 #21/08 : 45589 lignes (si jointure avec point_prelevement, celle en prod actuellement)
 #08/09 : 45285 lignes 
+#27/11 : 42699 lignes
 # (si jointure avec pop_aspe_france_buff, on perd les opérations attachées à des pop dont les coordonnées sont
 # dans les DOM TOM ou en dehors de la France)
 # write operation table in the database
@@ -497,11 +539,9 @@ mapview::mapview(near_station, color="green",alpha.regions = 0.2, aplha = 0.4,le
 dist <- st_distance(lost_ope_sf, station_aspe_france_buff[lost_near,], by_element=TRUE)
 min(dist) #minimal distance is <1m
 max(dist) #maximal distance is 33km
-
-#construction du dataset pour récupération des stations correspondantes
-lost_ope_with_nearest <- cbind.data.frame(lost_ope,near_station,dist)
 #####
-#### Au 23/11 : pour ces opérations de pêches sans station, on va récupérer le point de prélèvement en lieu et place de la station. Effectué dans import_aspe_dbeel.sql
+#### Au 23/11 : pour ces opérations de pêches sans station, on va récupérer 
+#le point de prélèvement en lieu et place de la station. Effectué dans import_aspe_dbeel.sql
 #####
 
 ##############################################
@@ -509,7 +549,8 @@ lost_ope_with_nearest <- cbind.data.frame(lost_ope,near_station,dist)
 ##############################################
 
 # the left join ensures that operations with no eels have zero after replace_na
-batch_aspe <- operation %>%   # 48387
+batch_aspe <- operation_aspe %>%  
+    filter(!op_typ == 'Pêche partielle par points (grand milieu)') %>% #this ope_type will be treated separately (see below)
 		select(ope_id)%>%
 		left_join(
 				prelevement_elementaire %>%
@@ -537,6 +578,26 @@ batch_aspe <- operation %>%   # 48387
   # remplace les passages NULLs (protocole peche par point) par "0"
 		mutate("pas_1"=replace_na(pas_1,0))   
 
+#27/11 : traitements des pêches grand milieu
+#on refait le calcul en ne prenant en compte que les poissons capturés lors des passages principaux
+batch_aspe_gd_milieu <- operation_aspe %>% 
+  filter(op_typ == 'Pêche partielle par points (grand milieu)') %>%
+  select(ope_id)%>%
+  left_join(
+    prelevement_elementaire %>%
+      left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+      filter(grp_tgp_id == 1) %>%
+      left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")) %>%
+      filter(lop_esp_id==14) %>%
+      group_by(pre_ope_id) %>%
+      summarize(nb_eel=sum(lop_effectif)),
+    by=c("ope_id"="pre_ope_id"))%>%
+  mutate(nb_eel=replace_na(nb_eel,0)) %>%
+  mutate(pas_1=nb_eel,pas_2=0,pas_3=0,pas_4=0)
+
+#on bind les dataframe
+batch_aspe <- rbind.data.frame(batch_aspe,batch_aspe_gd_milieu)
+
 DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
 DBI::dbWriteTable(con, "batch_aspe", batch_aspe) # written in public scheme
 DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
@@ -552,7 +613,8 @@ DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
 # from the mesured individuals
 
 # First create a (large) table with all fish mesured
-data <- operation %>%   # 48387
+data_ang <- operation_aspe %>%   
+    filter(!op_typ == 'Pêche partielle par points (grand milieu)') %>% #will be treated later (87863 eels)
 		select(ope_id)%>%
 		left_join(prelevement_elementaire, by=c("ope_id"="pre_ope_id"))%>%
 		left_join(passage %>% rename(pre_id = pas_id), by="pre_id") %>%
@@ -567,8 +629,8 @@ data <- operation %>%   # 48387
 		select(-esp_id) %>%
 		mef_ajouter_type_lot() %>%
 		mef_ajouter_mei() %>%
-		filter(mei_taille > 0) %>% # positive length
-		select(
+    filter(esp_code_alternatif == "ANG" & mei_taille > 49) %>%# keep only eels and remove unlikely small sizes (<50mm)
+  	select(
 				ope_id,
 				mei_id,
 				lop_id,
@@ -580,12 +642,44 @@ data <- operation %>%   # 48387
 				mei_poids_estime,
 				mei_mep_id,
 				esp_code_alternatif
-		) # 17127311
+		) # 305354 eels
 
-# keep only eels and remove unlikely small sizes (<50mm)
-data_ang <- data %>% 
-		filter(esp_code_alternatif == "ANG" & mei_taille > 49) 
-rm(data)
+data_ang_gm <- operation_aspe %>%   
+  filter(op_typ == 'Pêche partielle par points (grand milieu)') %>% 
+  select(ope_id) %>%
+  left_join(
+    prelevement_elementaire %>%
+      left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+      filter(grp_tgp_id == 1),#seulement anguilles issues des points principaux (pas les poins complémentaires)
+  by=c("ope_id"="pre_ope_id")) %>%
+  left_join(passage %>% rename(pre_id = pas_id), by="pre_id") %>%
+  left_join(lot_poissons, by = c("pre_id"="lop_pre_id"))		 %>%	
+  rename(esp_id = lop_esp_id,
+         tyl_id = lop_tyl_id) %>%
+  left_join(y = ref_espece %>%
+              select(esp_id,
+                     esp_code_alternatif,
+                     esp_nom_commun,
+                     esp_nom_latin), by="esp_id") %>%
+  select(-esp_id) %>%
+  mef_ajouter_type_lot() %>%
+  mef_ajouter_mei() %>%
+  filter(esp_code_alternatif == "ANG" & mei_taille > 49) %>%# keep only eels and remove unlikely small sizes (<50mm)
+  select(
+    ope_id,
+    mei_id,
+    lop_id,
+    pas_numero,
+    tyl_libelle,
+    mei_taille, # taille mesurée
+    mei_mesure_reelle, # boolean est ce que la taille est mesurée
+    mei_poids,
+    mei_poids_estime,
+    mei_mep_id,
+    esp_code_alternatif
+  ) # 87532 eels
+
+data_ang <- rbind.data.frame(data_ang,data_ang_gm)
 
 # 18/08 : JRT : following code has been disabled because ope_bretagne doesn't exist
 # Remove wrong measurements in Brittany with systematic size at 350mm
@@ -629,12 +723,11 @@ data_lots_not_corrected <- data_lots_not_corrected %>%
   select(order(colnames(data_lots_not_corrected)))
 
 data_lot2 <- bind_rows(data_lots_corrected,
-	data_lots_not_corrected) # 428417
+	data_lots_not_corrected) # 392886
 
 
 # 18/08 JRT : la taille recalculée par qta_ajouter_mei_taille_alt() n'est pas utilisée. Pkoi ?
 # réponse : N'a pas été fait faute de temps, à utiliser pour la prochaine version. 
-
 # TODO consider using data_lot2 instead of data_ang as there isn't NAs anymore
 ## --> 18/08 : DONE
 

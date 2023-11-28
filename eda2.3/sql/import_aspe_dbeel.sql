@@ -297,7 +297,8 @@ SELECT
 	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
 	     WHEN op_typ ILIKE '%compl%' THEN 62
 	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
-	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     --WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+		 --modified on 27/11/2023, "ambiance" electrofishing are no more considered, cf import_ASPE.R
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
        ELSE 61 -- si y a des des 61 se m�fier
@@ -307,7 +308,13 @@ SELECT
 	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	ope.ope_surface_calculee AS ef_wetted_area, 
+	CASE WHEN op_typ ILIKE '%partielle par points%' THEN ope.nb_point *12.5 --Deep habitat (partielle par points)
+        WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
+        WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
+        WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
+        WHEN ope.ope_surface_calculee THEN ope.ope_surface_calculee --berge
+        ELSE NULL -- Unknown 
+        END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
 	odp_largeur_lame_eau AS ef_fished_width,
 	odp_duree_peche AS ef_duration,
@@ -392,7 +399,8 @@ SELECT
 	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
 	     WHEN op_typ ILIKE '%compl%' THEN 62
 	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
-	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     --WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+		 --modified on 27/11/2023, "ambiance" electrofishing are no more considered, cf import_ASPE.R
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
        ELSE 61 -- si y a des des 61 se m�fier
@@ -402,7 +410,13 @@ SELECT
 	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	ope.ope_surface_calculee AS ef_wetted_area, 
+	CASE WHEN op_typ ILIKE '%partielle par points%' THEN ope.nb_point *12.5 --Deep habitat (partielle par points)
+        WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
+        WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
+        WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
+        WHEN ope.ope_surface_calculee THEN ope.ope_surface_calculee --berge
+        ELSE NULL -- Unknown 
+        END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
 	odp_largeur_lame_eau AS ef_fished_width,
 	odp_duree_peche AS ef_duration,
@@ -864,8 +878,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -985,8 +999,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -1082,8 +1096,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -1180,8 +1194,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,

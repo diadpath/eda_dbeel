@@ -30,7 +30,7 @@ join select_ope_rsa sor on sor.rsa_sta_id = tsd.rsa_sta_id
 where soa.ob_starting_date = sor.ob_starting_date
 --25/10/23 : 1039 opérations communes trouvées
 
-=======
+
 -- opérations de pêches réalisées sur ces stations ASPE
 select dea.ob_starting_date, dea.ope_id ,dboa.ba_quantity  from dbeel_electrofishing_aspe dea 
 join temp_stations_dup_aspe_rsa sdar on sdar.aspe_sta_id = dea.sta_id 
