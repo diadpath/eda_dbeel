@@ -5,271 +5,269 @@ Attention : il peut y avoir parfois des opérations de pêches qui ont donné li
 Théoriquement dans ASPE, il n'y a que de l'OFB et dans RSA ce sont d'autres partenaires
 */
 
+--#############################################################################################--
+-- RECHERCHE DOUBLON SUR STATIONS PROCHES
+--#############################################################################################--
+
 -- Etape 1 : Peut on trouver des stations communes entre RSA et ASPE ? (A faire sous R)
 -- Faire une table qui fait le lien entre les stations de RSA et ASPE qui se trouvent à moins de 200m (distance à adapter selon les besoins)---
 -- cf fichier check_dup_stations_ASPE_RSA.R
 -- résultats dans france.stations_dup_aspe_rsa
 
--- Etape 2 : Chercher l'ensemble des opérations de pêches réalisées 
--- conjointement sur des couples de stations de l'étape 1 à 2/3j 
+-- Etape 2/3 : Chercher l'ensemble des opérations de pêches réalisées 
+-- conjointement sur des couples de stations de l'étape 1, le même jour 
 -- d'intervalle (au cas où la date de l 'opération ne soit pas très précise)
 
---on remonte les opérations ASPE dont la station est connu dans le fichier des duplicats ASPE/RSA
-with select_ope_aspe as(
-select dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date from dbeel_electrofishing_aspe dea 
-join temp_stations_dup_aspe_rsa tsdar on tsdar.aspe_sta_id = dea.sta_id ),
---on remonte les opérations RSA dont la station est connu dans le fichier des duplicats ASPE/RSA
-select_ope_rsa as(
-select der.ob_id,tsdar.rsa_sta_id,tsdar.rsa_sta_zone,der.ob_starting_date  from dbeel_electrofishing_rsa der  
-join temp_stations_dup_aspe_rsa tsdar on (tsdar.rsa_sta_id,tsdar.rsa_sta_zone) = (der.op_sta_id,der.op_zone))
-select tsd.*,soa.*,sor.* from temp_stations_dup_aspe_rsa tsd
---puis on fait une jointure avec la table des duplicats sur les deux champs stations
-join select_ope_aspe soa on soa.aspe_sta_id = tsd.aspe_sta_id 
-join select_ope_rsa sor on sor.rsa_sta_id = tsd.rsa_sta_id 
---avec en plus la contrainte de date
-where soa.ob_starting_date = sor.ob_starting_date
---25/10/23 : 1039 opérations communes trouvées
-
-
--- opérations de pêches réalisées sur ces stations ASPE
-select dea.ob_starting_date, dea.ope_id ,dboa.ba_quantity  from dbeel_electrofishing_aspe dea 
-join temp_stations_dup_aspe_rsa sdar on sdar.aspe_sta_id = dea.sta_id 
-join dbeel_batch_ope_aspe dboa on dboa.ope_id = dea.ope_id
-order by dea.ob_starting_date, dea.ope_id 
-
--- Etape 3 : Comparer les quantités de poissons pêchées et les méthodes utilisées
--- Remonter la liste des couples d'opérations de pêches de l'étape 2
--- dont les quantités pêchées sont égales
-
--- on refait la même requête qu'en étape 2 mais cette fois-ci on ajoute la jointure avec dbeel_batch_ope_aspe
--- et dbeel_batch_ope_rsa pour obtenir la quantité de poissons pêchés
-with select_ope_aspe as(
-select dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date, dea.ope_id  from dbeel_electrofishing_aspe dea 
-join temp_stations_dup_aspe_rsa tsdar on tsdar.aspe_sta_id = dea.sta_id ),
-select_ope_rsa as(
-select der.ob_id,tsdar.rsa_sta_id,tsdar.rsa_sta_zone,der.ob_starting_date, der.op_id from dbeel_electrofishing_rsa der  
-join temp_stations_dup_aspe_rsa tsdar on (tsdar.rsa_sta_id,tsdar.rsa_sta_zone) = (der.op_sta_id,der.op_zone))
-select distinct(tsd.aspe_sta_id, tsd.rsa_sta_id, tsd.rsa_sta_zone, soa.ob_id, sor.ob_id) as id,
-tsd.aspe_sta_id as aspe_sta_id,
-tsd.rsa_sta_id as rsa_sta_id, 
-tsd.rsa_sta_zone as rsa_sta_zone,
-tsd.dist as sta_dist, 
-soa.ob_starting_date as ope_date_debut, 
-soa.ob_id as aspe_ob_id,
-soa.ope_id as aspe_ope_id,
-sor.ob_id as rsa_ob_id,
-sor.op_id as rsa_ope_id,
-dboa.ba_quantity as aspe_qty,
-dbor.ba_quantity as rsa_qty
-from temp_stations_dup_aspe_rsa tsd
-join select_ope_aspe soa on soa.aspe_sta_id = tsd.aspe_sta_id 
-join select_ope_rsa sor on (sor.rsa_sta_id,sor.rsa_sta_zone) = (tsd.rsa_sta_id ,tsd.rsa_sta_zone)
-join dbeel_batch_ope_aspe dboa ON dboa.ope_id = soa.ope_id
-join dbeel_batch_ope_rsa dbor on (dbor.op_id,dbor.op_zone) = (sor.rsa_sta_id,sor.rsa_sta_zone) 
-where soa.ob_starting_date = sor.ob_starting_date and
-dboa.ba_no_biological_characteristic_type = 47 and 
-dbor.ba_no_biological_characteristic_type = 47 and 
-dboa.ba_quantity = dbor.ba_quantity
-order by dboa.ba_quantity 
---25/10/23 : 87 opérations communes trouvées avec la même quantité de poissons
-
---on insère ces résultats dans une table temporaire pour pouvoir les étudier par la suite
-
+--on remonte les opérations ASPE et RSA dont les stations sont connues dans le fichier de doublonsdrop table if exists france.temp_ope_dup_aspe_rsa;
 drop table if exists france.temp_ope_dup_aspe_rsa;
-CREATE TABLE france.temp_ope_dup_aspe_rsa(
-id TEXT,
-aspe_sta_id INTEGER,
-rsa_sta_id INTEGER,
-rsa_sta_zone TEXT,
-sta_dist  INTEGER,
-ope_date_debut DATE,
-aspe_ob_id TEXT,
-aspe_ope_id INTEGER,
-rsa_ob_id TEXT,
-rsa_ope_id INTEGER,
-aspe_qty INTEGER,
-rsa_qty INTEGER);
-
-insert into france.temp_ope_dup_aspe_rsa(
-id,
-aspe_sta_id,
-rsa_sta_id,
-rsa_sta_zone,
-sta_dist,
-ope_date_debut,
-aspe_ob_id,
-aspe_ope_id,
-rsa_ob_id,
-rsa_ope_id,
-aspe_qty,
-rsa_qty)
-with select_ope_aspe as(
-select dea.ob_id,tsdar.aspe_sta_id,dea.ob_starting_date, dea.ope_id  from dbeel_electrofishing_aspe dea 
-join temp_stations_dup_aspe_rsa tsdar on tsdar.aspe_sta_id = dea.sta_id ),
-select_ope_rsa as(
-select der.ob_id,tsdar.rsa_sta_id,tsdar.rsa_sta_zone,der.ob_starting_date, der.op_id from dbeel_electrofishing_rsa der  
-join temp_stations_dup_aspe_rsa tsdar on (tsdar.rsa_sta_id,tsdar.rsa_sta_zone) = (der.op_sta_id,der.op_zone))
-select distinct(tsd.aspe_sta_id, tsd.rsa_sta_id, tsd.rsa_sta_zone, soa.ob_id, sor.ob_id) as id,
-tsd.aspe_sta_id as aspe_sta_id,
-tsd.rsa_sta_id as rsa_sta_id, 
-tsd.rsa_sta_zone as rsa_sta_zone,
-tsd.dist as sta_dist, 
-soa.ob_starting_date as ope_date_debut, 
-soa.ob_id as aspe_ob_id,
-soa.ope_id as aspe_ope_id,
-sor.ob_id as rsa_ob_id,
-sor.op_id as rsa_ope_id,
-dboa.ba_quantity as aspe_qty,
-dbor.ba_quantity as rsa_qty
-from temp_stations_dup_aspe_rsa tsd
-join select_ope_aspe soa on soa.aspe_sta_id = tsd.aspe_sta_id 
-join select_ope_rsa sor on (sor.rsa_sta_id,sor.rsa_sta_zone) = (tsd.rsa_sta_id ,tsd.rsa_sta_zone)
-join dbeel_batch_ope_aspe dboa ON dboa.ope_id = soa.ope_id
-join dbeel_batch_ope_rsa dbor on (dbor.op_id,dbor.op_zone) = (sor.rsa_sta_id,sor.rsa_sta_zone) 
-where soa.ob_starting_date = sor.ob_starting_date and
-dboa.ba_no_biological_characteristic_type = 47 and 
-dbor.ba_no_biological_characteristic_type = 47 and 
-dboa.ba_quantity = dbor.ba_quantity
-order by dboa.ba_quantity 
-
-
--- Etape 4 : Chercher l'ensemble des poissons de même tailles et/ou poids
--- issus d'une pêche le même jour et dans un couple de station existant à l'étape 1
-
---on vérifie dans un premier temps que les effectifs de dbeel_batch_fish et temp_ope_dup_aspe_rsa sont équivalents à la fois pour ASPE et RSA
-select dbfa.ba_ob_id as aspe_ob_id, 
-dbfa.ba_no_biological_characteristic_type as num_p, 
-sum(dbfa.ba_quantity) as quantity,
-todar.rsa_ob_id as rsa_ob_id from france.dbeel_batch_fish_aspe dbfa 
-join france.temp_ope_dup_aspe_rsa todar on todar.aspe_ob_id = cast(dbfa.ba_ob_id as text)
-group by dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type 
-order by dbfa.ba_ob_id, dbfa.ba_no_biological_characteristic_type
-
-
-select dbfr.ba_ob_id as rsa_ob_id, 
-dbfr.ba_no_biological_characteristic_type  as num_p, 
-sum(dbfr.ba_quantity) as quantity,
-todar.aspe_ob_id as aspe_ob_id,
-todar.rsa_qty from france.dbeel_batch_fish_rsa dbfr 
-join france.temp_ope_dup_aspe_rsa todar on todar.rsa_ob_id = cast(dbfr.ba_ob_id as text)
-group by dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type ,todar.rsa_qty 
-order by dbfr.ba_ob_id, dbfr.ba_no_biological_characteristic_type
-
-
--- au 02/10 : OK
--- (attention ces requêtes remontent les effectifs par passage isssus de dbeel_batch_fish alors que la colonne rsa_qty (ou ASPE)
--- remonte l'effectif total (tous passages confondus). 
-
---on remonte maintenant la moyenne des longueurs pour ces couples d'opérations
--- 4673 couples ob_id/numéro de passage dans ASPE ayant des mesures de longueurs
--- 63 coupls quand on rajoute la jointure avec temp_ope_dup_aspe_rsa (qui concerne 98 couples d'opérations)
-drop table if exists france.temp_ope_dup_aspe_rsa_fish_level;
-
-create table france.temp_ope_dup_aspe_rsa_fish_level
+CREATE TABLE france.temp_ope_dup_aspe_rsa
 as
-with aspe_listing as (
-select dbfa.ba_ob_id as aspe_ob_id, 
-dbfa.ba_no_biological_characteristic_type as num_p, 
-sum(dbfa.ba_quantity) as quantity,
-todar.rsa_ob_id as rsa_ob_id,
-ROUND(cast(avg(dmbca.bc_numvalue) as numeric),2) as mean_length
+with select_ope_aspe as (
+select dea.ob_id, dea.sta_id,dea.ob_starting_date,dboa.ba_quantity,tsdar.rsa_sta_id, tsdar.rsa_sta_zone, dea.ef_no_fishingmethod, op.the_geom , op.op_placename  
+from france.dbeel_electrofishing_aspe dea 
+join france.temp_stations_dup_aspe_rsa tsdar on tsdar.aspe_sta_id = dea.sta_id 
+join france.dbeel_batch_ope_aspe dboa on dboa.ba_ob_id = dea.ob_id and dboa.ba_no_biological_characteristic_type =47 --quantité totale
+join dbeel.observation_places op on op.op_id::text = dea.ob_op_id::text
+),
+select_ope_rsa as (
+select der.ob_id as rsa_ob_id, 
+der.op_sta_id as rsa_sta_id, 
+der.op_zone as rsa_sta_zone, 
+der.ob_starting_date as rsa_date,
+dboa.ba_quantity as rsa_qty,
+tsdar.aspe_sta_id as aspe_sta_id,
+der.ef_no_fishingmethod as rsa_method,
+op2.the_geom as rsa_thegeom,
+op2.op_placename as rsa_name
+from france.dbeel_electrofishing_rsa der 
+join france.temp_stations_dup_aspe_rsa tsdar on (tsdar.rsa_sta_id, tsdar.rsa_sta_zone ) = (der.op_sta_id , der.op_zone )
+join france.dbeel_batch_ope_rsa dboa on dboa.ba_ob_id = der.ob_id and dboa.ba_no_biological_characteristic_type =47
+join dbeel.observation_places op2 on op2.op_id::text = der.ob_op_id::text 
+)
+select distinct soa.ob_id as aspe_ob_id,
+soa.sta_id as aspe_sta_id,
+soa.the_geom as aspe_geom, 
+soa.op_placename as aspe_name,
+soa.ob_starting_date as aspe_date,
+soa.ef_no_fishingmethod as aspe_method,
+soa.ba_quantity as aspe_qty,
+sor.rsa_ob_id as rsa_ob_id,
+sor.rsa_sta_id as rsa_sta_id,
+sor.rsa_sta_zone as rsa_zone,
+sor.rsa_thegeom as rsa_geom, 
+sor.rsa_name as rsa_name,
+sor.rsa_date as rsa_date,
+sor.rsa_method as rsa_method,
+sor.rsa_qty as rsa_qty
+from select_ope_aspe soa
+--join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date, sor.rsa_qty) = (soa.sta_id, soa.ob_starting_date, soa.ba_quantity)
+join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date) = (soa.sta_id, soa.ob_starting_date)
+--01/12/23 : 749 opérations de pêches réalisées le même jour au même endroit (quelque soit résultat).
+
+--on remonte maintenant plusieurs champs différents pour comparer ces opérations
+alter table france.temp_ope_dup_aspe_rsa
+add column what_to_keep varchar(30) default '', --a field to store which data record (ASPE or RSA) should be kept
+add column nb_dup_with_ASPE numeric default 1,
+add column nb_dup_with_RSA numeric default 1,
+add column nb_length_measured_aspe numeric default 0,
+add column nb_length_measured_rsa numeric default 0,
+add column mean_length_aspe numeric  DEFAULT 0,
+add column mean_length_rsa numeric  DEFAULT 0;
+
+
+
+update france.temp_ope_dup_aspe_rsa todar
+set mean_length_aspe = sub_query.mean_length
+from 
+(select dbfa.ba_ob_id, ROUND(cast(avg(dmbca.bc_numvalue) as numeric),2) as mean_length
 from france.dbeel_batch_fish_aspe dbfa 
-join france.temp_ope_dup_aspe_rsa todar on todar.aspe_ob_id = cast(dbfa.ba_ob_id as text)
-join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id
+join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id 
 where dmbca.bc_no_characteristic_type = 39 -- length
-group by dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type ),
-rsa_listing as (select dbfr.ba_ob_id as rsa_ob_id, 
-dbfr.ba_no_biological_characteristic_type  as num_p, 
-sum(dbfr.ba_quantity) as quantity,
-todar.aspe_ob_id as aspe_ob_id,
-ROUND(cast(avg(dmbcr.bc_numvalue) as numeric),2) as mean_length
+group by (dbfa.ba_ob_id)) as sub_query
+where todar.aspe_ob_id::text = sub_query.ba_ob_id::text;
+
+update france.temp_ope_dup_aspe_rsa todar
+set mean_length_rsa = sub_query.mean_length
+from 
+(select dbfr.ba_ob_id, ROUND(cast(avg(dmbcr.bc_numvalue) as numeric),2) as mean_length
 from france.dbeel_batch_fish_rsa dbfr
-join france.temp_ope_dup_aspe_rsa todar on todar.rsa_ob_id = cast(dbfr.ba_ob_id as text)
-join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id,dmbcr.ang_zone)=(dbfr.ang_id,dbfr.ang_zone) 
+join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id, dmbcr.ang_zone) = (dbfr.ang_id, dbfr.ang_zone)
 where dmbcr.bc_no_characteristic_type = 39 -- length
-group by dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type)
-select al.aspe_ob_id,
-al.rsa_ob_id,
-al.quantity as aspe_quantity,
-rl.quantity as rsa_quantity,
-al.mean_length as aspe_mean_length,
-rl.mean_length as rsa_mean_length,
-(al.mean_length-rl.mean_length) as aspe_rsa_diff
-from aspe_listing al
-join rsa_listing rl on (cast(rl.rsa_ob_id as text),rl.num_p) = (cast(al.rsa_ob_id as text),al.num_p)
---where (al.mean_length-rl.mean_length) <> 0
-
--- même chose pour les poids 
--- cette requête ne renvoie aucune résultat car (voir ci-dessous)
---3157 lignes d'ob_id/numero passage dans RSA avec mesure de poids
---quand on rajoute la jointure avec temp_ope_dup_aspe_rsa, il ne reste plus que 2 couples ob_id/numero passage 
--- ob_id (dans RSA): 31b8edf8-031f-43ca-b03d-43c6d915f9fb, ob_id dans ASPE :  '44d02070-26a1-442a-b11e-f1e267ebf13f'
---on vérifie que pour l'opération ASPE '44d02070-26a1-442a-b11e-f1e267ebf13f', il n'y a aucune mesure de poids dans dbeel_mensurationindiv_biol_charac_aspe
-/*select dmbca.* from dbeel_batch_fish_aspe dbfa 
-join dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id 
-where dbfa.ba_ob_id = '44d02070-26a1-442a-b11e-f1e267ebf13f'*/
+group by (dbfr.ba_ob_id)) as sub_query
+where todar.rsa_ob_id::text = sub_query.ba_ob_id::text;
 
 
-with aspe_listing as(
-select dbfa.ba_ob_id as aspe_ob_id, 
-dbfa.ba_no_biological_characteristic_type as num_p, 
-sum(dbfa.ba_quantity) as quantity,
-todar.rsa_ob_id as rsa_ob_id,
-ROUND(cast(avg(dmbca.bc_numvalue) as numeric),2) as mean_weight
+update france.temp_ope_dup_aspe_rsa todar
+set nb_length_measured_aspe = sub_query.nb_length
+from 
+(select dbfa.ba_ob_id, count(dmbca.bc_id) as nb_length
 from france.dbeel_batch_fish_aspe dbfa 
-join france.temp_ope_dup_aspe_rsa todar on todar.aspe_ob_id = cast(dbfa.ba_ob_id as text)
-join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id
-where dmbca.bc_no_characteristic_type = 42 -- weight
-group by dbfa.ba_ob_id, todar.rsa_ob_id, dbfa.ba_no_biological_characteristic_type ),
-rsa_listing as (select dbfr.ba_ob_id as rsa_ob_id, 
-dbfr.ba_no_biological_characteristic_type  as num_p, 
-sum(dbfr.ba_quantity) as quantity,
-todar.aspe_ob_id as aspe_ob_id,
-ROUND(cast(avg(dmbcr.bc_numvalue) as numeric),2) as mean_weight
+join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id 
+where dmbca.bc_no_characteristic_type = 39 -- length
+group by (dbfa.ba_ob_id)) as sub_query
+where todar.aspe_ob_id::text = sub_query.ba_ob_id::text;
+
+update france.temp_ope_dup_aspe_rsa todar
+set nb_length_measured_rsa = sub_query.nb_length
+from 
+(select dbfr.ba_ob_id, count(dmbcr.bc_id) as nb_length
 from france.dbeel_batch_fish_rsa dbfr
-join france.temp_ope_dup_aspe_rsa todar on todar.rsa_ob_id = cast(dbfr.ba_ob_id as text)
-join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id,dmbcr.ang_zone)=(dbfr.ang_id,dbfr.ang_zone) 
-where dmbcr.bc_no_characteristic_type = 42 -- weight
-group by dbfr.ba_ob_id, todar.aspe_ob_id, dbfr.ba_no_biological_characteristic_type)
-select al.aspe_ob_id,
-al.rsa_ob_id,
-al.quantity as aspe_quantity,
-rl.quantity as rsa_quantity,
-al.mean_weight as aspe_mean_weight,
-rl.mean_weight as rsa_mean_weight,
-(al.mean_weight-rl.mean_weight) as aspe_rsa_diff
-from aspe_listing al
-join rsa_listing rl on (cast(rl.rsa_ob_id as text),rl.num_p) = (cast(al.rsa_ob_id as text),al.num_p)
-where (al.mean_weight-rl.mean_weight) <> 0;
+join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id, dmbcr.ang_zone) = (dbfr.ang_id, dbfr.ang_zone)
+where dmbcr.bc_no_characteristic_type = 39 -- length
+group by (dbfr.ba_ob_id)) as sub_query
+where todar.rsa_ob_id::text = sub_query.ba_ob_id::text;
 
+--ASPE operations linked with several RSA operations
+update france.temp_ope_dup_aspe_rsa todar
+set nb_dup_with_ASPE = sub_query.nb_dup
+from 
+(select todar.aspe_ob_id,count(*) as nb_dup
+from france.temp_ope_dup_aspe_rsa todar 
+group by (todar.aspe_ob_id)) as sub_query
+where todar.aspe_ob_id::text = sub_query.aspe_ob_id::text;
 
---on conserve donc les opérations saisies dans ASPE.
---on va updater (avec l'option cascade) les tables 
---france.dbeel_mensurationindiv_biol_charac_rsa, --mesure sur les poissons pêchés 
-delete from france.dbeel_mensurationindiv_biol_charac_rsa bcr2
-	where bcr2.bc_id in (select bcr.bc_id from france.dbeel_mensurationindiv_biol_charac_rsa bcr
-	join france.dbeel_batch_fish_rsa dbfr on bcr.bc_ba_id = dbfr.ba_id and dbfr.ba_ob_id::text in 
-	(select rfl.rsa_ob_id from france.temp_ope_dup_aspe_rsa_fish_level rfl))
---france.dbeel_batch_fish_rsa, --liste des poissons 
-delete from france.dbeel_batch_fish_rsa bfr2
-	where bfr2.ba_ob_id::text in (select rfl.rsa_ob_id from france.temp_ope_dup_aspe_rsa_fish_level rfl)
---france.dbeel_batch_ope_rsa, --liste des résultats d'opérations de pêches
-delete from france.dbeel_batch_ope_rsa bor
-	where bor.ba_ob_id::text in (select rfl.rsa_ob_id from france.temp_ope_dup_aspe_rsa_fish_level rfl)
---france.dbeel_electrofishing_rsa, liste des opérations de pêches  
-delete from france.dbeel_electrofishing_rsa er
-	where er.ob_id::text in (select rfl.rsa_ob_id from france.temp_ope_dup_aspe_rsa_fish_level rfl)
+--RSA operations linked with several ASPE operations
+update france.temp_ope_dup_aspe_rsa todar
+set nb_dup_with_RSA = sub_query.nb_dup
+from 
+(select todar.rsa_ob_id,count(*) as nb_dup
+from france.temp_ope_dup_aspe_rsa todar 
+group by (todar.rsa_ob_id)) as sub_query
+where todar.rsa_ob_id::text = sub_query.rsa_ob_id::text;
+
+-- what to keep treatment
+--1) we set to manual all lines with nb_dup_with_ASPE/RSA >1
+update france.temp_ope_dup_aspe_rsa todar
+set what_to_keep = 'manual'
+where nb_dup_with_RSA > 1 or nb_dup_with_ASPE > 1
+
+--2) when quantity, nb_length_measured and mean_length are equal --> keep ASPE
+--		except when fishing method is not equal --> manual
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'ASPE'
+where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
+and mean_length_aspe = mean_length_rsa 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and aspe_qty = rsa_qty 
+and aspe_method = rsa_method 
+
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'manual'
+where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
+and mean_length_aspe = mean_length_rsa 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and aspe_qty = rsa_qty 
+and aspe_method <> rsa_method 
+
+--3) quantité égale mais effectif mesuré différent 
+		--> on conserve l'enregistrement dont l'effectif mesuré est le plus proche de la quantité capturée
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'ASPE'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe > nb_length_measured_rsa 
+
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'RSA'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe < nb_length_measured_rsa 
+
+-- 4) quantité égale, effectif mesuré égal, longueur moyenne différente
+	--> si diff <=10mm --> diff minime, on garde ASPE
+	--> si diff >10mm --> à traiter manuellement
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'ASPE' 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and mean_length_aspe <> mean_length_rsa 
+and abs(mean_length_aspe - mean_length_rsa) <= 10
+
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'manual' 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and mean_length_aspe <> mean_length_rsa 
+and abs(mean_length_aspe - mean_length_rsa) > 10
+
+--vérification : 0 résultat
+select * from temp_ope_dup_aspe_rsa todar 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'keep_all'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty <> aspe_qty 
+
+---------------------------------------------------------------------------------
+--suppression automatiques des opérations de pêches, mesures, poissons en doublons
+--1) cas ou what_to_keep = 'ASPE', on supprime côté RSA
+	--suppression des mesures RSA
+	delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr2
+	where dmbcr2.bc_id in (select dmbcr.bc_id from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+	join france.dbeel_batch_fish_rsa dbfr on dbfr.ba_id = dmbcr.bc_ba_id 
+	join france.dbeel_electrofishing_rsa der on der.ob_id = dbfr.ba_ob_id 
+	where dbfr.ba_ob_id in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dmbcr.bc_no_characteristic_type  = 39);
+	--suppression des poissons RSA
+	delete from france.dbeel_batch_fish_rsa dbfr
+	where dbfr.ba_ob_id  in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dbfr.ba_batch_level = 2; --only eels;
+	--suppression des batch d'ope RSA
+	delete from france.dbeel_batch_ope_rsa dbor
+	where dbor.ba_ob_id  in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dbor.ba_batch_level = 1; --only ope;
+	--suppression des opérations RSA
+	delete from france.dbeel_electrofishing_rsa der
+	where der.ob_id in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE');
+--2) cas ou what_to_keep = 'RSA', on supprime côté ASPE
+	--suppression des mesures ASPE
+	delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbcr2
+	where dmbcr2.bc_id in (select dmbcr.bc_id from france.dbeel_mensurationindiv_biol_charac_aspe dmbcr 
+	join france.dbeel_batch_fish_aspe dbfr on dbfr.ba_id = dmbcr.bc_ba_id 
+	join france.dbeel_electrofishing_aspe der on der.ob_id = dbfr.ba_ob_id 
+	where dbfr.ba_ob_id in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dmbcr.bc_no_characteristic_type  = 39);
+	--suppression des poissons ASPE
+	delete from france.dbeel_batch_fish_aspe dbfr
+	where dbfr.ba_ob_id  in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dbfr.ba_batch_level = 2; --only eels;
+	--suppression des batch d'ope ASPE
+	delete from france.dbeel_batch_ope_aspe dbor
+	where dbor.ba_ob_id  in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dbor.ba_batch_level = 1; --only ope;
+	--suppression des opérations ASPE
+	delete from france.dbeel_electrofishing_aspe der
+	where der.ob_id in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA');
+
 
 --enfin on supprime les tables temporaires
-drop table if exists france.temp_ope_dup_aspe_rsa;
-drop table if exists france.temp_stations_dup_aspe_rsa;
-drop table if exists france.temp_ope_dup_aspe_rsa_fish_level;
-drop table if exists france.stations_dup_aspe_rsa;
+--drop table if exists france.temp_ope_dup_aspe_rsa;
+--drop table if exists france.temp_stations_dup_aspe_rsa;
+--drop table if exists france.temp_ope_dup_aspe_rsa_fish_level;
+--drop table if exists france.stations_dup_aspe_rsa;
 
--- Etape 5 : Autre méthode de recherche de doublons; Cette fois-ci on regarde directement dans la table dbeel.batch des résutlats de pêches identiques, le même jour et au même lieu de pêche 
--- (on utilise le nom du lieu de pêche)
--- l'hypohtèse est qu'ici, lors des alimentations de la dbeel, de ASPE ou de RSA : il y a parfois des dump puis des recréations de tables mais ceux-ci peuvent avoir été exécuté de façon imparfaite
--- cette fois ci ce sont donc des doublons potentiels "intra" source de données (ASPE vs ASPE ou RSA vs RSA)
+
+--#############################################################################################--
+-- RECHERCHE DOUBLON INTRAsources (ASPE ou RSA)
+--#############################################################################################--
+
+-- Autre méthode de recherche de doublons; Cette fois-ci on regarde directement dans la table dbeel.batch des résutlats de pêches identiques, 
+-- le même jour et au même lieu de pêche (on utilise le nom du lieu de pêche)
+-- l'hypohtèse est qu'ici, lors des alimentations de la dbeel, de ASPE ou de RSA : il y a parfois des dump puis des recréations de tables 
+-- mais ceux-ci peuvent avoir été exécuté de façon imparfaite cette fois ci ce sont donc des doublons potentiels "intra" source de données 
+-- (ASPE vs ASPE ou RSA vs RSA)
 
 
 -- check dans electrofishing
