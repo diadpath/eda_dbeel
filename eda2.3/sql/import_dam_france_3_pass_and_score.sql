@@ -10,11 +10,13 @@
 * ICE score of passability by dam and species
 * Bdoe score of passability by dam and species
 * Global score calculated thanks to all the previous information collected
+* et
+* #17 summary of expertise data in ICE and Bdoe at the scale of fishway
+*  On va chercher les expertises ICE par passes a poissons et espèces
+*  A ce stade on ne sait pas comment joindre les deux tableaux car l'id des dispositifs de 
+*  franchissement ice et roe ne sont pas les mêmes
 */
 
-
-
- 
 /*
  * ------------------------------------------
  * TABLE PASSES 
@@ -164,8 +166,9 @@ WHERE date_passe IS NULL)
 SELECT * FROM join_with_physical_obstruction_date 
    UNION 
 SELECT * FROM join_with_physical_obstruction_null
-); -- END CREATE TABLE 279610
+); -- END CREATE TABLE 279610 276645 (24/01/2024)
 
+-- SELECT count(*) FROM montepomi.dbeel_physical_obstruction_pass_species;
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
 --SELECT id_original, count(*) FROM join_with_physical_obstruction GROUP BY 1 ORDER BY 2 DESC  
 --SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE op_id='3ebf4db1-3a67-4191-ae6d-4185259c967d'
@@ -301,7 +304,7 @@ SELECT * FROM
 join_with_physical_obstruction_null
 )
 SELECT * FROM expertise_ouv_esp 
-); -- END CREATE TABLE --11399 
+); -- END CREATE TABLE --36848
 
 ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer;
 --DROP score_homogene FROM montepomi.dbeel_physical_obstruction_score_species
@@ -329,6 +332,10 @@ set libelle_homogene =
 	WHEN score_homogene = 4 THEN 'Barrière franchissable à impact limité'
 end;
 
+
+
+-- SELECT count(*) FROM montepomi.dbeel_physical_obstruction_score_species
+
 /*
  *  ------------------------------------------
  * VUE POUR LES SCORES 
@@ -348,10 +355,7 @@ select distinct on (ob_id, species) * from ordered
 ); --11341
 
 
--- #17 summary of expertise data in ICE and Bdoe at the scale of fishway
--- On va chercher les expertises ICE par passes a poissons et espèces
--- A ce stade on ne sait pas comment joindre les deux tableaux car l'id des dispositifs de 
--- franchissement ice et roe ne sont pas les mêmes
+
  
 --WITH note_ice_pap AS (
 --SELECT dfp_id, cipo_gre_id,cipo_cli_id, cli_code, cli_libelle, gre_libelle
