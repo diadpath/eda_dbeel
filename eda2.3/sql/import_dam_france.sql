@@ -857,7 +857,6 @@ date_evenement_all AS (
   WHERE ouv_derasement_date IS NOT NULL
   AND ouv_derasement_date < CURRENT_DATE
   UNION ALL 
-  -- TODO 2024 enlever distinct pour permettre plusieurs dates et changemements passse
   SELECT DISTINCT dfp_ouv_id AS ouv_id,
   dfp_date_mes AS date_evt,
   'dispositif de franchissement' AS type_evt
@@ -866,7 +865,6 @@ date_evenement_all AS (
   WHERE dfp_date_mes IS NOT NULL
   AND dfp_date_mes < CURRENT_DATE
     UNION ALL 
-  -- TODO 2024 enlever distinct pour permettre plusieurs dates et changemements passse
   SELECT DISTINCT 
   fpi_ref_id AS ouv_id,
   (hfpi_date_metier||'-12-31')::date AS date_evt,
@@ -876,7 +874,7 @@ date_evenement_all AS (
   LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id = fpi_id
   WHERE hfpi_date_metier IS NOT NULL
   AND (hfpi_date_metier||'-12-31')::date < current_date
-  AND dfp_date_mes IS NULL
+  AND (dfp_date_mes IS NULL OR EXTRACT(YEAR FROM dfp_date_mes)<>hfpi_date_metier) -- 2024 On prend le ROE que si on a pas de passe dans BDOE la même année 362 => 430
   UNION all
   SELECT DISTINCT ref_id AS ouv_id,
   ref_date_construction_ouvrage AS date_evt,
@@ -884,48 +882,37 @@ date_evenement_all AS (
   --dfp_libelle AS type_passe  
   FROM roe.roesudo
   WHERE ref_date_construction_ouvrage IS NOT NULL
+  -- AJOUT 2024 : les dates par défaut sont ajoutées aux evennements ouvrage
+  -- avant on arrivait pas à avoir de hauteurs autres que ROE et les hauteurs
+  -- ICE et bdoe étaient perdues
+  UNION ALL
+ SELECT ref_id AS ouv_id, 
+'1800-01-01'::date AS date_evt, 
+'date debut (defaut)' AS type_evt
+ FROM roe.roesudo
+  WHERE ref_date_construction_ouvrage IS NULL
   ORDER BY ouv_id, date_evt),
   
  
-  
-
-		
+  	
 		
   
 -- La premiere va de NULL a min, les suivantes vont de
 -- date à date+1 dans le partition by. 
 -- pour la première partie on veut tous les ouvrage avec
 -- une date de début par défaut sauf ceux qui ont une date de construction d'ouvrage 
- 
+ -- LEAD OVER PARTITION BY VA CHERCHER LES VALEURS PAR DATE_EVT et par defaut sur la dernière ligne met 2023
+
 ordre_periode AS (
-(SELECT ouv_id, 
-'date debut (defaut)' AS type_evt, 
-'1800-01-01'::date AS datedebut, 
-min(date_evt) AS datefin 
-FROM date_evenement_all
-GROUP BY ouv_id
-
-EXCEPT 
-
-SELECT ouv_id, 
-'date debut (defaut)' AS type_evt, 
-'1800-01-01'::date AS datedebut, 
-min(date_evt) AS datefin 
-FROM date_evenement_all
-WHERE type_evt = 'date construction ouvrage'
-GROUP BY ouv_id)
-
-UNION ALL 
 
 SELECT ouv_id, 
 type_evt, 
 date_evt AS datedebut,
+
 LEAD(date_evt, 1, '2035-01-01') -- ATTENTION SI MODIF 2035 ADAPT SCRIPT baseedariosriversegmetdam.R cumulated_dam_impact2 fntrans()
 OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
-
-
 
   
 -- nouvelles colonnes des dates de l'avis technique global pour l'appliquer à une période
@@ -1070,7 +1057,7 @@ CASE WHEN source_hchute = 'ice' THEN 1
 height AS (
  	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
  	  
-
+--SELECT * FROM height WHERE ouv_id = 87230
 --SELECT * FROM height 
 --where datedebut is not null;--6106
 --SELECT count(*) FROM  height    -- 93736 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
