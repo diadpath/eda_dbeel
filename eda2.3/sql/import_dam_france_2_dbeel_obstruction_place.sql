@@ -369,7 +369,8 @@ date_mesure,
 CASE WHEN h_chute IS NULL AND h_chute_roe IS NULL THEN h_chute_roe_classe
      WHEN h_chute IS NULL AND h_chute_roe IS NOT NULL THEN h_chute_roe
      WHEN h_chute IS NOT NULL THEN h_chute END AS h_chute,
-CASE WHEN h_chute IS NULL AND h_chute_roe IS NULL THEN 'roe classe'
+CASE WHEN h_chute IS NULL AND h_chute_roe IS NULL AND h_chute_roe_classe IS NULL THEN 'pas de hauteur de chute'
+     WHEN h_chute IS NULL AND h_chute_roe IS NULL AND h_chute_roe_classe IS NOT NULL THEN 'roe classe'
      WHEN h_chute IS NULL AND h_chute_roe IS NOT NULL THEN 'roe'
      WHEN h_chute IS NOT NULL THEN source_hchute END  AS commentaire_h_chute,
 type_evt,
@@ -527,23 +528,23 @@ ouv_type_evt
 
 SELECT uuid_generate_v4() AS ob_id,
 --2024 : ajout ouv_id pour identifier plus facilement les ouvrages
-  obstruction.ouv_id,
+  o.ouv_id,
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  COALESCE(height.datedebut,'1800-01-01') AS ob_starting_date,
-  COALESCE(height.datefin, '2035-01-01') AS ob_ending_date,
+  COALESCE(h.datedebut,'1800-01-01') AS ob_starting_date,
+  COALESCE(h.datefin, '2035-01-01') AS ob_ending_date,
   -- NOTE In the building query when no event occurs for a dam, then both
   -- datedebut and datefin are NULL after joining and the coalesce fixes that case
-  obstruction.op_id AS ob_op_id,
-  dp_id AS ob_dp_id,
-  obstruction_type_no_id AS ot_no_obstruction_type,-- physical
+  o.op_id AS ob_op_id,
+  dp.dp_id AS ob_dp_id,
+  h.obstruction_type_no_id AS ot_no_obstruction_type,-- physical
    1 AS ot_obstruction_number,
    --NULL AS ot_no_mortality_type, 
    --NULL AS ot_no_mortality,
    --po_no_obstruction_passability, 
-  h_chute AS po_obstruction_height, 
-  case when po_downs_pb is null then false else po_downs_pb end as po_downs_pb,
+  h.h_chute AS po_obstruction_height, 
+  case when rd.po_downs_pb is null then false else rd.po_downs_pb end as po_downs_pb,
   --NULL AS po_downs_water_depth, 
   --po_presence_eel_pass, 
   --CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
@@ -555,35 +556,40 @@ SELECT uuid_generate_v4() AS ob_id,
   current_date AS date_last_update, 
   'Cédric, Marion & Laëtitia' AS author_last_update, 
   'montepomi jan 2024' AS comment_update, 
-  mitigationmeasureid AS mitigation_measure_no_id,
+  ed.mitigationmeasureid AS mitigation_measure_no_id,
 --esp_id,
 --****** 2024 : Remplace case when sur ouv_avis_techçglobal_id par ouv_atg_id ******
 --CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
 --ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
 upa.ouv_atg_id as ouv_avis_tech_global_id,
-ouv_date_avis,
-ouv_conformite_montaison,
-ouv_conformite_devalaison,
-ouv_commentaire_chute_bdoe,
-ouv_commentaire_avis_bdoe,
-ouv_commentaires_bdoe,
-ouv_commentaire_mesures_bdoe,
-ref_commentaire_sous_type_roe,
-date_mesure as h_chute_date_mesure,
-commentaire_h_chute as source_h_chute,
-type_evt as ouv_type_evt
+upa.ouv_date_avis,
+acb.ouv_conformite_montaison,
+acb.ouv_conformite_devalaison,
+acb.ouv_commentaire_chute_bdoe,
+acb.ouv_commentaire_avis_bdoe,
+acb.ouv_commentaires_bdoe,
+acb.ouv_commentaire_mesures_bdoe,
+acr.ref_commentaire_sous_type_roe,
+h.date_mesure as h_chute_date_mesure,
+h.commentaire_h_chute as source_h_chute,
+h.type_evt as ouv_type_evt
 FROM 
-  obstruction
-  LEFT JOIN unique_periode_atg upa ON upa.ouv_id = obstruction.ouv_id
-  LEFT JOIN height on (height.ouv_id, height.datedebut,height.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
-  LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
-  LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
-  LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
-  LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
-  dbeel.data_provider 
+  obstruction o
+  LEFT JOIN unique_periode_atg upa ON upa.ouv_id = o.ouv_id
+  LEFT JOIN height h on (h.ouv_id, h.datedebut,h.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
+  LEFT JOIN reception_devalaison rd on rd.ouv_id=o.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
+  LEFT JOIN expertise_devalaison ed on ed.ouv_id=o.ouv_id 
+  LEFT JOIN add_column_bdoe acb ON acb.ouv_id = o.ouv_id
+  LEFT JOIN add_column_roe acr ON acr.ouv_id = o.ouv_id,
+  dbeel.data_provider dp
   WHERE dp_name = 'Pierre Sagnes'
+  --2024 : dégager la clause AND qui empêche de récupérer toutes nos lignes
 -- AND  obstruction_type_no_id IS NOT NULL;
  
+--  select * from montepomi.dbeel_physical_obstruction where ouv_id=7783
+
+  
+  
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04/23
 -- 93954 28/04/23
