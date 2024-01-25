@@ -37,7 +37,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_commentaire_mesures_bdoe text,
   ref_commentaire_sous_type_roe text,
   h_chute_date_mesure date,
-  source_h_chute varchar (15),
+  source_h_chute varchar (30),
   ouv_type_evt varchar (30),
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
   CONSTRAINT c_uk_ob_id_date UNIQUE(ob_id, ob_starting_date, ob_ending_date),
@@ -387,7 +387,7 @@ CASE WHEN source_hchute = 'ice' THEN 1
     WHEN source_hchute = 'roe'  THEN 3
  END,
  date_mesure desc),
-                                
+                                 
 --SELECT * FROM  ordered_hauteur_chute_par_periode --95632 (   92253 pour ouvrages distincts)
 --where datedebut is not null;  --8002 avec une date  ( on en perd 80 par rapport au tableau hauteur chute par periode ==> restreint sur les ouvrages ROE selectionnés  
 --SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
@@ -482,6 +482,7 @@ add_column_roe as (
 	from roe.obstacle_referentiel
 	)	
 
+	
 INSERT INTO montepomi.dbeel_physical_obstruction(
 ob_id,
 --2024 : ajout ouv_id pour identifier plus facilement les ouvrages
@@ -525,7 +526,6 @@ h_chute_date_mesure,
 source_h_chute,
 ouv_type_evt
 )
-
 SELECT uuid_generate_v4() AS ob_id,
 --2024 : ajout ouv_id pour identifier plus facilement les ouvrages
   o.ouv_id,
@@ -571,7 +571,8 @@ acb.ouv_commentaires_bdoe,
 acb.ouv_commentaire_mesures_bdoe,
 acr.ref_commentaire_sous_type_roe,
 h.date_mesure as h_chute_date_mesure,
-h.commentaire_h_chute as source_h_chute,
+--2024 : on est obligé de remettre cette clause ici même si existe déjà dans ordered_hauteur_chute_par_periode car à ce moment là on n'a pas encore tous les évènements sur un ouvrage
+CASE WHEN h.commentaire_h_chute IS NULL THEN 'pas de hauteur de chute' else h.commentaire_h_chute end AS commentaire_h_chute,
 h.type_evt as ouv_type_evt
 FROM 
   obstruction o
