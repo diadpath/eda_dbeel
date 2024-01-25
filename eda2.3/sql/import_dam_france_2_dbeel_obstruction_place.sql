@@ -276,61 +276,47 @@ FROM date_evenement_all
 ORDER BY ouv_id, datedebut),
 
   
--- nouvelles colonnes des dates de l'avis technique global pour l'appliquer à une période
+-- 2024 : les dates_atg ne se joignent qu'à certaines périodes (dans periode_atg)
+-- on récupère les autres (celles qui n'ont pas d'avis technique) dans periode_nonatg
+-- et on fait l'union des deux dans unique_periode_atg
 
   date_atg AS (
   SELECT ouv_id, ouv_atg_id, ouv_date_avis 
   FROM bdoe.ouvrage
-  WHERE ouv_date_avis IS NOT NULL AND ouv_date_avis < current_date),
+  WHERE ouv_date_avis IS NOT NULL AND ouv_date_avis < current_date
+  ),
   
   periode_atg AS (
-  -- 1er cas : la date de l'ouvrage existe et la date d'avis existe
-  
-  SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
-  FROM date_atg 
-  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
+
+  SELECT 
+  date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  FROM ordre_periode   
+  LEFT JOIN date_atg  ON ordre_periode.ouv_id = date_atg.ouv_id  
   AND ouv_date_avis >= datedebut and ouv_date_avis < datefin
-  AND ouv_date_avis IS NOT NULL 
-  AND datefin IS NOT NULL 
+  ),
+  
+periode_nonatg AS (
+
+  SELECT 
+  ordre_periode.ouv_id, NULL AS ouv_atg_id, NULL AS ouv_date_avis, ordre_periode.datedebut, ordre_periode.datefin
+  FROM ordre_periode   
  
-  UNION 
+  EXCEPT
   
-  --2ème cas : la date d'avis n'existe pas 
-  SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
-  FROM date_atg 
-  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
-  AND ouv_date_avis IS NULL 
-  AND datefin IS NOT NULL 
+  SELECT 
+  ordre_periode.ouv_id, NULL::INTEGER AS ouv_atg_id, NULL::date AS ouv_date_avis, ordre_periode.datedebut, ordre_periode.datefin
+  FROM ordre_periode   INNER JOIN 
+  periode_atg ON (periode_atg.ouv_id, periode_atg.datedebut,  periode_atg.datefin)= 
+ (ordre_periode.ouv_id, ordre_periode.datedebut,  ordre_periode.datefin)
+ ),
   
-  UNION 
-  
-  -- date d'ouvrage est nulle et la date d'avis n'existe pas
-   SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
-  FROM date_atg 
-  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
-  AND ouv_date_avis IS NULL 
-  AND datefin IS NULL 
-  
-  UNION 
-  
-  -- la date d'avis existe et la  date de fin existe pas 
-    SELECT date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
-  FROM date_atg 
-  LEFT JOIN ordre_periode ON ordre_periode.ouv_id = date_atg.ouv_id  
-  AND ouv_date_avis IS NOT NULL 
-  AND datefin IS NULL
-  ORDER BY ouv_id, datedebut, datefin, ouv_date_avis),
   
 unique_periode_atg as (
-SELECT distinct ON (ouv_id, datedebut, datefin) * FROM periode_atg),
-  
---SELECT * FROM unique_periode_atg
+    SELECT * FROM   periode_atg
+    UNION 
+    SELECT * FROM   periode_nonatg
+    ),
 
--- Attention à date_metier qui correspondrait a des modifications sur la franchissabilité de l'ouvrage mais pas forcément lié à un dispositif de franchissement
---SELECT * FROM ordre_periode WHERE ouv_id=217 
-
--- On joint les hauteur_tous (qui éventuellement contiennent des dates)
--- avec ordre periode
 
 hauteur_chute_par_periode AS (
 
@@ -494,7 +480,7 @@ add_column_roe as (
 	ref_id as ouv_id
 	from roe.obstacle_referentiel
 	)	
-
+SELECT * FROM height
 INSERT INTO montepomi.dbeel_physical_obstruction(
 ob_id,
 ob_no_origin,
@@ -564,8 +550,8 @@ SELECT
   --fishway_type, 
   --ouv_idnational, 
   current_date AS date_last_update, 
-  'Léa, Jules, Benjamin and Marion' AS author_last_update, 
-  'initial insertion Height for all species:' AS comment_update, 
+  'Cédric, Marion & Laëtitia' AS author_last_update, 
+  'montepomi jan 2024' AS comment_update, 
   mitigationmeasureid AS mitigation_measure_no_id,
 --esp_id,
 CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
@@ -583,16 +569,16 @@ commentaire_h_chute as source_h_chute,
 type_evt as ouv_type_evt
 FROM 
   obstruction
-  --LEFT JOIN final_franch ON final_franch.ouv_id=obstruction.ouv_id 	-- this view calculates passability (po_no_obstruction_passability) OK pAS de doublons
-  LEFT JOIN height on height.ouv_id=obstruction.ouv_id -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
+  LEFT JOIN unique_periode_atg upa ON upa.ouv_id = obstruction.ouv_id
+  LEFT JOIN height on (height.ouv_id, height.datedebut,height.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
   LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
-  --LEFT JOIN presence_eel_pass  on presence_eel_pass.ouv_id=obstruction.ouv_id -- fishway_type and po_presence_eel_pass
   LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
   LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
-  LEFT JOIN unique_periode_atg upa ON (upa.ouv_id, upa.datedebut, upa.datefin) = (obstruction.ouv_id, height.datedebut, height.datefin)
   LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
-  dbeel.data_provider WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL; 
+  dbeel.data_provider 
+  WHERE dp_name = 'Pierre Sagnes'
+  AND  obstruction_type_no_id IS NOT NULL;
+ 
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04/23
 -- 93954 28/04/23

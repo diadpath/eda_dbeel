@@ -1,10 +1,13 @@
-﻿/*-----------------------------------------------------
-* PRISE D'EAU
-----------------------------------------------------------*/
----- Hydropower plants:
+﻿/*
+ * -----------------------------------------------------
+ * PRISE D'EAU
+ * ---------------------------------------------------------
+ */
+-- Hydropower plants:
 -- TODO ajouter conformite devalaison et atg
---ATTENTION à vérifier les contraintes de clé étrangères pour que ça référence dans le bon schéma (montepomi au lieu de dbeel)
-DROP TABLE IF EXISTS montepomi.dbeel_hpp ;
+-- ATTENTION à vérifier les contraintes de clé étrangères pour que ça référence dans le bon schéma (montepomi au lieu de dbeel)
+
+DROP TABLE IF EXISTS montepomi.dbeel_hpp CASCADE ;
 CREATE TABLE montepomi.dbeel_hpp (
         CONSTRAINT c_pk_hpp_id PRIMARY KEY (hpp_id),
         CONSTRAINT c_fk_hpp_orient_flow_no_id FOREIGN KEY (hpp_orient_flow_no_id) REFERENCES dbeel_nomenclature.orient_flow (no_id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -13,7 +16,7 @@ CREATE TABLE montepomi.dbeel_hpp (
 
 
 ---- Bypass:
-DROP TABLE IF EXISTS montepomi.dbeel_bypass;
+DROP TABLE IF EXISTS montepomi.dbeel_bypass CASCADE;
 CREATE TABLE montepomi.dbeel_bypass (
         CONSTRAINT c_pk_bypass_id PRIMARY KEY (bypass_id),
   CONSTRAINT c_fk_bypass_hpp_id FOREIGN KEY (bypass_hpp_id) REFERENCES montepomi.dbeel_hpp (hpp_id) ON UPDATE CASCADE ON DELETE CASCADE
@@ -21,7 +24,7 @@ CREATE TABLE montepomi.dbeel_bypass (
 
 
 ---- Turbine:
-DROP TABLE IF EXISTS montepomi.dbeel_turbine;
+DROP TABLE IF EXISTS montepomi.dbeel_turbine CASCADE;
 CREATE TABLE montepomi.dbeel_turbine (
         CONSTRAINT c_pk_turb_id PRIMARY KEY (turb_id),
   CONSTRAINT c_fk_turb_hpp_id FOREIGN KEY (turb_hpp_id) REFERENCES montepomi.dbeel_hpp (hpp_id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -32,7 +35,7 @@ CREATE TABLE montepomi.dbeel_turbine (
 /*
  * RUNONCE CHANGES IN THE DBEEL
  */
- /*
+/*
 BEGIN;
 ALTER TABLE dbeel.hpp add COLUMN hpp_orientation_bar_rack numeric;
 COMMENT ON COLUMN dbeel.hpp.hpp_orientation_bar_rack is 'Orientation of the bar rack, angle in degree between the bank and the bar rack';
@@ -620,7 +623,7 @@ SELECT
  SELECT * FROM montepomi.dbeel_hpp;
  With uniques as (SELECT distinct on (turb_hpp_id) turb_hpp_id FROM montepomi.dbeel_turbine)
  SELECT  count(*) from uniques
--/
+*/
 
 
 
