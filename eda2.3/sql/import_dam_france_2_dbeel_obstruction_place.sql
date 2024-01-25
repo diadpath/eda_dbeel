@@ -344,7 +344,7 @@ hauteur_chute_par_periode AS (
  hauteur_chute_tous.ouv_id,
  NULL AS date_mesure,
  h_chute, 
- 'roe' AS source_hchute,
+ source_hchute,
  type_evt,
  datedebut,
  datefin
