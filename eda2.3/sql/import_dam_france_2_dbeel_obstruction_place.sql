@@ -21,6 +21,8 @@ DROP TABLE if exists montepomi.dbeel_physical_obstruction CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction (
   --fishway_type INTEGER,
   --ouv_idnational TEXT,
+  --2024 : ajout de ouv_id pour identifier plus facilement les ouvrages
+  ouv_id integer,
   date_last_update date,
   author_last_update text,
   comment_update text,
@@ -316,8 +318,8 @@ unique_periode_atg as (
     UNION 
     SELECT * FROM   periode_nonatg
     ),
-
-
+--SELECT * FROM unique_periode_atg WHERE  ouv_id = 7783
+    
 hauteur_chute_par_periode AS (
 
  SELECT
@@ -403,8 +405,6 @@ CASE WHEN source_hchute = 'ice' THEN 1
 */   
 height AS (
  	  SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
- 	  
---SELECT * FROM height WHERE ouv_id = 87230
 --SELECT * FROM height 
 --where datedebut is not null;--6106
 --SELECT count(*) FROM  height    -- 93736 lignes (2472 lignes d'ouvrage ajoutées avec des infos de période)
@@ -480,9 +480,11 @@ add_column_roe as (
 	ref_id as ouv_id
 	from roe.obstacle_referentiel
 	)	
-SELECT * FROM height
+
 INSERT INTO montepomi.dbeel_physical_obstruction(
 ob_id,
+--2024 : ajout ouv_id pour identifier plus facilement les ouvrages
+ouv_id,
 ob_no_origin,
 ob_no_type,
 ob_no_period,
@@ -523,8 +525,9 @@ source_h_chute,
 ouv_type_evt
 )
 
-SELECT 
-  uuid_generate_v4() AS ob_id,
+SELECT uuid_generate_v4() AS ob_id,
+--2024 : ajout ouv_id pour identifier plus facilement les ouvrages
+  obstruction.ouv_id,
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
@@ -540,7 +543,7 @@ SELECT
    --NULL AS ot_no_mortality,
    --po_no_obstruction_passability, 
   h_chute AS po_obstruction_height, 
-  po_downs_pb, 
+  case when po_downs_pb is null then false else po_downs_pb end as po_downs_pb,
   --NULL AS po_downs_water_depth, 
   --po_presence_eel_pass, 
   --CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
@@ -554,8 +557,10 @@ SELECT
   'montepomi jan 2024' AS comment_update, 
   mitigationmeasureid AS mitigation_measure_no_id,
 --esp_id,
-CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
-ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
+--****** 2024 : Remplace case when sur ouv_avis_techçglobal_id par ouv_atg_id ******
+--CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
+--ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
+upa.ouv_atg_id as ouv_avis_tech_global_id,
 ouv_date_avis,
 ouv_conformite_montaison,
 ouv_conformite_devalaison,
@@ -577,16 +582,18 @@ FROM
   LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id,
   dbeel.data_provider 
   WHERE dp_name = 'Pierre Sagnes'
-  AND  obstruction_type_no_id IS NOT NULL;
+-- AND  obstruction_type_no_id IS NOT NULL;
  
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04/23
 -- 93954 28/04/23
 -- 93962 12/05/23
 -- 93962 16/06/23
--- 93971 24/01/2014
+-- 93971 24/01/2024
+-- 95384 25/01/2024 
+  
  
-
+  
 /*
  * requetes variées de comptage des duplicats
  * 
