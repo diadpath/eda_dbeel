@@ -1,13 +1,7 @@
 
-----------------------------------------------------------------
-
----ICI
-
---------------------------------------------------------------------
-
 WITH 
--- Pour la bdoe il peut y avoir plusieurs hauteurs de chutes différentes le meme jour.
--- Dans ce cas on prends la moyenne sinon on aura des problèmes.
+-- Pour la bdoe il peut y avoir plusieurs hauteurs de chutes diffÃ©rentes le meme jour.
+-- Dans ce cas on prends la moyenne sinon on aura des problÃ¨mes.
 hauteur_chute_bdoe AS ( 
   SELECT round(avg(hco_hauteur),2) as h_chute_bdoe,
   hco_ouv_id::integer as ouv_id, 
@@ -26,10 +20,10 @@ hauteur_chute_sto AS (
   ice.structure_obstacle on sto_pao_id=pao_id --LEFT JOIN
   --hauteur_chute_pre on pre_id=sto_id
   ),
--- TODO voir si on garde voie sur berge, si ça à une quelconque conséquence sur la hauteur de chute
+-- TODO voir si on garde voie sur berge, si Ã§a Ã  une quelconque consÃ©quence sur la hauteur de chute
 hauteur_chute_reordonne AS (
   SELECT opi_date_releve AS ice_date_mesure, *, -- contient opi_date_releve
-   CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage à marée
+   CASE WHEN sto_tso_id=5 THEN 2 -- ouvrage Ã  marÃ©e
                  WHEN sto_tso_id=1 THEN 3 -- seuil
                  WHEN sto_tso_id=3 THEN 4 -- vannage
                  WHEN sto_tso_id=2 THEN 5 -- seuil en enrochement 
@@ -43,14 +37,14 @@ hauteur_chute_reordonne AS (
    ORDER BY order_sto_tso_id),
    
    
--- Au sein d'une opération on prend la première chute parmis l'ordre précédent   
+-- Au sein d'une opÃ©ration on prend la premiÃ¨re chute parmis l'ordre prÃ©cÃ©dent   
 hauteur_chute_ice_sto AS (
   SELECT distinct on (ouv_id,opi_id) *
    FROM hauteur_chute_reordonne                                
   ),
 --SELECT * FROM hauteur_chute_ice_sto limit 50
 
--- si on deux chutes lors d'opérations successives, on prend la plus petite
+-- si on deux chutes lors d'opÃ©rations successives, on prend la plus petite
 hauteur_chute_ice_par_ouvrage AS
 (SELECT 
   ouv_id, 
@@ -59,9 +53,9 @@ hauteur_chute_ice_par_ouvrage AS
   max(opi_hauteur_chute) AS hauteur_chute_ice_plus_limitante  
   FROM hauteur_chute_ice_sto
   GROUP BY ouv_id, ice_date_mesure),
--- Nos hauteurs sont en général égales, parfois plus faibles, mais pas systématiquement ???. 
+-- Nos hauteurs sont en gÃ©nÃ©ral Ã©gales, parfois plus faibles, mais pas systÃ©matiquement ???. 
 -- Dans certains cas on a une hauteur_chute venant de opi alors que pour nous rien ... 
--- peut être parce que dans ICE ils traitent mieux les nulls
+-- peut Ãªtre parce que dans ICE ils traitent mieux les nulls
 -- SELECT * FROM hauteur_chute_ice_par_ouvrage WHERE hauteur_chute_ice_plus_limitante < hauteur_chute_ice
 hauteur_chute_ice AS
 (SELECT ouv_id, ice_date_mesure,
@@ -78,14 +72,14 @@ selectionne_roe AS (
        WHEN ref_typ_id = 2 THEN 298 -- digue (en vrai va virer car non inclus)
        WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=21) THEN 296 -- pont
        WHEN ref_typ_id = 3 AND (ref_sty_id IS NULL) THEN 296 -- pont
-       WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage à gué
+       WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage Ã  guÃ©
        WHEN ref_typ_id = 3 AND ref_sty_id = 18 THEN 294 -- culvert
        WHEN ref_sty_id = 9 OR  ref_sty_id = 19 OR ref_sty_id=13 THEN 297 -- other
        WHEN ref_typ_id = 5 THEN 299 -- grille de pisciculture (en vrai va virer car non inclus)
        ELSE 219 -- Physical unknown
        END AS obstruction_type_no_id,
   roe.roesudo.*,
-  chce_nom AS ref_hauteur_chute_etiage_classe --change 2020 la classe de hauteur de chute est stockée dans un référentiel
+  chce_nom AS ref_hauteur_chute_etiage_classe --change 2020 la classe de hauteur de chute est stockÃ©e dans un rÃ©fÃ©rentiel
   FROM roe.roesudo
   LEFT JOIN roe.classe_hauteur_chute_etiage ON classe_hauteur_chute_etiage.chce_id = ref_chce_id -- CHANGE 2020 adapt code to new roe
   WHERE  geom_reproj IS NOT NULL AND
@@ -98,11 +92,11 @@ hauteur_chute_roe AS (
     SELECT ouv_id, 
     dbeel_op_id, 
     obstruction_type_no_id,
-   CASE WHEN ref_chce_id=1 THEN NULL -- indéterminé
+   CASE WHEN ref_chce_id=1 THEN NULL -- indÃ©terminÃ©
      WHEN ref_chce_id=2 THEN 0.25 --valeurs unique classe <0.5
-     WHEN ref_chce_id=3 THEN 0.75 --De 0.5m à inférieure à 1m
-     WHEN ref_chce_id=4 THEN 1.25 --De 1m à inférieure à 1.5m
-     WHEN ref_chce_id=5 THEN 1.75 -- De 1.5m à inférieure à 2m
+     WHEN ref_chce_id=3 THEN 0.75 --De 0.5m Ã  infÃ©rieure Ã  1m
+     WHEN ref_chce_id=4 THEN 1.25 --De 1m Ã  infÃ©rieure Ã  1.5m
+     WHEN ref_chce_id=5 THEN 1.75 -- De 1.5m Ã  infÃ©rieure Ã  2m
      WHEN ref_chce_id=6 THEN 2.5  --'DE 2m A INFERIEURE A 3m'     
      WHEN  ref_chce_id=7 THEN 4 --'DE 3m A INFERIEURE A 5m'
      WHEN ref_chce_id=8 THEN 7.5 --'DE 5m A INFERIEURE A 10m'
@@ -111,7 +105,7 @@ hauteur_chute_roe AS (
    END AS h_chute_roe_classe,  
      COALESCE(ref_hauteur_chute_etiage,ref_hauteur_terrain) AS h_chute_roe
     FROM selectionne_roe
-    WHERE dbeel_op_id IS NOT NULL -- ON vire les ouvrages pas utilisés à l'étape précédente (table observation place)
+    WHERE dbeel_op_id IS NOT NULL -- ON vire les ouvrages pas utilisÃ©s Ã  l'Ã©tape prÃ©cÃ©dente (table observation place)
     ),
 -- SELECT * FROM hauteur_chute_roe; --91188
  
@@ -138,25 +132,24 @@ UNION
   FROM hauteur_chute_roe
   WHERE h_chute_roe IS NOT NULL
      ),
--- SELECT * FROM hauteur_chute_tous WHERE source_hchute <>'roe' AND date_mesure IS NULL --70
+--SELECT * FROM hauteur_chute_tous  --59118
+     
 
-
--- Il peut y avoir differents types d'évennements qui changent un ouvrage
--- insallation d'une passe, dérasement, arasement, mise en activité ...
+-- Il peut y avoir differents types d'Ã©vennements qui changent un ouvrage
+-- insallation d'une passe, dÃ©rasement, arasement, mise en activitÃ© ...
 -- ci dessous on groupe tous les evennements dans un meme tableau puis
--- on utilise une fonction window (over partition by) pour calculer les périodes. 
+-- on utilise une fonction window (over partition by) pour calculer les pÃ©riodes. 
      
 date_evenement_all AS (
- 
   SELECT ouv_id, 
   ouv_debut_activite AS date_evt,
-  'début activité usage' AS type_evt
+  'dÃ©but activitÃ© usage' AS type_evt
   FROM bdoe.ouvrage 
   WHERE ouv_debut_activite IS NOT NULL 
   UNION ALL 
   SELECT  ouv_id, 
   ouv_fin_activite AS date_evt,
-  'fin activité usage' AS type_evt
+  'fin activitÃ© usage' AS type_evt
   FROM bdoe.ouvrage 
   WHERE ouv_fin_activite IS NOT NULL 
   AND ouv_fin_activite < CURRENT_DATE
@@ -192,7 +185,7 @@ date_evenement_all AS (
   LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id = fpi_id
   WHERE hfpi_date_metier IS NOT NULL
   AND (hfpi_date_metier||'-12-31')::date < current_date
-  AND (dfp_date_mes IS NULL OR EXTRACT(YEAR FROM dfp_date_mes)<>hfpi_date_metier) -- 2024 On prend le ROE que si on a pas de passe dans BDOE la même année 362 => 430
+  AND (dfp_date_mes IS NULL OR EXTRACT(YEAR FROM dfp_date_mes)<>hfpi_date_metier) -- 2024 On prend le ROE que si on a pas de passe dans BDOE la mÃªme annÃ©e 362 => 430
   UNION all
   SELECT DISTINCT ref_id AS ouv_id,
   ref_date_construction_ouvrage AS date_evt,
@@ -200,36 +193,38 @@ date_evenement_all AS (
   --dfp_libelle AS type_passe  
   FROM roe.roesudo
   WHERE ref_date_construction_ouvrage IS NOT NULL
-      -- ***********************************************
+  -- AJOUT 2024 : les dates par dÃ©faut sont ajoutÃ©es aux evennements ouvrage
+  -- avant on arrivait pas Ã  avoir de hauteurs autres que ROE et les hauteurs
+  -- ICE et bdoe Ã©taient perdues
   UNION ALL
  SELECT ref_id AS ouv_id, 
 '1800-01-01'::date AS date_evt, 
 'date debut (defaut)' AS type_evt
  FROM roe.roesudo
   WHERE ref_date_construction_ouvrage IS NULL
-  ),
---SELECT * FROM date_evenement_all WHERE   ouv_id = 7783    
+  ORDER BY ouv_id, date_evt),
+  
   
 -- La premiere va de NULL a min, les suivantes vont de
--- date à date+1 dans le partition by. 
--- pour la première partie on veut tous les ouvrage avec
--- une date de début par défaut sauf ceux qui ont une date de construction d'ouvrage 
- 
+-- date Ã  date+1 dans le partition by. 
+-- pour la premiÃ¨re partie on veut tous les ouvrage avec
+-- une date de dÃ©but par dÃ©faut sauf ceux qui ont une date de construction d'ouvrage 
+ -- LEAD OVER PARTITION BY VA CHERCHER LES VALEURS PAR DATE_EVT et par defaut sur la derniÃ¨re ligne met 2023
+
 ordre_periode AS (
+
 SELECT ouv_id, 
 type_evt, 
 date_evt AS datedebut,
--- LEAD OVER PARTITION BY VA CHERCHER LES VALEURS PAR DATE_EVT et par defaut sur la dernière ligne met 2023
+
 LEAD(date_evt, 1, '2035-01-01') -- ATTENTION SI MODIF 2035 ADAPT SCRIPT baseedariosriversegmetdam.R cumulated_dam_impact2 fntrans()
 OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
 FROM date_evenement_all 
 ORDER BY ouv_id, datedebut),
 
---SELECT * FROM ordre_periode WHERE   ouv_id = 7783
-
   
--- 2024 : les dates_atg ne se joignent qu'à certaines périodes (dans periode_atg)
--- on récupère les autres (celles qui n'ont pas d'avis technique) dans periode_nonatg
+-- 2024 : les dates_atg ne se joignent qu'Ã  certaines pÃ©riodes (dans periode_atg)
+-- on rÃ©cupÃ¨re les autres (celles qui n'ont pas d'avis technique) dans periode_nonatg
 -- et on fait l'union des deux dans unique_periode_atg
 
   date_atg AS (
@@ -268,19 +263,10 @@ unique_periode_atg as (
     UNION 
     SELECT * FROM   periode_nonatg
     ),
-
-
-
---SELECT * FROM unique_periode_atg WHERE  ouv_id = 7783
-
--- Attention à date_metier qui correspondrait a des modifications sur la franchissabilité de l'ouvrage mais pas forcément lié à un dispositif de franchissement
---SELECT * FROM ordre_periode WHERE ouv_id=217 
-
--- On joint les hauteur_tous (qui éventuellement contiennent des dates)
--- avec ordre periode
-
+--SELECT * FROM unique_periode_atg WHERE  ouv_id = 5934
+-- SELECT * FROM hauteur_chute_tous WHERE  ouv_id = 5934   
 hauteur_chute_par_periode AS (
--- premier cas la chute est datee
+
  SELECT
  hauteur_chute_tous.ouv_id,
  date_mesure,
@@ -293,17 +279,13 @@ hauteur_chute_par_periode AS (
  hauteur_chute_tous JOIN ordre_periode ON (
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
  AND date_mesure < datefin
- AND date_mesure >= datedebut
-)
-
-  
-  
+ AND date_mesure >= datedebut)
+ 
  UNION
  -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates) et tous les ouvrages
- -- y compris ceux sur lesquels on a pas pu déterminer de période
- -- ces ligne s'appliquent alors à toutes les périodes avant et après l'arasement d'un ouvrage 
- -- certains ouvrages ont des petites hauteurs de chute dans le roe donc ils ont été mis à jour.
- 
+ -- y compris ceux sur lesquels on a pas pu dÃ©terminer de pÃ©riode
+ -- ces ligne s'appliquent alors Ã  toutes les pÃ©riodes avant et aprÃ¨s l'arasement d'un ouvrage 
+ -- certains ouvrages ont des petites hauteurs de chute dans le roe donc ils ont Ã©tÃ© mis Ã  jour.
  SELECT
  hauteur_chute_tous.ouv_id,
  NULL AS date_mesure,
@@ -315,17 +297,16 @@ hauteur_chute_par_periode AS (
  FROM 
  hauteur_chute_tous JOIN ordre_periode ON 
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
- WHERE date_mesure IS NULL 
+ WHERE date_mesure IS NULL
 ),
---SELECT * FROM hauteur_chute_par_periode WHERE   ouv_id = 87230
-
+--SELECT * FROM hauteur_chute_par_periode WHERE  ouv_id = 5934
 --where datedebut is not null;--8082
 
--- choisir en priorié ICE > BDOE > ROE (pas de date)
--- on refait une jointure avec selectionne_roe ci dessus pour récupérer
--- tous les ouvrages ROE selectionnés (92253)  et
+-- choisir en prioriÃ© ICE > BDOE > ROE (pas de date)
+-- on refait une jointure avec selectionne_roe ci dessus pour rÃ©cupÃ©rer
+-- tous les ouvrages ROE selectionnÃ©s (92253)  et
 -- obstruction_type_no_id qui correspond au code de l'ouvrage dans la dbeel
--- il n'y a pas d'autres données dispo ce qui veut dire que la grande majorité des hauteurs de chute est nulle.
+-- il n'y a pas d'autres donnÃ©es dispo ce qui veut dire que la grande majoritÃ© des hauteurs de chute est nulle.
 ordered_hauteur_chute_par_periode AS (
 SELECT 
 hauteur_chute_roe.ouv_id,
@@ -352,16 +333,16 @@ CASE WHEN source_hchute = 'ice' THEN 1
     WHEN source_hchute = 'roe'  THEN 3
  END,
  date_mesure desc),
---SELECT * FROM  hauteur_chute_roe                                
---SELECT * FROM  ordered_hauteur_chute_par_periode --99922 (   92253 pour ouvrages distincts)
---where datedebut is not null;  --8002 avec une date  ( on en perd 80 par rapport au tableau hauteur chute par periode ==> restreint sur les ouvrages ROE selectionnés  
+                                
+--SELECT * FROM  ordered_hauteur_chute_par_periode --95632 (   92253 pour ouvrages distincts)
+--where datedebut is not null;  --8002 avec une date  ( on en perd 80 par rapport au tableau hauteur chute par periode ==> restreint sur les ouvrages ROE selectionnÃ©s  
 --SELECT count(*) FROM   ordered_hauteur_chute_par_periode WHERE datedebut IS NULL;    --88777  ouvrages sans info             
 
 -- ci dessous on a pour un meme ouvrage plusieurs lignes
--- les lignes roe ont une date nulle elles vont se joindre à toutes les lignes dans la clause between utilisée dans hauteur_chute_par_periode
+-- les lignes roe ont une date nulle elles vont se joindre Ã  toutes les lignes dans la clause between utilisÃ©e dans hauteur_chute_par_periode
 -- Il peut aussi y avoir des lignes de source ICE et BDOE (voir arasement ci dessous)
--- comme on a ré-ordonné on prend l'abord ice puis bdoe puis roe
--- Dans l'immense majorité des cas il n'y a pas de valeur pour la hauteur de chute                               
+-- comme on a rÃ©-ordonnÃ© on prend l'abord ice puis bdoe puis roe
+-- Dans l'immense majoritÃ© des cas il n'y a pas de valeur pour la hauteur de chute                               
 /*      
 261 292 2010-12-31  2.615 bdoe    date debut (defaut) 1800-01-01  2010-12-31
 261 292 2010-12-31  0.59  roe    date debut (defaut)  1800-01-01  2010-12-31 => SUPPRIMEE
@@ -371,15 +352,18 @@ CASE WHEN source_hchute = 'ice' THEN 1
 */   
 height AS (
     SELECT  DISTINCT ON (ouv_id,datedebut)  * FROM ordered_hauteur_chute_par_periode),
-
-
+--SELECT * FROM height 
+--where datedebut is not null;--6106
+--SELECT count(*) FROM  height    -- 93736 lignes (2472 lignes d'ouvrage ajoutÃ©es avec des infos de pÃ©riode)
+ 
+   
 reception_devalaison_tous AS (
   SELECT ooi_ref_id AS ouv_id, 
   TRUE AS po_downs_pb
   FROM ice.obstacle_operation_ice 
   JOIN ice.operation_ice on opi_ooi_id=ooi_id 
   JOIN ice.probleme_reception_devalaison_operation_ice ON  prdoi_opi_id=opi_id
-  JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelés et autres
+  JOIN hauteur_chute_roe hh on hh.ouv_id=ooi_ref_id -- pour virer les codes gelÃ©s et autres
   ORDER BY ouv_id, coalesce(opi_date_releve,'1900-01-01') desc
   ),
   
@@ -420,7 +404,7 @@ FROM montepomi.dbeel_obstruction_place WHERE id_original like 'ROE%' ),--91188
 bdoe_ouvrage AS (
 SELECT ouv_id, ouv_atg_id, ouv_date_avis, atg_libelle
 FROM bdoe.ouvrage
-LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114?314
+LEFT JOIN bdoe.avis_technique_global ON atg_id = ouv_atg_id), --114â€¯314
 
 add_column_bdoe as (
   select ouv_atg_id AS ouv_avis_tech_global_id,
@@ -443,39 +427,107 @@ add_column_roe as (
   ref_id as ouv_id
   from roe.obstacle_referentiel
   ) 
-SELECT 
-  count(*) FROM (
-  SELECT * 
+
+
+INSERT INTO montepomi.dbeel_physical_obstruction(
+ob_id,
+--2024 : ajout ouv_id pour identifier plus facilement les ouvrages
+ouv_id,
+ob_no_origin,
+ob_no_type,
+ob_no_period,
+ob_starting_date,
+ob_ending_date,
+ob_op_id,
+ob_dp_id,
+ot_no_obstruction_type,
+ot_obstruction_number,
+--ot_no_mortality_type,
+--ot_no_mortality,
+--po_no_obstruction_passability,
+po_obstruction_height,
+po_downs_pb,
+--po_downs_water_depth,
+--po_presence_eel_pass,
+--po_method_perm_ev,
+--po_date_presence_eel_pass,
+--fishway_type,
+--ouv_idnational,
+date_last_update,
+author_last_update,
+comment_update,
+mitigation_measure_no_id,
+--esp_id,
+--Champs insÃ©rÃ©s 2023
+ouv_avis_tech_global_id,
+ouv_date_avis,
+ouv_conformite_montaison,
+ouv_conformite_devalaison,
+ouv_commentaire_chute_bdoe,
+ouv_commentaire_avis_bdoe,
+ouv_commentaires_bdoe,
+ouv_commentaire_mesures_bdoe,
+ref_commentaire_sous_type_roe,
+h_chute_date_mesure,
+source_h_chute,
+ouv_type_evt
+)
+
+SELECT uuid_generate_v4() AS ob_id,
+--2024 : ajout ouv_id pour identifier plus facilement les ouvrages
+  o.ouv_id,
+  11 AS ob_no_origin, -- raw data
+  16 AS ob_no_type, -- obstruction
+  74 AS ob_no_period, -- Unknown
+  upa.datedebut AS ob_starting_date,
+  upa.datefin AS ob_ending_date,
+  -- NOTE In the building query when no event occurs for a dam, then both
+  -- datedebut and datefin are NULL after joining and the coalesce fixes that case
+  o.op_id AS ob_op_id,
+  dp.dp_id AS ob_dp_id,
+  h.obstruction_type_no_id AS ot_no_obstruction_type,-- physical
+   1 AS ot_obstruction_number,
+   --NULL AS ot_no_mortality_type, 
+   --NULL AS ot_no_mortality,
+   --po_no_obstruction_passability, 
+  h.h_chute AS po_obstruction_height, 
+  case when rd.po_downs_pb is null then false else rd.po_downs_pb end as po_downs_pb,
+  --NULL AS po_downs_water_depth, 
+  --po_presence_eel_pass, 
+  --CASE WHEN po_no_obstruction_passability in (209,210,211,212,213,214) THEN 'ROE expertise 5 class'
+  --     WHEN po_no_obstruction_passability in (287,288,289,290) THEN 'ICE'
+  --     ELSE NULL END AS po_method_perm_ev, 
+  --NULL AS po_date_presence_eel_pass, -- bullshit
+  --fishway_type, 
+  --ouv_idnational, 
+  current_date AS date_last_update, 
+  'CÃ©dric, Marion & LaÃ«titia' AS author_last_update, 
+  'montepomi jan 2024' AS comment_update, 
+  ed.mitigationmeasureid AS mitigation_measure_no_id,
+--esp_id,
+--****** 2024 : Remplace case when sur ouv_avis_techÃ§global_id par ouv_atg_id ******
+--CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
+--ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
+upa.ouv_atg_id as ouv_avis_tech_global_id,
+upa.ouv_date_avis,
+acb.ouv_conformite_montaison,
+acb.ouv_conformite_devalaison,
+acb.ouv_commentaire_chute_bdoe,
+acb.ouv_commentaire_avis_bdoe,
+acb.ouv_commentaires_bdoe,
+acb.ouv_commentaire_mesures_bdoe,
+acr.ref_commentaire_sous_type_roe,
+h.date_mesure as h_chute_date_mesure,
+h.commentaire_h_chute as source_h_chute,
+h.type_evt as ouv_type_evt
 FROM 
-  obstruction
-  LEFT JOIN unique_periode_atg upa ON upa.ouv_id = obstruction.ouv_id) fdgddfgg
-
-   LEFT JOIN height on (height.ouv_id, height.datedebut,height.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
-  LEFT JOIN reception_devalaison on reception_devalaison.ouv_id=obstruction.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
-    LEFT JOIN expertise_devalaison on expertise_devalaison.ouv_id=obstruction.ouv_id 
-  LEFT JOIN add_column_bdoe ON add_column_bdoe.ouv_id = obstruction.ouv_id
-    LEFT JOIN add_column_roe ON add_column_roe.ouv_id = obstruction.ouv_id )fdgddfgg
-  WHERE obstruction.ouv_id = 7783;
-    
-/*
-   
-
-select dbeel_view_pass.*,
-dbeel_obstruction_place.the_geom 
-from montepomi.dbeel_view_pass 
-left join montepomi.dbeel_obstruction_place 
-on dbeel_obstruction_place.op_id=dbeel_view_pass.op_id
-WHERE dbeel_obstruction_place.id_original = 'ROE7783'
-
-
-SELECT dbeel_physical_obstruction_pass_species.*
-FROM montepomi.dbeel_physical_obstruction_pass_species
-where op_id = '3ebf4db1-3a67-4191-ae6d-4185259c967d'
-ORDER BY ob_id, species, po_presence_pass DESC
-
-
-SELECT * FROM montepomi.dbeel_physical_obstruction AS dpo  
-WHERE ob_op_id = '22228ca1-fb5a-43df-b34b-68e431212495';
-
-*/
-
+  obstruction o
+  LEFT JOIN unique_periode_atg upa ON upa.ouv_id = o.ouv_id
+  LEFT JOIN height h on (h.ouv_id, h.datedebut,h.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) 
+  LEFT JOIN reception_devalaison rd on rd.ouv_id=o.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
+  LEFT JOIN expertise_devalaison ed on ed.ouv_id=o.ouv_id 
+  LEFT JOIN add_column_bdoe acb ON acb.ouv_id = o.ouv_id
+  LEFT JOIN add_column_roe acr ON acr.ouv_id = o.ouv_id,
+  dbeel.data_provider dp
+  WHERE dp_name = 'Pierre Sagnes';
+  

@@ -203,7 +203,7 @@ ALTER TABLE bdoe.ouvrage DROP COLUMN ouv_auteur_modification;
 STOP ERREUR DE COMPILATION DU SCRIPT SI LANCE PAR MEGARDE
 
 --------------------------------------
-CREATE SCHEMA montepomi;
+--CREATE SCHEMA montepomi;
 DROP TABLE if exists montepomi.dbeel_obstruction_place CASCADE;
 CREATE TABLE montepomi.dbeel_obstruction_place (
     id_original character varying(10),
@@ -236,8 +236,8 @@ CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 1
 
 --Change le référentiel géographique (srid) de la colonne ref_position_carthage
 SELECT UpdateGeometrySRID('roe','roesudo','ref_position_carthage',3035);
-update roe.roesudo set ref_position_carthage= ST_Transform(ST_SetSRID(ref_position_carthage,4326),3035);
-reindex TABLE roe.roesudo;
+UPDATE roe.roesudo set ref_position_carthage= ST_Transform(ST_SetSRID(ref_position_carthage,4326),3035);
+REINDEX TABLE roe.roesudo;
 -- SELECT * FROM roe.roesudo WHERE ref_position_carthage is NULL;
 --SELECT count(*) FROM roe.roesudo WHERE ref_position_carthage IS NULL; 
 
@@ -245,7 +245,7 @@ reindex TABLE roe.roesudo;
 SELECT addgeometrycolumn('roe','roesudo','geom_reproj',3035,'POINT',2);
 
 -- SELECT count (*) FROM roe.roesudo WHERE ref_position_carthage is not null;
-update roe.roesudo set	geom_reproj = sub2.geom_reproj from(
+UPDATE roe.roesudo set	geom_reproj = sub2.geom_reproj from(
 	select
 		distinct on
 		(ref_id) ref_id,
@@ -265,7 +265,7 @@ where sub2.ref_id = roesudo.ref_id;--94288
 /* For those missing adding the geom from ref_position not ref_position_carthage
  * RHT basé sur bd_carthage mais dans ROE lien avec d'autres référentiels cours d'eau, on peut donc essayer avec d'autres géométries pour voir si on récupère d'autres ouvrages
 */
-update roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
+UPDATE roe.roesudo set geom_reproj = sub2.geom_reproj FROM (
 SELECT DISTINCT on (ref_id) ref_id, geom_reproj, distance FROM(
 SELECT roe.ref_id, 
 ST_ClosestPoint(r.geom,st_transform(roe.ref_position,3035)) AS geom_reproj ,
@@ -278,39 +278,6 @@ ORDER BY ref_id, distance
 WHERE sub2.ref_id= roesudo.ref_id; --5360
 
 
---SELECT count(*) FROM roe.roesudo --117340 
--- TODO quand usage hydroelectricité corriger usage plan de grille
-
-/*SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE43938';
--- LACAZE
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE43929';
--- NAvarre - Grille de pisciculture
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE43922';
-
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE40569';
-
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE40562';
--- vignes
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE40562';
--- SRA
-SELECT * FROM roe.roesudo 
-JOIN roe.type ON ref_typ_id=typ_id
-WHERE ref_id_national = 'ROE40573';
-
-SELECT * FROM montepomi.dbeel_obstruction_place WHERE id_original = 'ROE43938'
-*/
 CREATE INDEX 
   ON roe.roesudo
   USING gist
@@ -417,14 +384,16 @@ WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows 
 Adaptation du script de Soizic pour le choix des ouvrages, merci Soizic !!!
 */
 
-BEGIN;
-select count(*) from montepomi.dbeel_obstruction_place; --92253
+--BEGIN;
+--select count(*) from montepomi.dbeel_obstruction_place; --91188
 
 -- Benjamin: faut il supp le seuil du Moulin de Coulonge et la Prise d'eau EDF Cordemais pour montepomi
 -- pour l'instant pas executé
+/*
 select *
 from montepomi.dbeel_obstruction_place
 WHERE id_original in ('ROE106058','ROE88566')
+*/
 DELETE FROM montepomi.dbeel_obstruction_place WHERE id_original in ('ROE106058','ROE88566'); --2 supression d'ouvrages dont on sait qu'ils ne sont pAS des ouvrages hydroélectriques
 -- On vire les digues
 
@@ -462,10 +431,10 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	WHERE ouv_derasement); --198 -->554
 */
 	
-SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 
+-- SELECT count(*) FROM montepomi.dbeel_obstruction_place WHERE country ='FR'; --110 013 (SP+PT+FR) 
 --85035 (après suppression) -->86563 -->91188 (Marion, Laetitia, Benjamin 31/03/23)
 
-COMMIT;
+--COMMIT;
 --ROLLBACK;
  
 /*
@@ -482,7 +451,37 @@ WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows 
 
 
 
+-- Copied from dbeel view obstruction to be able to launch everything at once.
 
+DROP TABLE IF EXISTS montepomi.join_obstruction_rn;
+CREATE TABLE montepomi.join_obstruction_rn as(
+  
+   with projection as ( 
+        SELECT r.idsegment, 
+          op_id,                          
+      geom,
+      st_distance(r.geom,d.the_geom) as distance,
+      1-ST_LineLocatePoint(ST_GeometryN(r.geom,1),ST_ClosestPoint(r.geom,d. the_geom)) AS position_ouvrage_segment
+    FROM france.rn r
+    JOIN montepomi.dbeel_obstruction_place  d
+    ON st_dwithin(r.geom, d.the_geom,0.01)
+    order by idsegment, distance desc)
+SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from projection
+);
+create index idx_montepomi_join_obstruction_rn_idsegment ON montepomi.join_obstruction_rn using btree(idsegment); --183msec
+
+DROP TABLE IF EXISTS montepomi.join_obstruction_rn_downstream;
+CREATE TABLE montepomi.join_obstruction_rn_downstream as(
+WITH downstreamjoin AS (  
+  select unnest(regexp_split_to_array(ltree2text(path),E'\\.+')) as vecteurchemin,
+  rn.idsegment AS idsegmentsource  
+  from france.rn 
+)
+ SELECT j.op_id, 
+ j.position_ouvrage_segment, 
+ downstreamjoin.* FROm downstreamjoin 
+ JOIN montepomi.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
+);
 
 --SELECT count(*) FROM montepomi.dbeel_obstruction_place join roe.roesudo on dbeel_op_id = op_id  -- 85035
 	

@@ -39,6 +39,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   h_chute_date_mesure date,
   source_h_chute varchar (15),
   ouv_type_evt varchar (30),
+  commentaire_maj_h_chute TEXT,
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
   CONSTRAINT c_uk_ob_id_date UNIQUE(ob_id, ob_starting_date, ob_ending_date),
   CONSTRAINT c_nn_ob_starting_date CHECK (ob_starting_date IS NOT NULL),
@@ -271,7 +272,6 @@ ordre_periode AS (
 SELECT ouv_id, 
 type_evt, 
 date_evt AS datedebut,
-
 LEAD(date_evt, 1, '2035-01-01') -- ATTENTION SI MODIF 2035 ADAPT SCRIPT baseedariosriversegmetdam.R cumulated_dam_impact2 fntrans()
 OVER (PARTITION BY ouv_id ORDER BY date_evt) AS datefin 
 FROM date_evenement_all 
@@ -291,7 +291,7 @@ ORDER BY ouv_id, datedebut),
   periode_atg AS (
 
   SELECT 
-  date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin
+  date_atg.ouv_id, ouv_atg_id, ouv_date_avis, datedebut, datefin, type_evt
   FROM ordre_periode   
   LEFT JOIN date_atg  ON ordre_periode.ouv_id = date_atg.ouv_id  
   AND ouv_date_avis >= datedebut and ouv_date_avis < datefin
@@ -300,13 +300,23 @@ ORDER BY ouv_id, datedebut),
 periode_nonatg AS (
 
   SELECT 
-  ordre_periode.ouv_id, NULL AS ouv_atg_id, NULL AS ouv_date_avis, ordre_periode.datedebut, ordre_periode.datefin
+  ordre_periode.ouv_id, 
+  NULL AS ouv_atg_id,
+  NULL AS ouv_date_avis, 
+  ordre_periode.datedebut, 
+  ordre_periode.datefin,
+  ordre_periode.type_evt
   FROM ordre_periode   
  
   EXCEPT
   
   SELECT 
-  ordre_periode.ouv_id, NULL::INTEGER AS ouv_atg_id, NULL::date AS ouv_date_avis, ordre_periode.datedebut, ordre_periode.datefin
+  ordre_periode.ouv_id, 
+  NULL::INTEGER AS ouv_atg_id, 
+  NULL::date AS ouv_date_avis, 
+  ordre_periode.datedebut, 
+  ordre_periode.datefin,
+  ordre_periode.type_evt
   FROM ordre_periode   INNER JOIN 
   periode_atg ON (periode_atg.ouv_id, periode_atg.datedebut,  periode_atg.datefin)= 
  (ordre_periode.ouv_id, ordre_periode.datedebut,  ordre_periode.datefin)
@@ -333,7 +343,8 @@ hauteur_chute_par_periode AS (
  FROM
  hauteur_chute_tous JOIN ordre_periode ON (
  ordre_periode.ouv_id=hauteur_chute_tous.ouv_id
- AND date_mesure < datefin)
+ AND date_mesure < datefin
+ AND date_mesure >= datedebut)
  
  UNION
  -- par defaut on ajoute les lignes avec le ROE (qui n'ont pas de dates) et tous les ouvrages
@@ -523,7 +534,8 @@ ouv_commentaire_mesures_bdoe,
 ref_commentaire_sous_type_roe,
 h_chute_date_mesure,
 source_h_chute,
-ouv_type_evt
+ouv_type_evt,
+commentaire_maj_h_chute
 )
 
 SELECT uuid_generate_v4() AS ob_id,
@@ -532,8 +544,8 @@ SELECT uuid_generate_v4() AS ob_id,
   11 AS ob_no_origin, -- raw data
   16 AS ob_no_type, -- obstruction
   74 AS ob_no_period, -- Unknown
-  COALESCE(h.datedebut,'1800-01-01') AS ob_starting_date,
-  COALESCE(h.datefin, '2035-01-01') AS ob_ending_date,
+  upa.datedebut AS ob_starting_date,
+  upa.datefin AS ob_ending_date,
   -- NOTE In the building query when no event occurs for a dam, then both
   -- datedebut and datefin are NULL after joining and the coalesce fixes that case
   o.op_id AS ob_op_id,
@@ -572,24 +584,26 @@ acb.ouv_commentaire_mesures_bdoe,
 acr.ref_commentaire_sous_type_roe,
 h.date_mesure as h_chute_date_mesure,
 h.commentaire_h_chute as source_h_chute,
-h.type_evt as ouv_type_evt
+upa.type_evt as ouv_type_evt,
+NULL::text AS commentaire_maj_h_chute
 FROM 
   obstruction o
   LEFT JOIN unique_periode_atg upa ON upa.ouv_id = o.ouv_id
-  LEFT JOIN height h on (h.ouv_id, h.datedebut,h.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) -- contient hauteur chute, voir ce qu'on fait de la colonne commentaire_hauteur_chute  qui qualifie la hauteur OK pAS de doublons
+  LEFT JOIN height h on (h.ouv_id, h.datedebut,h.datefin)=(upa.ouv_id, upa.datedebut, upa.datefin) 
   LEFT JOIN reception_devalaison rd on rd.ouv_id=o.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
   LEFT JOIN expertise_devalaison ed on ed.ouv_id=o.ouv_id 
   LEFT JOIN add_column_bdoe acb ON acb.ouv_id = o.ouv_id
   LEFT JOIN add_column_roe acr ON acr.ouv_id = o.ouv_id,
   dbeel.data_provider dp
-  WHERE dp_name = 'Pierre Sagnes'
-  --2024 : dégager la clause AND qui empêche de récupérer toutes nos lignes
+  WHERE dp_name = 'Pierre Sagnes';
+  --2024 : nous avons dégagé la clause AND qui empêche de récupérer toutes nos lignes
+  -- et changé l'ordre de la requete car on perdait des périodes.
 -- AND  obstruction_type_no_id IS NOT NULL;
  
 --  select * from montepomi.dbeel_physical_obstruction where ouv_id=7783
 
   
-  
+ --SELECT count(*) FROM montepomi.dbeel_physical_obstruction  
 --103309 1 m 54 serveur --> 109972 (Marion, Laetitia, Benjamin 31/03/23)
 -- 93736 14/04/23
 -- 93954 28/04/23
@@ -598,12 +612,167 @@ FROM
 -- 93971 24/01/2024
 -- 95384 25/01/2024 
   
- 
+-- correction des problèmes de hauteur mise par defaut (roe) pour les periodes sans hauteur datée  
+-- si plusieurs périodes, et bdoe ou ice et pas arasement ou derasement on remplace roe par la valeur bdoe ou ice
+--Si arasement ou derasement, et on a un bdoe ou un ice avant ou après, on applique cette valeur aux valeurs roe avant ou après
+
+
+-- premier cas
+-- si c'est derasement ou arasement et positif 
+--et si valeur avant < à celle de dérasement ou nulle
+-- et si c'est roe ou null mettre sur la période avant
+-- on recherche les ouvrages ayant plusieurs periodes (dupl) 
+-- parmis ceux là on selectionne les ouvrages dont un des évennements a été
+-- dérasement ou arasement (dupl1, dupl2, dupl3), et pour lesquels la hauteur de chute 
+-- était positive ou non nulle,
+-- ensuite on selectionne les lignes qui ont arasement ou derasement et on le compare
+-- aux lignes qui étaient avant en ordonnant sur datedebut datefin
+-- et on met à jour les valeurs qui sont soit nulles soit inférieures
+
+
+WITH dupl AS (
+  select 
+  count(*) OVER(PARTITION BY ob_op_id) AS n, *
+  from montepomi.dbeel_physical_obstruction
+),
+dupl1 AS (
+SELECT 
+   CASE WHEN ouv_type_evt ='arasement' THEN 1
+        WHEN ouv_type_evt ='derasement' THEN 1
+        ELSE 0 END AS count_aradera,  
+   CASE WHEN ouv_type_evt ='arasement' AND COALESCE(po_obstruction_height,0) >0  THEN 1
+        WHEN ouv_type_evt ='derasement' AND COALESCE(po_obstruction_height,0) >0 THEN 1
+        ELSE 0 END AS count_aradera_positif,  
+   CASE WHEN source_h_chute ='bdoe' THEN 1
+        WHEN source_h_chute ='ice' THEN 1
+        ELSE 0 END AS count_bdoeice,             
+* FROM dupl 
+),
+dupl2 AS (
+SELECT sum(count_aradera) OVER(PARTITION BY ob_op_id) sumaradera,
+       sum(count_aradera_positif) OVER(PARTITION BY ob_op_id) sumaradera_positif,
+       sum(count_bdoeice) OVER(PARTITION BY ob_op_id) sumbdoeice,
+*
+FROM dupl1),
+dupl3 AS (
+SELECT 
+ouv_id,
+ob_id,
+count_aradera,
+ROW_NUMBER() OVER (PARTITION BY ouv_id ORDER BY ob_starting_date, ob_ending_date) ordre,
+n,
+ob_starting_date,
+ob_ending_date,
+h_chute_date_mesure,
+po_obstruction_height,
+source_h_chute,
+ouv_type_evt
+FROM dupl2
+WHERE n >1 AND sumaradera_positif>=1 AND sumbdoeice>=1 
+ORDER by ouv_id, ob_starting_date, ob_ending_date),
+aradera AS (
+SELECT ouv_id, po_obstruction_height AS height_aradera, ordre   FROM dupl3 WHERE count_aradera >0 ),
+prev_aradera AS (
+SELECT dupl3.*,height_aradera  FROM dupl3 JOIN aradera ON (
+aradera.ouv_id = dupl3.ouv_id 
+AND aradera.ordre > dupl3.ordre
+AND aradera.height_aradera > coalesce(dupl3.po_obstruction_height,0) 
+AND COALESCE(dupl3.source_h_chute, 'roe') = 'roe'
+))
+--SELECT count(ob_id) FROM prev_aradera GROUP BY ob_id
+UPDATE montepomi.dbeel_physical_obstruction SET (po_obstruction_height, commentaire_maj_h_chute) =
+(prev_aradera.height_aradera, 'There is positive value in arasement derasement occuring after this period, and the value in this period was lower than the value at arasement- derasement ('||coalesce(prev_aradera.po_obstruction_height::text, 'NULL')||') so it has been replaced' )
+FROM prev_aradera
+WHERE prev_aradera.ob_id = dbeel_physical_obstruction.ob_id; --82 + 65 NULL
+
+
+
+-- todo si c'est derasement c'est zero
+
+UPDATE montepomi.dbeel_physical_obstruction SET po_obstruction_height = 0
+        WHERE ouv_type_evt ='derasement'; --1603
+
+
+-- si il y a des null ou roe et que qu'il y a une ligne avant celle marquee arasement ou dérasement
+--  qui est non nulle, on applique cette valeur aux lignes d'avant 
+--  (on fera ça plus tard mais ici on est dans le cas arasement derasement)
+-- On a regardé, pas vraiement de cas ou ça existe 
+     
+-- Dans le cas ou on a plus d'arasement ou derasement, et si il y a des valeurs NULLEs ou roe qui sont 
+-- appliquées à des lignes, il faut récuperer les valeurs ICE ou bdoe et les utiliser        
+        
+        
+        
+        
+        
+DROP MATERIALIZED VIEW IF EXISTS  montepomi.view_obstruction CASCADE;
+CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
+ SELECT dbeel_obstruction_place.op_id,
+    dbeel_obstruction_place.op_gis_systemname,
+    dbeel_obstruction_place.op_gis_layername,
+    dbeel_obstruction_place.op_gislocation,
+    dbeel_obstruction_place.op_placename,
+    observation_place_type.no_name AS observation_place_type_name,
+    dbeel_obstruction_place.op_op_id,
+    dbeel_obstruction_place.the_geom,
+    dbeel_obstruction_place.id_original,
+    dbeel_obstruction_place.country,    
+    dbeel_physical_obstruction.ob_id,
+    dbeel_physical_obstruction.ob_no_origin,
+    dbeel_physical_obstruction.ob_no_type,
+    dbeel_physical_obstruction.ob_no_period,
+    dbeel_physical_obstruction.ob_starting_date,
+    dbeel_physical_obstruction.ob_ending_date,
+    dbeel_physical_obstruction.ob_op_id,
+    data_provider.dp_name,
+    obstruction_type.no_code AS obstruction_type_code,
+    obstruction_type.no_name AS obstruction_type_name,
+    dbeel_physical_obstruction.ot_obstruction_number,
+    --dbeel_physical_obstruction.ot_no_mortality_type,
+    --dbeel_physical_obstruction.ot_no_mortality,
+    --obstruction_impact.no_code AS obstruction_impact_code,
+    --obstruction_impact.no_name AS obstruction_impact_name,
+    dbeel_physical_obstruction.po_obstruction_height,
+    dbeel_physical_obstruction.po_downs_pb,
+    --dbeel_physical_obstruction.po_downs_water_depth,
+    -- dbeel_physical_obstruction.po_presence_eel_pass,
+    --dbeel_physical_obstruction.po_method_perm_ev,
+    --dbeel_physical_obstruction.po_date_presence_eel_pass,
+    --dbeel_physical_obstruction.po_turbine_number,
+    --fishway_type.no_code AS fishway_type_code,
+    --fishway_type.no_name AS fishway_type_name,
+    downstream_mitigation_measure.no_name AS downstream_mitigation_measure_name,
+    dbeel_physical_obstruction.ouv_avis_tech_global_id,
+    dbeel_physical_obstruction.ouv_date_avis,
+    dbeel_physical_obstruction.ouv_conformite_montaison,
+    dbeel_physical_obstruction.ouv_conformite_devalaison,
+  dbeel_physical_obstruction.ouv_commentaire_chute_bdoe,
+  dbeel_physical_obstruction.ouv_commentaire_avis_bdoe,
+  dbeel_physical_obstruction.ouv_commentaires_bdoe,
+  dbeel_physical_obstruction.ouv_commentaire_mesures_bdoe,
+  dbeel_physical_obstruction.ref_commentaire_sous_type_roe,
+  dbeel_physical_obstruction.h_chute_date_mesure,
+  dbeel_physical_obstruction.source_h_chute,
+  dbeel_physical_obstruction.ouv_type_evt,
+    'http://maps.google.fr/maps?q='||st_y(st_transform(the_geom,4326))||','||st_x(st_transform(the_geom,4326)) AS googlemapscoods
+   FROM montepomi.dbeel_obstruction_place
+   JOIN montepomi.dbeel_physical_obstruction ON dbeel_physical_obstruction.ob_op_id = dbeel_obstruction_place.op_id
+   LEFT JOIN dbeel_nomenclature.observation_place_type ON op_no_observationplacetype=observation_place_type.no_id
+   LEFT JOIN dbeel_nomenclature.obstruction_type ON obstruction_type.no_id=dbeel_physical_obstruction.ot_no_obstruction_type
+   LEFT JOIN dbeel_nomenclature.obstruction_impact ON obstruction_impact.no_id= dbeel_physical_obstruction.po_no_obstruction_passability
+  -- LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
+   LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
+   JOIN dbeel.data_provider ON ob_dp_id=dp_id)
+; --  103309 --montepomi : 93736= > 93962 => 95384
+
+
+
+
   
 /*
  * requetes variées de comptage des duplicats
  * 
-SELECT count(*) FROM montepomi.dbeel_physical_obstruction 
+
 
 with counts as (
 select count(*) as "N", comment_update from montepomi.dbeel_physical_obstruction group by comment_update),
