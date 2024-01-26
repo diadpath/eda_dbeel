@@ -224,13 +224,13 @@ date_evenement_all AS (
   WHERE ouv_derasement_date IS NOT NULL
   AND ouv_derasement_date < CURRENT_DATE
   UNION ALL 
+  -- change 2024 select pass if null with default value and set building time to 2021
   SELECT DISTINCT dfp_ouv_id AS ouv_id,
-  dfp_date_mes AS date_evt,
+  COALESCE(dfp_date_mes,'2021-01-01') AS date_evt,
   'dispositif de franchissement' AS type_evt
   --dfp_libelle AS type_passe
   FROM bdoe.franchissement_piscicole_bdoe
-  WHERE dfp_date_mes IS NOT NULL
-  AND dfp_date_mes < CURRENT_DATE
+  WHERE dfp_date_mes < CURRENT_DATE
     UNION ALL 
   SELECT DISTINCT 
   fpi_ref_id AS ouv_id,
