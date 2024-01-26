@@ -37,7 +37,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   ouv_commentaire_mesures_bdoe text,
   ref_commentaire_sous_type_roe text,
   h_chute_date_mesure date,
-  source_h_chute varchar (15),
+  source_h_chute varchar (30),
   ouv_type_evt varchar (30),
   commentaire_maj_h_chute TEXT,
   CONSTRAINT physical_obstruction_id PRIMARY KEY (ob_id),
