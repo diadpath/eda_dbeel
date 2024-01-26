@@ -611,6 +611,7 @@ FROM
 -- 93962 16/06/23
 -- 93971 24/01/2024
 -- 95384 25/01/2024 
+-- 95386 26/01/2024 
   
 -- correction des problèmes de hauteur mise par defaut (roe) pour les periodes sans hauteur datée  
 -- si plusieurs périodes, et bdoe ou ice et pas arasement ou derasement on remplace roe par la valeur bdoe ou ice
@@ -683,7 +684,7 @@ AND COALESCE(dupl3.source_h_chute, 'roe') = 'roe'
 UPDATE montepomi.dbeel_physical_obstruction SET (po_obstruction_height, commentaire_maj_h_chute) =
 (prev_aradera.height_aradera, 'There is positive value in arasement derasement occuring after this period, and the value in this period was lower than the value at arasement- derasement ('||coalesce(prev_aradera.po_obstruction_height::text, 'NULL')||') so it has been replaced' )
 FROM prev_aradera
-WHERE prev_aradera.ob_id = dbeel_physical_obstruction.ob_id; --82 + 65 NULL
+WHERE prev_aradera.ob_id = dbeel_physical_obstruction.ob_id; --164
 
 
 
@@ -751,13 +752,14 @@ correction AS (
  SELECT dupl3.*, h_chute,source_h_chute_cor  FROM uq_roe_bdoe INNER JOIN dupl3 ON dupl3.ouv_id = uq_roe_bdoe.ouv_id
  WHERE coalesce(source_h_chute, 'roe')='roe'
 )
-SELECT * FROM correction
-
-SELECT *   FROM dupl3
+UPDATE montepomi.dbeel_physical_obstruction SET (po_obstruction_height, commentaire_maj_h_chute) =
+(correction.h_chute, 'if there are null or roe values and there is a line before the one marked arasement or derasement which is non-null, this value is applied to the lines before it and we kept the source used for height replacement ('||source_h_chute_cor||')' )
+FROM correction
+WHERE correction.ob_id = dbeel_physical_obstruction.ob_id; --740 ouvrage sur lequels on met à jour la hauteur de chute
  
-        
-        
-        
+--select * from montepomi.dbeel_physical_obstruction dpo where commentaire_maj_h_chute~*'^if*.'
+ 
+
 DROP MATERIALIZED VIEW IF EXISTS  montepomi.view_obstruction CASCADE;
 CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
  SELECT dbeel_obstruction_place.op_id,
@@ -816,7 +818,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
   -- LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
-; --  103309 --montepomi : 93736= > 93962 => 95384
+; --  26/01/2024 : 95386 --103309 --montepomi : 93736= > 93962 => 95384
 
 
 
