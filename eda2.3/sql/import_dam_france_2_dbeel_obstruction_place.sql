@@ -698,10 +698,63 @@ UPDATE montepomi.dbeel_physical_obstruction SET po_obstruction_height = 0
 --  (on fera ça plus tard mais ici on est dans le cas arasement derasement)
 -- On a regardé, pas vraiement de cas ou ça existe 
      
--- Dans le cas ou on a plus d'arasement ou derasement, et si il y a des valeurs NULLEs ou roe qui sont 
+-- Dans le cas ou on a pas d'arasement ou derasement, et si il y a des valeurs NULLEs ou roe qui sont 
 -- appliquées à des lignes, il faut récuperer les valeurs ICE ou bdoe et les utiliser        
         
         
+
+WITH dupl AS (
+  select 
+  count(*) OVER(PARTITION BY ob_op_id) AS n, *
+  from montepomi.dbeel_physical_obstruction
+),
+dupl1 AS (
+SELECT 
+   CASE WHEN ouv_type_evt ='arasement' THEN 1
+        WHEN ouv_type_evt ='derasement' THEN 1
+        ELSE 0 END AS count_aradera,  
+   CASE WHEN source_h_chute ='bdoe' THEN 1
+        WHEN source_h_chute ='ice' THEN 1
+        ELSE 0 END AS count_bdoeice,             
+* FROM dupl 
+),
+dupl2 AS (
+SELECT sum(count_aradera) OVER(PARTITION BY ob_op_id) sumaradera,
+       sum(count_bdoeice) OVER(PARTITION BY ob_op_id) sumbdoeice,
+*
+FROM dupl1),
+dupl3 AS (
+SELECT 
+ouv_id,
+ob_id,
+ROW_NUMBER() OVER (PARTITION BY ouv_id ORDER BY ob_starting_date, ob_ending_date) ordre,
+n,
+ob_starting_date,
+ob_ending_date,
+h_chute_date_mesure,
+po_obstruction_height,
+source_h_chute,
+ouv_type_evt
+FROM dupl2
+WHERE n >1 AND sumaradera =0 AND sumbdoeice>=1 
+ORDER by ouv_id, ob_starting_date, ob_ending_date),
+roe_bdoe AS (
+  SELECT * FROM dupl3 WHERE source_h_chute IN ('bdoe','ice') ORDER BY
+  ouv_id, CASE WHEN source_h_chute = 'ice' THEN 1
+               WHEN source_h_chute = 'bdoe' THEN 2
+               END
+),
+uq_roe_bdoe AS (
+  SELECT DISTINCT ON (ouv_id) ouv_id, po_obstruction_height AS h_chute, source_h_chute AS source_h_chute_cor FROM roe_bdoe
+),
+correction AS (
+ SELECT dupl3.*, h_chute,source_h_chute_cor  FROM uq_roe_bdoe INNER JOIN dupl3 ON dupl3.ouv_id = uq_roe_bdoe.ouv_id
+ WHERE coalesce(source_h_chute, 'roe')='roe'
+)
+SELECT * FROM correction
+
+SELECT *   FROM dupl3
+ 
         
         
         
