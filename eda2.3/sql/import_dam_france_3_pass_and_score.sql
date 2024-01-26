@@ -166,7 +166,7 @@ WHERE date_passe IS NULL)
 SELECT * FROM join_with_physical_obstruction_date 
    UNION 
 SELECT * FROM join_with_physical_obstruction_null
-); -- END CREATE TABLE 279610 276645 (24/01/2024)
+); -- END CREATE TABLE 279610 276645 (24/01/2024) 282525 (26/01/2024)
 
 -- SELECT count(*) FROM montepomi.dbeel_physical_obstruction_pass_species;
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
@@ -194,7 +194,7 @@ ordered AS (SELECT dbeel_physical_obstruction_pass_species.*
 FROM montepomi.dbeel_physical_obstruction_pass_species
 ORDER BY ob_id, species, po_presence_pass DESC) --15 019
 
-SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350
+SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350 -- 279 556(26/01/2024)
 );
 
 
@@ -213,7 +213,6 @@ SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350
  * Mais aussi correspondant potentiellement à différentes dates et différentes sources (soit bdoe soit ice)
  * il va falloir choisir, on va prendre ICE puis bdoe et on prend pour toute la période l'expertise la plus récente
  */
-
 
 DROP TABLE IF EXISTS montepomi.dbeel_physical_obstruction_score_species CASCADE;
 CREATE TABLE montepomi.dbeel_physical_obstruction_score_species AS (
@@ -304,7 +303,7 @@ SELECT * FROM
 join_with_physical_obstruction_null
 )
 SELECT * FROM expertise_ouv_esp 
-); -- END CREATE TABLE --36848
+); -- END CREATE TABLE --36848 --36977 (26/01/2024)
 
 ALTER TABLE montepomi.dbeel_physical_obstruction_score_species ADD COLUMN score_homogene integer;
 --DROP score_homogene FROM montepomi.dbeel_physical_obstruction_score_species
@@ -352,7 +351,7 @@ SELECT * FROM montepomi.dbeel_physical_obstruction_score_species
 order by ob_id, species, source_note desc -- we take ICE then bdoe
 )
 select distinct on (ob_id, species) * from ordered
-); --11341
+); --11341 --35720 (26/01/2024)
 
 
 
