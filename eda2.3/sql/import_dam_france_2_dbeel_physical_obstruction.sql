@@ -296,13 +296,13 @@ ORDER BY ouv_id, datedebut),
   LEFT JOIN date_atg  ON ordre_periode.ouv_id = date_atg.ouv_id  
   AND ouv_date_avis >= datedebut and ouv_date_avis < datefin
   ),
-  
+-- toutes les autres non rentrées  
 periode_nonatg AS (
 
   SELECT 
   ordre_periode.ouv_id, 
-  NULL AS ouv_atg_id,
-  NULL AS ouv_date_avis, 
+  2 AS ouv_atg_id, -- A la place de la valeur nulle
+  NULL::date AS ouv_date_avis, 
   ordre_periode.datedebut, 
   ordre_periode.datefin,
   ordre_periode.type_evt
@@ -310,9 +310,10 @@ periode_nonatg AS (
  
   EXCEPT
   
+  -- toutes les valeurs dans ordre periode qui sont déjà rentrées dans periode atg
   SELECT 
   ordre_periode.ouv_id, 
-  NULL::INTEGER AS ouv_atg_id, 
+  2 AS ouv_atg_id, 
   NULL::date AS ouv_date_avis, 
   ordre_periode.datedebut, 
   ordre_periode.datefin,
@@ -569,11 +570,8 @@ SELECT uuid_generate_v4() AS ob_id,
   'Cédric, Marion & Laëtitia' AS author_last_update, 
   'montepomi jan 2024' AS comment_update, 
   ed.mitigationmeasureid AS mitigation_measure_no_id,
---esp_id,
---****** 2024 : Remplace case when sur ouv_avis_techçglobal_id par ouv_atg_id ******
---CASE WHEN ouv_avis_tech_global_id IS NULL THEN 2
---ELSE ouv_avis_tech_global_id END AS ouv_avis_tech_global_id,
-upa.ouv_atg_id as ouv_avis_tech_global_id,
+CASE WHEN upa.ouv_atg_id IS NULL THEN 2
+ELSE upa.ouv_atg_id END AS ouv_avis_tech_global_id, -- il y a des valeurs nulles dans atg_id ça pose problème plus loin dans les calculs
 upa.ouv_date_avis,
 acb.ouv_conformite_montaison,
 acb.ouv_conformite_devalaison,
@@ -809,6 +807,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
   dbeel_physical_obstruction.h_chute_date_mesure,
   dbeel_physical_obstruction.source_h_chute,
   dbeel_physical_obstruction.ouv_type_evt,
+   dbeel_physical_obstruction.commentaire_maj_h_chute,
     'http://maps.google.fr/maps?q='||st_y(st_transform(the_geom,4326))||','||st_x(st_transform(the_geom,4326)) AS googlemapscoods
    FROM montepomi.dbeel_obstruction_place
    JOIN montepomi.dbeel_physical_obstruction ON dbeel_physical_obstruction.ob_op_id = dbeel_obstruction_place.op_id

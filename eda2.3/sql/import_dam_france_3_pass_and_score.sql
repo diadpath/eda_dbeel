@@ -74,7 +74,7 @@ SELECT fpi_ref_id AS ouv_id,
 	  'civelle' AS species,
       fpi_id,
       CASE WHEN fpi_fty_id IS NULL THEN FALSE 
-      else fpi_fty_id IN (4,8) AND COALESCE (ouv_lineaire_aval, 9999) < 50
+      else fpi_fty_id IN (4,8) AND COALESCE (distanceseam / 1000, 9999) < 50
       END AS po_presence_pass,
        -- On garde le type passe à anguilles et rivière de contournement à moins de 50km
       COALESCE(dfp_date_mes,(hfpi_date_metier||'-12-31')::date) AS date_passe
@@ -82,7 +82,9 @@ FROM roe.franchissement_piscicole
 LEFT JOIN bdoe.ouvrage ON fpi_ref_id=ouv_id
 LEFT JOIN roe.historique_franch_piscicole ON hfpi_fpi_id=fpi_id
 LEFT JOIN bdoe.franchissement_piscicole_bdoe ON dfp_fpi_id=fpi_id
-
+LEFT JOIN dbeel_especes ON 'ROE'||ouv_id=id_original
+LEFT JOIN montepomi.join_obstruction_rn jo ON jo.op_id = dbeel_especes.op_id 
+LEFT JOIN france.rn_rna ON rn_rna.idsegment = jo.idsegment
 
 UNION ALL 
 
@@ -172,7 +174,7 @@ SELECT * FROM join_with_physical_obstruction_null
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
 --SELECT id_original, count(*) FROM join_with_physical_obstruction GROUP BY 1 ORDER BY 2 DESC  
 --SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE op_id='3ebf4db1-3a67-4191-ae6d-4185259c967d'
---SELECT * FROM montepomi.dbeel_view_pass WHERE op_id='3ebf4db1-3a67-4191-ae6d-4185259c967d'
+--SELECT * FROM montepomi.dbeel_view_pass WHERE op_id='cdb49e5e-dad8-4333-a963-f1e34830eec3'
 
 -- A la même période il peut y avoir plusieurs passes, 
 -- si une passe est franchissable et l'autre non, on choisi la franchissable
@@ -194,12 +196,15 @@ ordered AS (SELECT dbeel_physical_obstruction_pass_species.*
 FROM montepomi.dbeel_physical_obstruction_pass_species
 ORDER BY ob_id, species, po_presence_pass DESC) --15 019
 
-SELECT DISTINCT ON (ob_id, species, po_presence_pass) * FROM ordered --14 350 -- 279 556(26/01/2024)
+SELECT DISTINCT ON (ob_id, species) * FROM ordered --14 350 -- 279 556(26/01/2024)
 );
 
 
--- SELECT * FROM montepomi.dbeel_view_pass where op_id='3ebf4db1-3a67-4191-ae6d-4185259c967d'
+
 -- SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE id_original ='ROE105'
+-- SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE id_original ='ROE58432'
+--SELECT * FROM montepomi.dbeel_physical_obstruction WHERE ob_op_id ='cdb49e5e-dad8-4333-a963-f1e34830eec3'
+ SELECT * FROM montepomi.dbeel_view_pass WHERE op_id ='cdb49e5e-dad8-4333-a963-f1e34830eec3'
 
 /*
  * ------------------------------------------
