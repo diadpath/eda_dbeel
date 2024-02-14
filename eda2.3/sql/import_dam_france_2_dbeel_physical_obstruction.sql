@@ -1,4 +1,8 @@
-﻿/*
+﻿
+
+
+
+/*
  * 
  * PHYSICAL OBSTRUCTION INSERTION
  * 
@@ -123,14 +127,13 @@ selectionne_roe AS (
 	SELECT regexp_replace(ref_id_national, 'ROE', '')::integer AS ouv_id,
 	CASE WHEN ref_typ_id = 0 THEN 291 -- barrage
 	     WHEN ref_typ_id = 1 AND (ref_sty_id=10 OR ref_sty_id=11) THEN 292 --seuil
-	     WHEN ref_typ_id = 1 AND (ref_sty_id IS NULL) THEN 292 --seuil
+	     WHEN ref_typ_id = 1 AND (ref_sty_id IS NULL OR ref_sty_id=13 OR ref_sty_id=9) THEN 292 --seuil (sous types inconnus 9 et 13)
 	     WHEN ref_typ_id = 1 AND ref_sty_id=12 THEN 293 -- enrochement
 	     WHEN ref_typ_id = 2 THEN 298 -- digue (en vrai va virer car non inclus)
-	     WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=21) THEN 296 -- pont
+	     WHEN ref_typ_id = 3 AND (ref_sty_id=17 OR ref_sty_id=19 OR ref_sty_id=21) THEN 296 -- pont
 	     WHEN ref_typ_id = 3 AND (ref_sty_id IS NULL) THEN 296 -- pont
 	     WHEN ref_typ_id = 3 AND ref_sty_id = 20 THEN 295 -- passage à gué
 	     WHEN ref_typ_id = 3 AND ref_sty_id = 18 THEN 294 -- culvert
-	     WHEN ref_sty_id = 9 OR  ref_sty_id = 19 OR ref_sty_id=13 THEN 297 -- other
 	     WHEN ref_typ_id = 5 THEN 299 -- grille de pisciculture (en vrai va virer car non inclus)
 	     ELSE 219 -- Physical unknown
 	     END AS obstruction_type_no_id,
@@ -615,6 +618,9 @@ FROM
 -- si plusieurs périodes, et bdoe ou ice et pas arasement ou derasement on remplace roe par la valeur bdoe ou ice
 --Si arasement ou derasement, et on a un bdoe ou un ice avant ou après, on applique cette valeur aux valeurs roe avant ou après
 
+
+
+ 
 
 -- premier cas
 -- si c'est derasement ou arasement et positif 
