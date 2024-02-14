@@ -554,7 +554,7 @@ SELECT uuid_generate_v4() AS ob_id,
   -- datedebut and datefin are NULL after joining and the coalesce fixes that case
   o.op_id AS ob_op_id,
   dp.dp_id AS ob_dp_id,
-  h.obstruction_type_no_id AS ot_no_obstruction_type,-- physical
+  sr.obstruction_type_no_id AS ot_no_obstruction_type,-- physical
    1 AS ot_obstruction_number,
    --NULL AS ot_no_mortality_type, 
    --NULL AS ot_no_mortality,
@@ -594,7 +594,8 @@ FROM
   LEFT JOIN reception_devalaison rd on rd.ouv_id=o.ouv_id  --po_downs_pb (boolean) OK pAS de doublons
   LEFT JOIN expertise_devalaison ed on ed.ouv_id=o.ouv_id 
   LEFT JOIN add_column_bdoe acb ON acb.ouv_id = o.ouv_id
-  LEFT JOIN add_column_roe acr ON acr.ouv_id = o.ouv_id,
+  LEFT JOIN add_column_roe acr ON acr.ouv_id = o.ouv_id
+  LEFT JOIN selectionne_roe sr ON sr.ouv_id = o.ouv_id,
   dbeel.data_provider dp
   WHERE dp_name = 'Pierre Sagnes';
   --2024 : nous avons dégagé la clause AND qui empêche de récupérer toutes nos lignes
@@ -613,7 +614,7 @@ FROM
 -- 93971 24/01/2024
 -- 95384 25/01/2024 
 -- 95386 26/01/2024 
-  
+-- 95386 14/02/2024   
 -- correction des problèmes de hauteur mise par defaut (roe) pour les periodes sans hauteur datée  
 -- si plusieurs périodes, et bdoe ou ice et pas arasement ou derasement on remplace roe par la valeur bdoe ou ice
 --Si arasement ou derasement, et on a un bdoe ou un ice avant ou après, on applique cette valeur aux valeurs roe avant ou après

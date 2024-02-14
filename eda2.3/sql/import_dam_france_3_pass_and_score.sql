@@ -204,7 +204,7 @@ SELECT DISTINCT ON (ob_id, species) * FROM ordered --14 350 -- 279 556(26/01
 -- SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE id_original ='ROE105'
 -- SELECT * FROM montepomi.dbeel_physical_obstruction_pass_species WHERE id_original ='ROE58432'
 --SELECT * FROM montepomi.dbeel_physical_obstruction WHERE ob_op_id ='cdb49e5e-dad8-4333-a963-f1e34830eec3'
- SELECT * FROM montepomi.dbeel_view_pass WHERE op_id ='cdb49e5e-dad8-4333-a963-f1e34830eec3'
+ --SELECT * FROM montepomi.dbeel_view_pass WHERE op_id ='cdb49e5e-dad8-4333-a963-f1e34830eec3'
 
 /*
  * ------------------------------------------
