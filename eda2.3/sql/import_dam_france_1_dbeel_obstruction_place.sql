@@ -470,6 +470,119 @@ SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from proje
 );
 create index idx_montepomi_join_obstruction_rn_idsegment ON montepomi.join_obstruction_rn using btree(idsegment); --183msec
 
+-- Il y a des ouvrages qui sont mal projetés sur le RHT.
+-- on charge la bd_topage dans la base eda2.3/bdtopo_hydrographie/courseau_topage2023
+-- on fait une jointure spatiale entre le ROE et la bd_topage sur le champ 
+-- roe.obstacle_referentiel.ref_position_bdtopo=bdtopo_hydrographie.courseau_topage2023.geom
+-- 1449 ouvrages ROE en Loire-Bretagne avec ref_position_bdtopo=NULL / 7708 sur france entière
+-- SELECT count(*) as france, COUNT(CASE WHEN ref_bassin  = 'LOIRE-BRETAGNE' THEN 1 END) as loire_bretagne FROM roe.obstacle_referentiel WHERE ref_position_bdtopo IS null; --7708 en France
+-- on créée un index sur la bd_topage pour la colonne geom et sur roe.ref_position_bdtopo
+-- CREATE INDEX idx_courseau_topage2023_geom ON bdtopo_hydrographie.courseau_topage2023 USING GIST(geom);
+-- CREATE INDEX idx_courseau_topage2023_geom4326 ON bdtopo_hydrographie.courseau_topage2023 USING GIST(st_transform(geom,4326));
+-- CREATE INDEX idx_roe_ref_position_topage ON roe.obstacle_referentiel USING GIST(ref_position_bdtopo);
+-- CREATE INDEX idx_roe_ref_position_topage_2154 ON roe.obstacle_referentiel USING GIST(st_transform(ref_position_bdtopo,2154));
+-- select count(*) from roe.obstacle_referentiel where ref_position is null; --124
+
+--on créée france.link_roe_topage pour stocker la jointure spatiale entre les obstacles du ROE et la bd_topage
+--on est content d'avoir fait l'index spatial sur le st_transform pour avoir les 2 geom dans la même projection
+drop table france.link_roe_topage;
+create table france.link_roe_topage as (
+with dist_roe_topo AS (
+    SELECT
+        o.ref_id_national,
+        c.cdoh,
+        c.topooh,
+        --ST_Distance(o.ref_position_bdtopo, st_transform(c.geom,4326)) AS distance,
+        ROW_NUMBER() OVER (PARTITION BY ref_id_national ORDER BY ST_Distance(st_transform(o.ref_position_bdtopo,2154), c.geom)) AS rn,
+        o.ref_position_bdtopo,
+        c.geom as geom
+    from roe.obstacle_referentiel o
+    JOIN bdtopo_hydrographie.courseau_topage2023 c
+   		 ON ST_DWithin(st_transform(o.ref_position_bdtopo,2154),c.geom, 100)
+	where ref_position_bdtopo IS NOT null  
+)
+SELECT
+    ref_id_national,
+    cdoh,
+    topooh,
+    true as direct_link_topo,
+    geom,
+    ref_position_bdtopo
+FROM dist_roe_topo
+WHERE rn = 1
+); --102361
+
+
+-- on s'occupe des ouvrages qui n'ont pas de ref_position_bdtopo et on les ajoute dans france.link_roe_topage
+-- au lieu de pointer sur le point projeté sur la bd topo on prend le point par défaut dans le ROE (ref_position)
+WITH dist_roe_topo AS (
+    SELECT
+        o.ref_id_national,
+        c.cdoh,
+        c.topooh,
+        ROW_NUMBER() OVER (PARTITION BY ref_id_national ORDER BY ST_Distance(st_transform(o.ref_position,2154), c.geom)) AS rn,
+        o.ref_position,
+        c.geom as geom
+    from roe.obstacle_referentiel o
+    JOIN bdtopo_hydrographie.courseau_topage2023 c
+   		 ON ST_DWithin(st_transform(o.ref_position,2154), c.geom, 1000)
+   	where ref_position_bdtopo IS null and ref_position is not null
+), tab as(
+SELECT
+    ref_id_national,
+    cdoh,
+    topooh,
+    false as direct_link_topo,
+    geom,
+    ref_position
+FROM dist_roe_topo
+WHERE rn = 1
+)
+insert into france.link_roe_topage
+select *
+from tab
+;--5873
+
+--On fait la jointure entre link_roe_topage et montepomi.join_obstruction_rn pour avoir à la fois les anciens idsegment et les nouveaux
+--suite à la jointure spatiale. Attention bd_topo=segment très long (tout le cours d'eau) qui se joignent à plein d'idsegment rht
+-- ici ça marche car on fait la jointure entre bd_topo et idsegment
+with good as(
+--on récupère les idsegment avec même code topage et même idsegment
+	SELECT l.*,rn.idsegment id_old
+	FROM france.link_roe_topage l
+	JOIN montepomi.dbeel_obstruction_place d  ON d.id_original=l.ref_id_national
+	JOIN montepomi.join_obstruction_rn rn ON rn.op_id= d.op_id 
+	JOIN france.rht_courseau_bdtopage c ON c.cdoh=l.cdoh and c.idsegment=rn.idsegment --75631
+),
+bad as (
+--on récupère les autres lignes = celles où on a des soucis
+select *
+from france.link_roe_topage l
+where ref_id_national not in (select ref_id_national from good)
+),
+tab as (
+--on a besoin d'une double jointure code topage et une projection des idsegments proche des points ROE (on refait une jointure spatiale)
+select bad.*,
+		rn.idsegment as idsegment_new,
+		ROW_NUMBER() OVER (PARTITION BY ref_id_national ORDER BY ST_Distance(st_transform(ref_position_bdtopo,3035), rn.geom)) AS rownumber
+from bad 
+join france.rn on st_dwithin(rn.geom,st_transform(ref_position_bdtopo,3035),100)
+),tab_final as (
+--on récupère que les lignes où idsgment_old différent de idsegment_new
+select tab.*,jrn.idsegment as idsegment_old,jrn.op_id
+from tab
+JOIN montepomi.dbeel_obstruction_place d  ON d.id_original=tab.ref_id_national
+left join montepomi.join_obstruction_rn jrn on jrn.op_id= d.op_id 
+where rownumber=1 and jrn.idsegment<>tab.idsegment_new
+)
+--on met à jour join_obstruction_rn avec les nouveaux code idsegment et on a vérifié qu'on récupéré bien l'ouvrage à Redon sur le Canal de Nantes
+--à Brest plutôt que sur la Vilaine, Cédric est tout content !
+update montepomi.join_obstruction_rn set idsegment=idsegment_new from tab_final where tab_final.op_id=join_obstruction_rn.op_id; --252 (249)
+
+
+
+--calcul distance entre position_bd_topo et chaque idsegment
+
 DROP TABLE IF EXISTS montepomi.join_obstruction_rn_downstream;
 CREATE TABLE montepomi.join_obstruction_rn_downstream as(
 WITH downstreamjoin AS (  
@@ -484,7 +597,7 @@ WITH downstreamjoin AS (
 );
 
 --SELECT count(*) FROM montepomi.dbeel_obstruction_place join roe.roesudo on dbeel_op_id = op_id  -- 85035
-	
+
 ---------------------------------------------------------------
 --Insertion des données de la TABLE dbeel_physical_obstructions
 -----------------------------------------------------------------
