@@ -542,7 +542,7 @@ WHERE rn = 1
 insert into france.link_roe_topage
 select *
 from tab
-;--5873
+;--5873 --> 6188 (2024)
 
 --On fait la jointure entre link_roe_topage et montepomi.join_obstruction_rn pour avoir à la fois les anciens idsegment et les nouveaux
 --suite à la jointure spatiale. Attention bd_topo=segment très long (tout le cours d'eau) qui se joignent à plein d'idsegment rht
@@ -578,7 +578,7 @@ where rownumber=1 and jrn.idsegment<>tab.idsegment_new
 )
 --on met à jour join_obstruction_rn avec les nouveaux code idsegment et on a vérifié qu'on récupéré bien l'ouvrage à Redon sur le Canal de Nantes
 --à Brest plutôt que sur la Vilaine, Cédric est tout content !
-update montepomi.join_obstruction_rn set idsegment=idsegment_new from tab_final where tab_final.op_id=join_obstruction_rn.op_id; --252 (249)
+update montepomi.join_obstruction_rn set idsegment=idsegment_new from tab_final where tab_final.op_id=join_obstruction_rn.op_id; --252 (249)  254 (2024)
 
 
 
@@ -595,7 +595,7 @@ WITH downstreamjoin AS (
  j.position_ouvrage_segment, 
  downstreamjoin.* FROm downstreamjoin 
  JOIN montepomi.join_obstruction_rn j ON j.idsegment=downstreamjoin.vecteurchemin
-);
+); -- 6 498 052
 
 --SELECT count(*) FROM montepomi.dbeel_obstruction_place join roe.roesudo on dbeel_op_id = op_id  -- 85035
 
