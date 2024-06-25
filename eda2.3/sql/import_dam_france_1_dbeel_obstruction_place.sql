@@ -7,6 +7,7 @@
 -- Utilisation du dump Nettoyage des tables
 -- 14/08/2020 test sur nouvelle version envoyée par Karl
 -- 29/09/2022  Import nouvelle version geobs du 03/07/2022 voir script script/script_restore_geobs.sh
+-- 25/06/2024 test sur une version du fichier 26/05/2024 voir script montepomi/
 -- NOTE j'ai eu un pb de commit les nb affichés ne sont pas les bons !!!
 /*
 suppression des infos propriétaires
@@ -232,7 +233,7 @@ CREATE INDEX
 -- SELECT * FROM montepomi.dbeel_obstruction_place WHERE country='FR';
 -- SELECT count(*) FROM roe.roesudo
 DROP TABLE IF EXISTS roe.roesudo;
-CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415 =>117340
+CREATE TABLE roe.roesudo AS SELECT * FROM roe.obstacle_referentiel;--112934 => 113415 =>117340 => 121432 (2024)
 
 --Change le référentiel géographique (srid) de la colonne ref_position_carthage
 SELECT UpdateGeometrySRID('roe','roesudo','ref_position_carthage',3035);
@@ -260,7 +261,7 @@ UPDATE roe.roesudo set	geom_reproj = sub2.geom_reproj from(
 		join france.rn r on st_dwithin(r.geom,roe.ref_position_carthage,300)
 		order by ref_id,distance
 		)sub )sub2
-where sub2.ref_id = roesudo.ref_id;--94288
+where sub2.ref_id = roesudo.ref_id;--94288  -- 96395
 
 /* For those missing adding the geom from ref_position not ref_position_carthage
  * RHT basé sur bd_carthage mais dans ROE lien avec d'autres référentiels cours d'eau, on peut donc essayer avec d'autres géométries pour voir si on récupère d'autres ouvrages
@@ -275,7 +276,7 @@ france.rn r on st_dwithin(r.geom,st_transform(roe.ref_position,3035),300)
 WHERE ref_position_carthage is NULL  -- là ou le ref_postition_carthage est null
 ORDER BY ref_id, distance
 )sub )sub2
-WHERE sub2.ref_id= roesudo.ref_id; --5360
+WHERE sub2.ref_id= roesudo.ref_id; --5360 -- 5647
 
 
 CREATE INDEX 
@@ -332,7 +333,7 @@ INSERT INTO montepomi.dbeel_obstruction_place
 		geom_reproj AS the_geom, 
 		ref_id_national AS id_original, 
 		'FR' AS country
-	from data_import; --92253
+	from data_import; --92253  --94469
 	
 --VACUUM FULL ANALYSE montepomi.dbeel_obstruction_place;--7s
 --REINDEX TABLE montepomi.dbeel_obstruction_place; -- 5s
@@ -364,18 +365,18 @@ SELECT op_id AS op_id_pere, liens_ref_id,liens_ref_id_fils FROM montepomi.dbeel_
 -- on référence le code du père dans la ligne de l'ouvrage fils
 update montepomi.dbeel_obstruction_place set op_op_id=recupere_moi_le_code_op_id_fils.op_id_pere FROM recupere_moi_le_code_op_id_fils
 WHERE recupere_moi_le_code_op_id_fils.op_id_fils=dbeel_obstruction_place.op_id; 
---6055 2.2 s --> 6494 (Marion, Laetitia, Benjamin 31/03/23)
+--6055 2.2 s --> 6494 (Marion, Laetitia, Benjamin 31/03/23) 6811 (2024)
 
 
 
 -- on rajoute une colonne dbeel_op_id dans la TABLE source pour faire le lien
 --ALTER TABLE roe.roesudo ADD COLUMN dbeel_op_id uuid; 
-UPDATE roe.roesudo set dbeel_op_id = NULL;--117340
+UPDATE roe.roesudo set dbeel_op_id = NULL;--117340 --121432
 
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--89717 rows affected, 8.6 secs execution time. 
--->92253 (Marion, Laetitia, Benjamin 31/03/23)
+-->92253 (Marion, Laetitia, Benjamin 31/03/23) 94469 (2024)
 
 
 
@@ -403,14 +404,14 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
-	WHERE typ_nom = 'Digue' );--290 -->294
+	WHERE typ_nom = 'Digue' );--290 -->294 --> 309
 	
 DELETE FROM montepomi.dbeel_obstruction_place 
 	WHERE op_id in (
 	SELECT op_id FROM montepomi.dbeel_obstruction_place 
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.type ON ref_typ_id=typ_id
-	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture')); --647 -->651
+	WHERE typ_nom In ('Epis en rivière','Grille de pisciculture')); --647 -->651 --> 663
 
 -- modif 2023 'Détruit entièrement' gardé
 DELETE FROM montepomi.dbeel_obstruction_place 
@@ -419,7 +420,7 @@ DELETE FROM montepomi.dbeel_obstruction_place
 	JOIN roe.roesudo on dbeel_op_id = op_id 
 	JOIN roe.etat ON ref_eta_id=eta_id
 	WHERE eta_nom In ('En construction','En projet')); --3545 -- ceux qui ne sont pAS physiquement présent -->4189 
-	-->120 (Marion, Laetitia, Benjamin 31/03/23 il y en avait bcp en détruit entièrement donc)
+	-->120 (Marion, Laetitia, Benjamin 31/03/23 il y en avait bcp en détruit entièrement donc) -->138 (2024)
 
 -- on supprime plus les dérasés
 /*
@@ -447,7 +448,7 @@ UPDATE roe.roesudo set dbeel_op_id = NULL;--113415 -->117340
 UPDATE roe.roesudo SET dbeel_op_id = op_id 
 FROM montepomi.dbeel_obstruction_place 
 WHERE dbeel_obstruction_place.id_original=roesudo.ref_id_national;	--85035 rows affected, 8.6 secs execution time. 
--->86563 -->91188 (Marion, Laetitia, Benjamin 31/03/23)
+-->86563 -->91188 (Marion, Laetitia, Benjamin 31/03/23) --> 93359
 
 
 
@@ -468,7 +469,7 @@ CREATE TABLE montepomi.join_obstruction_rn as(
     order by idsegment, distance desc)
 SELECT distinct on (op_id) op_id, idsegment, position_ouvrage_segment from projection
 );
-create index idx_montepomi_join_obstruction_rn_idsegment ON montepomi.join_obstruction_rn using btree(idsegment); --183msec
+create index idx_montepomi_join_obstruction_rn_idsegment ON montepomi.join_obstruction_rn using btree(idsegment); --183msec --93359 (2024)
 
 -- Il y a des ouvrages qui sont mal projetés sur le RHT.
 -- on charge la bd_topage dans la base eda2.3/bdtopo_hydrographie/courseau_topage2023
@@ -510,7 +511,7 @@ SELECT
     ref_position_bdtopo
 FROM dist_roe_topo
 WHERE rn = 1
-); --102361
+); --102361 --> (2024) 105138
 
 
 -- on s'occupe des ouvrages qui n'ont pas de ref_position_bdtopo et on les ajoute dans france.link_roe_topage
