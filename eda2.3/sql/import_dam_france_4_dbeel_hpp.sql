@@ -251,7 +251,7 @@ SELECT
   hpp_source) SELECT * FROM final_insert;
   --711 2020 (528 last run) (after correcting for missing geom bd_carthage)
 -- 859 -->970(16/06) --> 915 after correction from Marion (remove duplicated values 29/06)
--- 957 (26/01/2024)
+-- 957 (26/01/2024) --1288 (27/06/2024)
 
 --SELECT count (*)  FROM montepomi.dbeel_hpp; --1502 -->970(16/06)
 --SELECT count (*)  FROM montepomi.dbeel_hpp WHERE hpp_source ='ICE'; --859 -->970(16/06) 915 after correction from Marion (remove duplicated values 29/06)
@@ -294,7 +294,9 @@ roe_montepomi AS (
 	JOIN roe_usage_hydro on ref_id_national=roe_usage_hydro.ouv_id --5547
          )
 
-SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_montepomi  ) ; --4723  --> 4900 --> 5547(16/06) -->5837 (26/01/2024) : on en perd un peu sans doute car dans dbeel_obstruction_place on a écarté des type (grille pisci)
+SELECT id_original AS ouv_id, geom_reproj AS geom FROM roe_montepomi  ) ; 
+--4723  --> 4900 --> 5547(16/06) -->5837 (26/01/2024) : on en perd un peu sans doute car dans dbeel_obstruction_place on a écarté des type (grille pisci)
+-- 6742
 
 /*
  * CETTE TABLE FAIT LA LISTE DES OUVRAGES QUI ONT UN USAGE HYDROELECTRICITE
@@ -328,7 +330,7 @@ CREATE TABLE france.ouvrages_missing_hpp AS (
   --696 -->628 (16/06)
 
   SELECT * FROM roe_filtered WHERE ouv_id IN (SELECT ouv_id FROM missing_dams)
-  ); --711 --> 682 -->628(24/01/2024)
+  ); --711 --> 682 -->628(24/01/2024) --> 625(27/06/2024)
  /*
   * 
   * VUE DES OUVRAGES INSERES A PARTIR D'ICE (et qui ont une description de la prise d'eau
@@ -341,7 +343,7 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstr
     JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
    ); --1532 => 5901 (AFTER SPAIN INSERTION)  ??? 2358 2020 (first run) 6687 don't forget to run this after the next chunk below
-	  --970 (16/06) 915 (29/06) 957 (26/01/2024)
+	  --970 (16/06) 915 (29/06) 957 (26/01/2024) 1288(27/06/2024)
 --SELECT count(*) FROM montepomi.view_dbeel_hpp;
 
 /*
@@ -467,7 +469,8 @@ SELECT
   JOIN montepomi.dbeel_physical_obstruction p ON ob_op_id=op_id
   JOIN roe.roesudo r ON ref_id_national=ouv_id_to_insert.ouv_id
   LEFT JOIN bdoe.ouvrage ON 'ROE'||ouvrage.ouv_id=ouv_id_to_insert.ouv_id -- si on fait un join on passe à 3714 donc il y a moins d'ouvrages dans bdoe ???
-  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; --4329 --> 4471 -->6241(16/06) --> 5053 -->5305(26/01/2024)
+  LEFT JOIN roe_presence_bypass rp ON 'ROE'||rp.ouv_id=ouv_id_to_insert.ouv_id; 
+  --4329 --> 4471 -->6241(16/06) --> 5053 -->5305(26/01/2024) -- 5623 (27/06/2024)
 
   
 /*
@@ -497,7 +500,7 @@ SELECT row_number() OVER (PARTITION BY true) AS id, * FROM montepomi.dbeel_obstr
 	JOIN montepomi.dbeel_physical_obstruction on op_id=ob_op_id 
     JOIN montepomi.dbeel_hpp on hpp_ob_id=ob_id
    --WHERE hpp_source='ICE' 
-   ); --5973 -->7211(27/06) --> 5968(29/06) apres dedoublonnage
+   ); --5973 -->7211(27/06) --> 5968(29/06) apres dedoublonnage --> 6911 (27/06/2024)
 
 --SELECT country,count(*) FROM montepomi.view_dbeel_hpp group by country
 
@@ -615,7 +618,7 @@ SELECT
   tuh_nombre_pale AS turb_nb_blades,
   tuh_debit_max AS turb_max_turbine_flow,
   NULL AS turb_description
-  FROM final_insert; --343 ->647 (2020) -- 670 -->835(16/06) 707(29/06)
+  FROM final_insert; --343 ->647 (2020) -- 670 -->835(16/06) 707(29/06) --1139 (27/06/2024)
 
 /*  
  SELECT * FROM montepomi.dbeel_turbine;

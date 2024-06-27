@@ -58,6 +58,7 @@ CREATE TABLE montepomi.dbeel_physical_obstruction (
   
 ) INHERITS(dbeel.physical_obstruction);
 
+--DELETE FROM dbeel.physical_obstruction;--203320 (2024)
 
 WITH 
 -- Pour la bdoe il peut y avoir plusieurs hauteurs de chutes différentes le meme jour.
@@ -615,6 +616,7 @@ FROM
 -- 95384 25/01/2024 
 -- 95386 26/01/2024 
 -- 95386 14/02/2024   
+-- 99226 27/06/2024
 -- correction des problèmes de hauteur mise par defaut (roe) pour les periodes sans hauteur datée  
 -- si plusieurs périodes, et bdoe ou ice et pas arasement ou derasement on remplace roe par la valeur bdoe ou ice
 --Si arasement ou derasement, et on a un bdoe ou un ice avant ou après, on applique cette valeur aux valeurs roe avant ou après
@@ -824,7 +826,7 @@ CREATE MATERIALIZED VIEW montepomi.view_obstruction AS (
   -- LEFT JOIN dbeel_nomenclature.fishway_type ON fishway_type.no_id= dbeel_physical_obstruction.fishway_type
    LEFT JOIN dbeel_nomenclature.downstream_mitigation_measure ON downstream_mitigation_measure.no_id= dbeel_physical_obstruction.mitigation_measure_no_id
    JOIN dbeel.data_provider ON ob_dp_id=dp_id)
-; --  26/01/2024 : 95386 --103309 --montepomi : 93736= > 93962 => 95384
+; --  26/01/2024 : 95386 --103309 --montepomi : 93736= > 93962 => 95384 => 99226
 
 
 

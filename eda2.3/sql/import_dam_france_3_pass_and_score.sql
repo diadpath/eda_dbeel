@@ -168,7 +168,7 @@ WHERE date_passe IS NULL)
 SELECT * FROM join_with_physical_obstruction_date 
    UNION 
 SELECT * FROM join_with_physical_obstruction_null
-); -- END CREATE TABLE 279610 276645 (24/01/2024) 282525 (26/01/2024)
+); -- END CREATE TABLE 279610 276645 (24/01/2024) 282525 (26/01/2024) 291310 (27/06/2024)
 
 -- SELECT count(*) FROM montepomi.dbeel_physical_obstruction_pass_species;
 --SELECT * FROM join_with_physical_obstruction where id_original='ROE37672'
