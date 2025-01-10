@@ -258,13 +258,12 @@ A cet étape on récupère l'ensemble des opérations qui sont stockées dans AS
 
 ```{r get_ope_ASPE, eval = FALSE, echo = TRUE}
 operation_aspe <- 
-		point_prelevement %>%
+  point_prelevement %>%
 		left_join(operation, by=c("pop_id"="ope_pop_id")) %>%
 		left_join(operation_description_peche, by = c("ope_id" = "odp_ope_id")) %>%
 		left_join(ref_moyen_prospection, by = c("odp_mop_id"="mop_id"))%>%
 		select(-odp_mop_id, mop_ordre_affichage)%>%
-		left_join(ref_protocole %>% select(pro_id,pro_libelle), 
-		          by=c("ope_pro_id"="pro_id")) %>%
+		left_join(ref_protocole %>% select(pro_id,pro_libelle), by=c("ope_pro_id"="pro_id")) %>%
 		left_join(ref_modele_materiel, by=c("odp_mom_id"="mom_id")) %>%
 		select(-c(odp_mom_id,mom_fam_id,mom_ordre_affichage)) %>%
 		left_join(station, by=c("pop_sta_id"="sta_id")) %>%			
@@ -276,8 +275,7 @@ operation_aspe <-
 						filter(opo_obj_id==9) %>%
 						select(opo_ope_id) %>%
 						distinct() %>%
-						mutate(objectif="Suivi des populations d'anguilles"), 
-						by=c("ope_id"="opo_ope_id")) %>%	
+						mutate(objectif="Suivi des populations d'anguilles"), by=c("ope_id"="opo_ope_id")) %>%	
 		# Add number of sampling poinst for large habitats
 		left_join(
 				prelevement_elementaire %>%
@@ -292,12 +290,59 @@ operation_aspe <-
 						group_by(pre_ope_id) %>%
 						summarize(nb_pas=max(pas_numero)), 
 				by=c("ope_id"="pre_ope_id")) %>%
-		filter(ope_pro_id %in% c(1,2,3,4,7)) %>% # remove IA SAT and vigie truite
+		filter(ope_pro_id %in% c(1,2,4,7)) %>% # remove IA SAT and vigie truite and pêches par ambiance (id= 3) (cf ci-dessous)
 		select(-ope_pro_id) %>%
 		rename(op_typ = pro_libelle)
+
+#27/11 : 43019 operations
+
+############### DEBUT : filtre sur le type d'opérations ou de prélèvements ##########################
+# #27/11 :
+# - les opérations de pêches par ambiance (operation_aspe$op_typ == "Pêche par ambiances") sont supprimées car 
+#   le choix des ambiances sur le terrain   biaisent le résultat des pêches et donc l'estimation de densité dans EDA
+#   cf ci-dessus sur le filter(ope_pro_id %in% c(1,2,4,7))
+# - les opérations de pêche en grand milieu (operation_aspe$op_typ == "Pêche partielle par points (grand milieu)") sont réalisées sur des
+#   points de pêches principaux (souvent 75 ou 100, parfois <75) mais également sur des points complémentaires. Ce choix de points complémentaire
+#   a pu être biaisés et donc conduire à des estimations de densités également biaisées. il convient donc d'ignorer ces points complémentaires
+#   (table groupe_points, champs grp_tgp_id = 2)
+# - les opérations de pêches partielle sur berge (op_typ=="Pêche partielle sur berge") nécessitent l'existence d'une longueur de station cohérente
+#   et d'une surface de pêche calculée correcte. Les opés sans longueur sont ignorées, les opé avec une longueur < 30m sont ignorées, 
+#   les opés dont la surface_calc est null ou à 0 sont ignorées
+#############################################################################################
+
+#pêches par ambiances
+# fait ci-dessus
+
+##pêche grands milieux, 27/11 : 9529 ope
+new_peche_gd_milieu <- operation_aspe %>%  
+  select(-nb_point) %>%#on enlève l'ancienne colonne du nb de points
+  filter(op_typ == 'Pêche partielle par points (grand milieu)') %>%
+    left_join(
+      prelevement_elementaire %>%
+        left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+        filter(grp_tgp_id == 1) %>%#on ne conserve que les prélèvements principaux
+        group_by(pre_ope_id) %>%
+        summarize(nb_point=sum(grp_nombre)), 
+      by=c("ope_id"="pre_ope_id"))
+
+  operation_aspe <- operation_aspe %>%  
+    filter(!(op_typ == 'Pêche partielle par points (grand milieu)'))
+#merge dataframes
+operation_aspe <- rbind.data.frame(operation_aspe,new_peche_gd_milieu)
+
+
+#pêches partielles sur berges
+op_aspe_bg <- operation_aspe %>%
+  filter(op_typ=="Pêche partielle sur berge") %>%
+  filter(ope_surface_calculee>0 & !is.na(ope_surface_calculee)) %>% #surf>0 ET sur != NA
+  filter(odp_longueur>30) #longueur de berge > 30m
+operation_aspe <- operation_aspe %>%
+  filter(!op_typ=="Pêche partielle sur berge")
+operation_aspe <- rbind.data.frame(operation_aspe,op_aspe_bg)#42699
 ```
 On notera que la jointure est faite avec _point_prelevement_, qui est le jeu de données ASPE des points de prélèvements, toutes coordonnées géographiques confondues (France métropolitaine, DOM/TOM et points mal géolocalisés). A cet stade on conserve cette jointure pour maximiser le nombre d'opérations. Si on fait la jointure avec la table des points de prélèvements filtrées (cf chapitre précédent), on perd 204 opérations. 
 La dernière étape est l'ajout de ces opérations dans la base EDA.
+Enfin, comme indiqué dans le commentaire de code ci-dessus, des filtres spécifiques ont été réalisés sur les opérations de pêche par ambiance (ignorées), les opérations de pêches en grand milieu (prise en compte uniquement des points principaux) et des opérations de pêche sur berge (pour calcul de la surface de pêche).
 
 ```{r write_ope_EDA, eval = FALSE, echo = TRUE}
 DBI::dbExecute(con, "DROP TABLE if exists france.operation_aspe;")
@@ -345,8 +390,10 @@ Nous proposons donc à ce stade de conserver l'identifiant de la station la plus
 Le batch est lié à une opération de pêche et recense les effectifs de poissons ayant été capturés, éventuellement par numéro de passage. Lors d'une pêche en grand milieu, l'ensemble des captures est stocké dans la colonne du premier passage.
 
 ```{r get_batch_ASPE, eval = FALSE, echo = TRUE}
+
 # the left join ensures that operations with no eels have zero after replace_na
-batch_aspe <- operation %>%   # 48387
+batch_aspe <- operation_aspe %>%  
+    filter(!op_typ == 'Pêche partielle par points (grand milieu)') %>% #this ope_type will be treated separately (see below)
 		select(ope_id)%>%
 		left_join(
 				prelevement_elementaire %>%
@@ -370,11 +417,37 @@ batch_aspe <- operation %>%   # 48387
   # certains prelevements n'ont pas de passage (peche grand milieu) 
   # on consid?re que le passage c'est 1
 		mutate(pas_numero=replace_na(pas_numero,1))  %>% 
-		pivot_wider(id_cols=c(ope_id, nb_eel),values_from=nb_eel_per_pass, 
-		            names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
+		pivot_wider(id_cols=c(ope_id, nb_eel),values_from=nb_eel_per_pass, names_from=pas_numero, values_fill=0, names_prefix="pas_") %>% 
   # remplace les passages NULLs (protocole peche par point) par "0"
 		mutate("pas_1"=replace_na(pas_1,0))   
+
+#27/11 : traitements des pêches grand milieu
+#on refait le calcul en ne prenant en compte que les poissons capturés lors des passages principaux
+batch_aspe_gd_milieu <- operation_aspe %>% 
+  filter(op_typ == 'Pêche partielle par points (grand milieu)') %>%
+  select(ope_id)%>%
+  left_join(
+    prelevement_elementaire %>%
+      left_join(y = groupe_points %>% rename(pre_id = grp_id)) %>%
+      filter(grp_tgp_id == 1) %>%#on ne conserve que les prélèvements principaux
+      left_join(y =  lot_poissons, by = c("pre_id"="lop_pre_id")) %>%
+      filter(lop_esp_id==14) %>%
+      group_by(pre_ope_id) %>%
+      summarize(nb_eel=sum(lop_effectif)),
+    by=c("ope_id"="pre_ope_id"))%>%
+  mutate(nb_eel=replace_na(nb_eel,0)) %>%
+  mutate(pas_1=nb_eel,pas_2=0,pas_3=0,pas_4=0)
+
+#on bind les dataframe
+batch_aspe <- rbind.data.frame(batch_aspe,batch_aspe_gd_milieu)
+
+DBI::dbExecute(con, "DROP TABLE if exists france.batch_aspe;")
+DBI::dbWriteTable(con, "batch_aspe", batch_aspe) # written in public scheme
+DBI::dbExecute(con, "ALTER TABLE batch_aspe set schema france")
+
+ 
 ```
+A noter que pour les pêches grands milieux, ne sont pris en compte que les points principaux. Les effectifs capturés par batch sont donc traités en conséquence.
 
 Puis ces enregistrements sont ajoutés dans EDA.
 

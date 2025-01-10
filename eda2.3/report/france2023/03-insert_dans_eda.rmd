@@ -212,7 +212,8 @@ SELECT
 	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
 	     WHEN op_typ ILIKE '%compl%' THEN 62
 	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
-	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     --WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+		 --modified on 27/11/2023, "ambiance" electrofishing are no more considered, cf import_ASPE.R
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
        ELSE 61 -- si y a des des 61 se m�fier
@@ -222,7 +223,13 @@ SELECT
 	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	ope.ope_surface_calculee AS ef_wetted_area, 
+	CASE WHEN op_typ ILIKE '%partielle par points%' THEN ope.nb_point *12.5 --Deep habitat (partielle par points)
+        WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
+        WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
+        WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
+        WHEN op_typ ILIKE '%partielle sur berge%' THEN ope.ope_surface_calculee --berge
+        ELSE NULL -- Unknown 
+        END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
 	odp_largeur_lame_eau AS ef_fished_width,
 	odp_duree_peche AS ef_duration,
@@ -259,6 +266,7 @@ SELECT
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
 	; --21/11 : 35154 operations
+	--16/01/2024 : 32791
 
 	--and then operation with pop_id instead of sta_id
 	INSERT INTO france.dbeel_electrofishing_aspe (
@@ -307,7 +315,8 @@ SELECT
 	CASE WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN 302
 	     WHEN op_typ ILIKE '%compl%' THEN 62
 	     WHEN op_typ ILIKE '%partielle par points%' THEN 301
-	     WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+	     --WHEN op_typ ILIKE '%ambiance%' THEN 301 -- ambiance IS a sort OF deep habitat electrofishing WITH point FOR LARGE streams
+		 --modified on 27/11/2023, "ambiance" electrofishing are no more considered, cf import_ASPE.R
 	     WHEN op_typ ILIKE '%partielle sur berge%' THEN 63
        WHEN op_typ ILIKE '%anguille%' THEN 303	
        ELSE 61 -- si y a des des 61 se m�fier
@@ -317,7 +326,13 @@ SELECT
 	     WHEN mop_libelle ILIKE '%mixte%' THEN 73
 	     ELSE 70 -- unknown
 	END AS ef_no_electrofishing_mean,	
-	ope.ope_surface_calculee AS ef_wetted_area, 
+	CASE WHEN op_typ ILIKE '%partielle par points%' THEN ope.nb_point *12.5 --Deep habitat (partielle par points)
+        WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
+        WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
+        WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
+        WHEN op_typ ILIKE '%partielle sur berge%' THEN ope.ope_surface_calculee --berge
+        ELSE NULL -- Unknown 
+        END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
 	odp_largeur_lame_eau AS ef_fished_width,
 	odp_duree_peche AS ef_duration,
@@ -354,9 +369,8 @@ SELECT
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
 	; --21/11 : 10135 operations --> total 45289 operations
+	--9612 --> total = 42403
 ```
-
-Au 21/11, il existe 45289 opérations à insérer.
 
 ### dbeel_batch_ope_aspe
 
@@ -380,6 +394,8 @@ INHERITS (dbeel.batch)
 Ensuite, le détail des opérations de pêche depuis ASPE est inséré dans la table en générant un identifiant unique **ba_id**, via **uuid_generate_v4()** pour chaque station. A noter que cette opération sera répétée 5 fois afin d'insérer dans un premier temps la total des anguilles capturées pour une opération puis la quantité d'anguilles à chaque passage (de 1 à 4).
 
 ```{sql insert_batch_aspe, eval = FALSE, echo = TRUE}
+-- Total quantity of eels captured
+
 -- Total quantity of eels captured
 INSERT INTO france.dbeel_batch_ope_aspe
   SELECT uuid_generate_v4() AS ba_id,
@@ -406,7 +422,8 @@ INSERT INTO france.dbeel_batch_ope_aspe
   AND biological_characteristic_type.no_name='Number' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; -- 31919 rows
+  ; -- 21/11/23 : 45289 rows
+  --16/01/24 : 42403
 
   
 -- Quantity of eels captured at the 1st pass
@@ -435,7 +452,7 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 31919 ROWS
+	; -- 42403 ROWS
 
 -- Quantity of eels captured at the 2nd pass (if exists)
 INSERT INTO france.dbeel_batch_ope_aspe
@@ -463,8 +480,8 @@ SELECT uuid_generate_v4() AS ba_id,
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  AND ef_nbpas > 1
-  ; -- 8745 ROWS
+  AND ef_nbpas > 1 
+  ; -- 15511 ROWS
   
 -- Quantity of eels captured at the 3rd pass (if exists)  
 INSERT INTO france.dbeel_batch_ope_aspe
@@ -493,7 +510,7 @@ SELECT uuid_generate_v4() AS ba_id,
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 2
-  ; -- 154 ROWS => 150 WITH nbpas = 3
+  ; -- 333 rows
   
  -- Quantity of eels captured at the 4th pass (if exists)
 INSERT INTO france.dbeel_batch_ope_aspe
@@ -522,10 +539,11 @@ SELECT uuid_generate_v4() AS ba_id,
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   AND ef_nbpas > 3
-  ; -- 4 ROWS
+  ; -- 5 ROWS
+    
 ```
 
-Au 21/11/2023, les résultats des INSERT sont les suivants : - 45289 enreg. pour les totaux par pêches - 45289 enreg. pour le premier passage - 15511 enreg. pour le second passage - 333 enreg. pour le troisième passage - 5 enreg. pour le quatrième passage
+
 
 ### dbeel_batch_fish_aspe et dbeel_mensurationindiv_biol_charac_aspe
 
@@ -578,6 +596,8 @@ Ensuite, les références des mesures individuelles sont intégrées dans **dbee
 
 ```{sql insert_batch_fish_1, eval = FALSE, echo = TRUE}
 -- Fish caught during 1st pass
+
+-- Fish caught during 1st pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap1 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -613,16 +633,8 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; 
-
-/* 
-select * from france.batch_fish_aspe limit 10;
-
-
-
-SELECT * FROM   france.dbeel_batch_fish_aspe dbaf JOIN
-  france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id;-- 285096 -> 284812 */
-
+	;--21/11/23 : 373250 eels
+	--16/01/2024 : 334713
 
 -- Measures of fish caught during 1st pass
 -- Insert WEIGHT (gr)
@@ -653,7 +665,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
-	AND biological_characteristic_type.no_name = 'Weight'; 
+	AND biological_characteristic_type.no_name = 'Weight';
+	--21/11/23 : 183525
+	--16/01/24 : 166294
 
 -- Insert LENGTH (mm)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -668,8 +682,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -679,12 +693,14 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length'; 
+  WHERE biological_characteristic_type.no_name = 'Length';--334713 
+
 ```
 
-Au 25/08/2023, 373250 anguilles capturées au 1er passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 183525 mesures de poids et 324484 373250 de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
 
 ```{sql insert_batch_fish_2, eval = FALSE, echo = TRUE}
+-- Fish caught during 2nd pass
+
 -- Fish caught during 2nd pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap2 AS (
@@ -721,7 +737,9 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; 
+  ;--23/11/23 : 49008
+  --16/01/24 : 49008
+  
 
 
 -- Measures of fish caught during 2nd pass
@@ -755,6 +773,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=2
   AND biological_characteristic_type.no_name = 'Weight'; 
+  --27213
+ -- 16/01/24 : 27213
 
 -- Insert LENGTH (mm)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -769,8 +789,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -781,14 +801,12 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=2; 
+    AND baf.pas_numero=2;--49008
 
 ```
 
-Au 25/08/2023, 49008 anguilles capturées au 2nd passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 27213 mesures de poids et 49008 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
 
 ```{sql insert_batch_fish_3, eval = FALSE, echo = TRUE}
--- Fish caught during 3rd pass
 INSERT INTO france.dbeel_batch_fish_aspe
   WITH bap3 AS (
     SELECT * FROM france.dbeel_batch_ope_aspe boa 
@@ -824,7 +842,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p3' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ; 
+  ; --423
 
 -- Measures of fish caught during 3rd pass
 -- Insert WEIGHT (gr)
@@ -856,7 +874,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=3
-  AND biological_characteristic_type.no_name = 'Weight'; 
+  AND biological_characteristic_type.no_name = 'Weight'; --252
 
 -- Insert LENGTH (mm)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -871,8 +889,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -883,10 +901,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
   WHERE biological_characteristic_type.no_name = 'Length'
-    AND baf.pas_numero=3; 
+    AND baf.pas_numero=3; --423
 ```
-
-Au 25/08/2023, 423 anguilles capturées au 3eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 252 mesures de poids et 423 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**
 
 ```{sql insert_batch_fish_4, eval = FALSE, echo = TRUE}
 -- Fish caught during 4th pass
@@ -926,7 +942,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; 
-
+--4
 -- Measures of fish caught during 4th pass
 -- Insert WEIGHT (gr)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -972,8 +988,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   uuid_generate_v4() AS bc_id, 
   ba_id AS bc_ba_id, 
   biological_characteristic_type.no_id AS bc_no_characteristic_type, 
-  CASE WHEN mei_mesure_reelle='f' THEN 55 --'Raw data or Individual data'
-        WHEN mei_mesure_reelle='t' THEN 58-- elaborated DATA
+  CASE WHEN mei_mesure_reelle='t' THEN 55 --'Raw data or Individual data'
+        WHEN mei_mesure_reelle='f' THEN 58-- elaborated DATA
         ELSE 54 -- Unknown 
         END AS bc_no_value_type,
   mei_taille AS  bc_numvalue,
@@ -986,10 +1002,6 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   WHERE biological_characteristic_type.no_name = 'Length'
     AND baf.pas_numero=4; -- 4  
 ```
-
-Au 25/08/2023, 4 anguilles capturées au 4eme passage sont ajoutées dans la table **dbeel_batch_fish_aspe**, 4 mesures de poids et 4 mesures de longueur dans la table **dbeel_mensurationindiv_biol_charac_aspe**.
-
-Au final, au 25/08/2023, il existe 422333 anguilles référencées dans **dbeel_batch_fish_aspe**.
 
 ### batch_silver_wama
 
@@ -1078,6 +1090,7 @@ Au 21/11/2023, 1449 lignes anguilles ont donné lieu à des mesures biométriqsu
 
 Par la suite, il reste à insérer, mesure par mesure, les données d'argenture.
 ```{sql insert_silvering_dbeel_2, eval = FALSE, echo = TRUE}
+
 --insert Eyes, vertical diameter
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   bc_id,
@@ -1099,7 +1112,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_vert'
-  --19/10/23 : 1449 records
+  --21/11/23 : 14449 records
+  --16/01/24 : 14394
 
 --insert Eyes, horizontal diameter
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1121,8 +1135,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   FROM 
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
-  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz'
-  --19/10/23 : 14264 records
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz';
+ --21/11/23 : 14449 records
   
 --insert pectoral length
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1144,8 +1158,8 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   FROM 
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
-  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect'
-  --19/10/23 : 14264 records
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect';
+ --21/11/23 : 14449 records
 
 --insert presence of neuromast
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1169,7 +1183,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct 
   WHERE bct.no_name = 'presence_neuromast'
-  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0
+  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0;
   --19/10/23 : 0 record
 
 
@@ -1195,7 +1209,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct 
   WHERE bct.no_name = 'contrast'
-  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0
+  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0;
   --19/10/23 : 0 record
 
 drop table if exists france.temp_batch_wama_with_id ;
@@ -2683,11 +2697,11 @@ Le run du modèle EDA nécessite l'utilisation de vues. Les vues utilisées sont
 
 Enfin, EDA nécessite également l'utilisation d'une table, _join_france_2023_rn_, listant les stations dans le territoire français et le lien avec des les segments de rivières du RHT.
 t
-### view_electrofishing(_new)
+### view_electrofishing_new
 
 Cette vue liste l'ensemble des opérations de pêches qui ont été menées en précisant notamment la source de données (ASPE/RSA), la station et sa localisation, quelques éléments sur la méthode de pêche et enfin des résultats de pêches. (totaux et par passages).
 
-Par rapport à l'ancien code de la vue _view_electrofishing_, la vue _view_electrofishing_new_ a été revue et simplifiée pour le même résultat. De plus il a été pensé pour pouvoir foncitonner directement sur les tables mère et donc être facilement transposable d'un pays à l'autre et être utilisable lors de la mise en place du schéma _Dbeel_France_.
+Par rapport à l'ancien code de la vue _view_electrofishing_, la vue _view_electrofishing_new_ a été revue et simplifiée pour le même résultat. De plus elle a été pensée pour pouvoir fonctionner directement sur les tables mère et donc être facilement transposable d'un pays à l'autre et être utilisable lors de la mise en place du schéma _Dbeel_France_.
 
 ```{sql view_electrofishing_new_code, eval = FALSE, echo = TRUE}
 
@@ -2952,7 +2966,7 @@ SELECT op.op_id,
 
 Au 24/10, la vue _view_silvering_ remonte 505318 lignes
 
-### join_france_2023_rn
+### Lien entre RHT et et stations (france.join_france_2023_rn)
 
 Le chargement des données pour ED nécessite également de rattacher les données stations au réseau de rivières françaises (par segment de rivière). Cette opération est réalisée en créant une table intermédiaire de "jointure".
 
@@ -2980,10 +2994,53 @@ select op_id,
  --34184 stations (on avait 35752 stations, on va perdre les opérations reliées à ces stations perdues) 
 ```
 
-Au 24/10, la table _join_france_2023_rn_ compte 34184 couples station/segment de rivière. A l'origine il y avait 35752 stations connues (issues de ASPE, RSA). Les opérations associées à ces stations seront donc perdues (608 opérations de pêches).
-
 ```{sql join_france_2023_rn_lost_code, eval = FALSE, echo = TRUE}
 select count(*) from dbeel.electrofishing e 
 join dbeel.observation_places op on op.op_id = e.ob_op_id and op.op_gis_layername in ('ASPE','RSA')--39541 opérations ASPE/RSA
-where e.ob_op_id not in (select distinct jfr.op_id from france.join_france_2023_rn jfr)--608 opérations perdues
+where e.ob_op_id not in (select distinct jfr.op_id from france.join_france_2023_rn jfr)--827 opérations perdues au 17/01
 ```
+
+### Gestion des secteurs avec alvinage (dbeel.transport)
+
+Il existe historiquement plusieurs secteurs qui ont ont connu des alvinages à une ou plusieurs reprises et ce pour différentes raisons. Ces alvinages sont parfois connus et documentés. Dans d'autres cas, ils ne le sont pas et peuvent donner lieur à des écarts entre prédictions du modèle et réalités (notamment sur des individus de petites tailles).
+
+Afin d'optimiser les prédictions du modèle, il convient donc pour certains de ces secteurs de les isoler (ils seront associés à un modèle spécifique dénommé "modèle de transport"). Pour cela, plusieurs sources de données sont disponibles : l'analyse des résidus des différents modèles EDA (Delta/Gamma), la prise en compte des rapports d'alvinages et enfin la connaissance de secteurs problématiques (ex : Rhône).
+
+L'ensemble de ces informations sont synthétisées dans une table **dbeel.transport**. L'idée est ici de stocker l'identifiant du segment RHT concerné par ces problèmes de transport, une année (éventuellement) et enfin des informations complémentaires telle que le nom du projet ou secteur concerné et les coordonnées (pour représentation sur SIG). Ainsi, avant de lancer le modèle EDA, l'ensemble des opérations ayant lieu sur ce type de secteur et à la date renseignée éventuellement. 
+
+Règle d'extension spatiotemporelle : Etant données la mobilité et la longévité des anguilles, il a été décidé, qu'à compter du secteur et de la date d’empoissonnement, la zone de transport s'étend de 10km en amont et en aval (15km si le point d'alvinage n'est pas précisément connu et que seul un point central est connu) et sur les douze années suivantes.
+
+La table **dbeel.transport** contient déjà des enregistrements (issus du précédent run EDA en 2018). Il convient de la compléter avec la règle d'extension temporelle (i.e. +12 ans, mais pas spatiale) mentionnée ci-dessus.
+
+L'ensemble de ces traitements sont réalisés dans les fichiers suivants.
+
+#### idsegment_with_supposed_transport_2023
+Ce fichier répertorie l'ensemble du travail réalisé fin 2023 pour identifier des secteurs pour lesquels le modèle EDA produit des résidus torp importants sur lesquels le nombre d'anguille de petite taille (<150mm) à plus de 150km est trop important.
+Le principe 
+
+#### temp_alvinage.sql
+Ce fichier regroupe le code nécessaire à l'alimentation d'un table temporaire (préalablement créée) qui va stocker l'ensemble des secteurs d'alvinage référencés dans un shapefile (.shp).
+Au 07/12/2023 : ce shapefile a été fourni par Guirec André.
+Une fois intégré dans un projet Qgis, ce shapefile est exporté sous forme de requête sql grâce à la commande suivante :
+
+```{sql temp_alvinage , eval = FALSE, echo = TRUE}
+"C:\Program Files\PostgreSQL\14\bin\shp2pgsql.exe" -s 4326 -c -g geom -I "C:\Users\jraitif\Documents\QGis_EDA\shp_historique_complet_repang\historique_complet_repang.shp" france.temp_alvinage_shp >temp_alvinage.sql
+```
+
+Ce code va générer le code qui figure entre les lignes 4 et 2020 du fichier **temp_alvinage.sql**.
+
+#### dbeel_project_transport_rn_2023.sql
+La table temp_alvinage_shp contient l'ensemble du détail des données d'alvinage construite à partir de couches Qgis fournies par Guirec André le 07/12/23. Ces couches Qgis sont ensuites transformées en table SQL via script temp_alvinage.sql.Attention : les points sont sur un système de coordonnées wgs84 (4326) alors que l'on travaille en 3035, il faut bien vérifier que dans la table temp_alvinage_shp, le champs geom est en 3035.
+
+Dans ce fichier, on va, à patir des points géographiques d'alvinage alimenter la table dbeel_rivers.transport qui permet de lister tous les segments du RHT qui ont donné lieux à des alvinages sur des périodes définies. Avant 2023, un secteur était considéré comme "ensemencé" quelque soit l'année inscrite dans la table.
+
+Dorénavant (depuis 2023), ne sont pris en compte que les années correspondant à l'alvinage + 12 ans. Enfin si un alvinage a été déclaré sur un secteur particulier, on considère tous les segments en amont et aval situés jusqu'à 10km (si les points d'alvinage étaient connus précisément) ou 15km (si non connu précisément).
+
+Enfin, des secteurs (sans alvinage précis connu) sont malgré tout considéré comme secteur de tranport (cf fichier sql) 
+L'ensemble de ces traitements sont effectués dans le fichier __dbeel_project_transport_rn_2023.sql__. 
+
+
+
+
+
+

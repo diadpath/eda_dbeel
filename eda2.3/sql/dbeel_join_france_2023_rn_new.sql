@@ -22,8 +22,7 @@ select op_id,
  from projection 
  --on ne garde que le couple op_id/idsegement le plus proche
  where projection.seqnum=1
- --34184 stations (on avait 35752 stations, on va perdre les opérations reliées à ces stations perdues) 
-       );
+       );--40735 stations
        
 ALTER TABLE france.join_france_2023_rn  OWNER TO postgres;
 GRANT ALL ON TABLE france.join_france_2023_rn  TO postgres;

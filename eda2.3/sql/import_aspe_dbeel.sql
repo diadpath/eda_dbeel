@@ -103,8 +103,9 @@ INSERT INTO france.dbeel_station_aspe
   'FR' AS country 
 	FROM france.station_aspe;  
 
---2020 : 31734 après filtre contour france
+-- 2020 : 31734 après filtre contour france
 -- 24/08/2023 : 33985 stations après nouveau filtre contour France.
+-- 16/01/2024 : 33985
 
 --insert point of prelevement as 10135 ASPE operation have no sta_id (but only a pop_id)
 -- beware : some pop have the same pop_id as the sta_id of some station
@@ -133,22 +134,23 @@ SELECT  uuid_generate_v4() AS op_id, -- UNIQUE identifier
 							and ppa2.pop_sta_id is null)
 
 --21/11/2023 : 6990 pop	
+-- 16/01/2024 : 6750 pop
 	
  	--retour des identifiants dans la TABLE mère
 
 ALTER TABLE france.station_aspe DROP COLUMN if exists sta_dbeel_op_id;
 ALTER TABLE france.station_aspe ADD COLUMN sta_dbeel_op_id UUID;
 UPDATE france.station_aspe SET sta_dbeel_op_id = op_id FROM
- france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; --33985 
+ france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=station_aspe.sta_id; -- 
 ALTER TABLE france.point_prelevement_aspe DROP COLUMN if exists pop_dbeel_op_id;
 ALTER TABLE france.point_prelevement_aspe ADD COLUMN pop_dbeel_op_id UUID;
 UPDATE france.point_prelevement_aspe SET pop_dbeel_op_id = op_id FROM
  france.dbeel_station_aspe WHERE dbeel_station_aspe.sta_id=point_prelevement_aspe.pop_id
- and dbeel_station_aspe.op_no_observationplacetype=9; --6990
+ and dbeel_station_aspe.op_no_observationplacetype=9; --
  
  --and the put back op_no_observationplacetype to 10
  update france.dbeel_station_aspe 
- set op_no_observationplacetype = 10--40975 stations
+ set op_no_observationplacetype = 10--40735 stations
 	
 
 
@@ -312,7 +314,7 @@ SELECT
         WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
         WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
         WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
-        WHEN ope.ope_surface_calculee THEN ope.ope_surface_calculee --berge
+        WHEN op_typ ILIKE '%partielle sur berge%' THEN ope.ope_surface_calculee --berge
         ELSE NULL -- Unknown 
         END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
@@ -351,6 +353,7 @@ SELECT
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
 	; --21/11 : 35154 operations
+	--16/01/2024 : 32791
 
 	--and then operation with pop_id instead of sta_id
 	INSERT INTO france.dbeel_electrofishing_aspe (
@@ -414,7 +417,7 @@ SELECT
         WHEN (op_typ ILIKE '%compl%' OR op_typ ILIKE '%partielle sur berge%') AND objectif ILIKE '%anguilles%' THEN ope.ope_surface_calculee -- whole eel
         WHEN op_typ ILIKE '%anguille%' THEN ope.nb_point *12.5 --iaa (27/11 : nb_point missing !!)
         WHEN op_typ ILIKE '%compl%' THEN ope.ope_surface_calculee  --whole (27/11/23 : still missing 472 areas, neither length, width and area in ASPE)
-        WHEN ope.ope_surface_calculee THEN ope.ope_surface_calculee --berge
+        WHEN op_typ ILIKE '%partielle sur berge%' THEN ope.ope_surface_calculee --berge
         ELSE NULL -- Unknown 
         END AS ef_wetted_area, 
 	odp_longueur AS ef_fished_length,
@@ -453,6 +456,7 @@ SELECT
 	AND period_type.no_name='Daily' 
 	AND data_provider.dp_name='Pascal Irz'
 	; --21/11 : 10135 operations --> total 45289 operations
+	--9612 --> total = 42403
 	
 
 /* ALTER TABLE france.operation_aspe ADD COLUMN ope_dbeel_ob_id UUID;
@@ -539,6 +543,7 @@ INSERT INTO france.dbeel_batch_ope_aspe
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
   ; -- 21/11/23 : 45289 rows
+  --16/01/24 : 42403
 
   
 -- Quantity of eels captured at the 1st pass
@@ -567,7 +572,7 @@ SELECT uuid_generate_v4() AS ba_id,
 	AND biological_characteristic_type.no_name='Number p1' 
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
-	; -- 45289 ROWS
+	; -- 42403 ROWS
 
 -- Quantity of eels captured at the 2nd pass (if exists)
 INSERT INTO france.dbeel_batch_ope_aspe
@@ -833,6 +838,7 @@ INSERT INTO france.dbeel_batch_fish_aspe
 	AND individual_status.no_name='Alive' 
 	AND value_type.no_name='Raw data or Individual data'
 	;--21/11/23 : 373250 eels
+	--16/01/2024 : 334713
 
 -- Measures of fish caught during 1st pass
 -- Insert WEIGHT (gr)
@@ -863,7 +869,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 	france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
 	dbeel_nomenclature.biological_characteristic_type 
 	WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
-	AND biological_characteristic_type.no_name = 'Weight';--21/11/23 : 183525
+	AND biological_characteristic_type.no_name = 'Weight';
+	--21/11/23 : 183525
+	--16/01/24 : 166294
 
 -- Insert LENGTH (mm)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -889,7 +897,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   france.dbeel_batch_fish_aspe dbaf JOIN
   france.batch_fish_aspe baf ON baf.mei_id=dbaf.mei_id, 
   dbeel_nomenclature.biological_characteristic_type
-  WHERE biological_characteristic_type.no_name = 'Length';--373250 
+  WHERE biological_characteristic_type.no_name = 'Length';--334713 
 
 -- checks
 	/*
@@ -951,7 +959,9 @@ INSERT INTO france.dbeel_batch_fish_aspe
   AND biological_characteristic_type.no_name='Number p2' 
   AND individual_status.no_name='Alive' 
   AND value_type.no_name='Raw data or Individual data'
-  ;49008
+  ;--23/11/23 : 49008
+  --16/01/24 : 49008
+  
 
 
 -- Measures of fish caught during 2nd pass
@@ -984,7 +994,9 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   dbeel_nomenclature.biological_characteristic_type 
   WHERE (COALESCE(mei_poids_estime,0)+COALESCE(mei_poids,0))>0
   AND baf.pas_numero=2
-  AND biological_characteristic_type.no_name = 'Weight'; --27213
+  AND biological_characteristic_type.no_name = 'Weight'; 
+  --27213
+ -- 16/01/24 : 27213
 
 -- Insert LENGTH (mm)
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1230,12 +1242,14 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
 -- how many lines in batch_silver_wama
 select count(*) from france.batch_silver_wama bsw 
 --25/08 : 14575
+--16/01/24 : 14550
 
 --How many records in batch_silver_wama will be updated
 select count(bsw.*) from france.batch_silver_wama bsw 
 join france.dbeel_electrofishing_aspe dea  
 on bsw.ope_code_wama = dea.ope_code_wama 
 --25/08 : 14575
+--16/01/24 : 14550
 --
 ---- what are the missing ope_code_wama
 --select bsw2.ope_code_wama, count(*) from batch_silver_wama bsw2 where bsw2.ope_code_wama  not in 
@@ -1260,6 +1274,7 @@ join france.dbeel_electrofishing_aspe dea  on bsw.ope_code_wama = dea.ope_code_w
 ) AS subquery
 WHERE batch_silver_wama.ope_code_wama = subquery.ope_code_wama
 --14575
+--14550
 
 --
 --we then need to include silvering data into dbeel_mensurationindiv_biol_charac_aspe
@@ -1290,7 +1305,7 @@ from part_wama pw
 join part_dbeel pd on (pd.ob_id::text,pd.length,pd.weight,pd.row_dbeel) = (pw.ope_dbeel_ob_id::text,pw.length,pw.weight,pw.row_wama);
 --14449 sur 14575 initialement existantes dans WAMA
 --lines lost due mainly to dpulicates in WAMA or other issues in ASPE.
-
+--16/01/24 : 14394 sur 14550 initialement présente
 
 
 --
@@ -1319,6 +1334,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_vert'
   --21/11/23 : 14449 records
+  --16/01/24 : 14394
 
 --insert Eyes, horizontal diameter
 INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
@@ -1340,7 +1356,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   FROM 
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
-  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz'
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'eye_diam_horiz';
  --21/11/23 : 14449 records
   
 --insert pectoral length
@@ -1363,7 +1379,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   FROM 
   france.temp_batch_wama_with_id tbwwi 
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
-  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect'
+  dbeel_nomenclature.biological_characteristic_type bct WHERE bct.no_name = 'length_pect';
  --21/11/23 : 14449 records
 
 --insert presence of neuromast
@@ -1388,7 +1404,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct 
   WHERE bct.no_name = 'presence_neuromast'
-  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0
+  and tbwwi.presence_neuromast is not null and length(tbwwi.presence_neuromast::text)>0;
   --19/10/23 : 0 record
 
 
@@ -1414,7 +1430,7 @@ INSERT INTO france.dbeel_mensurationindiv_biol_charac_aspe(
   join france.dbeel_batch_fish_aspe dbfa ON dbfa.ba_id = tbwwi.bc_ba_id, 
   dbeel_nomenclature.biological_characteristic_type bct 
   WHERE bct.no_name = 'contrast'
-  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0
+  and tbwwi.contrast is not null and length(tbwwi.contrast::text)>0;
   --19/10/23 : 0 record
 
 drop table if exists france.temp_batch_wama_with_id ;

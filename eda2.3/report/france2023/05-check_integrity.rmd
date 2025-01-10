@@ -497,7 +497,7 @@ if (nrow(fish_to_delete)>0)
   
   # #suppression des poissons (pas à faire au 06/11)
   # #ASPE
-  # query <- paste0('select * from france.dbeel_batch_fish_aspe dmbca 
+  # query <- paste0('select * from france.dbeel_batch_fish_aspe dmbca
   #           where dmbca.ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")")
   # 
   # return <- dbSendQuery(con,query)
@@ -505,7 +505,7 @@ if (nrow(fish_to_delete)>0)
   # dbClearResult(return)
   # 
   # #RSA
-  # query <- paste0('select * from france.dbeel_batch_fish_rsa dmbcr 
+  # query <- paste0('select * from france.dbeel_batch_fish_rsa dmbcr
   #           where dmbcr.ba_id in (',paste0("'",fish_to_delete$bc_ba_id,"'",collapse=","),")")
   # 
   # return <- dbSendQuery(con,query)
@@ -526,12 +526,12 @@ if (nrow(fish_to_delete)>0)
   #   )
   # ope_fish_to_delete$new_ba_quantity <- ope_fish_to_delete$ba_quantity - ope_fish_to_delete$count
   # 
-  #   
+  # 
   # 
   # #suppression des opérations si aucun poisson ne reste de l'opération de pêche
   # #dans france.dbeel_batch_ope_rsa/aspe (totaux et passages)
   # #RSA
-  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr 
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr
   #           where dmbcr.ba_ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
   # 
   # return <- dbSendQuery(con,query)
@@ -547,7 +547,7 @@ if (nrow(fish_to_delete)>0)
   # 
   # #dans dbeel_electrofishing_aspe/rsa
   # #RSA
-  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr 
+  # query <- paste0('select * from france.dbeel_batch_ope_rsa dmbcr
   #           where dmbcr.ba_ob_id in (',paste0("'",ope_fish_to_delete[ope_fish_to_delete$new_ba_quantity==0,]$ob_id,"'",collapse=","),")")
   # 
   # return <- dbSendQuery(con,query)
@@ -1047,6 +1047,39 @@ ggplot(data=quantile_excentricite,aes(x=excentricite,y=prob)) +
 #script d'exclusion si nécessaire
 #à faire si nrow(dt_eye_horiz[dt_eye_horiz$excentricite>0.8,])>0
 ```
+## Etude des biais potentiels (temporels et géographiques) des pêches à 1 ou 2 passages
+### Biais temporels
+
+A cette étape on vérifie s'il existe ou non un biais temporel des pêches à 1 ou 2 passages. Concrètement, les budgets des pêches électriques à l'anguille allant à la baisse, il est important de savoir si l'on retrouve effectivement plus de pêches à 1 passage depuis quelques années, et si oui, si cette différence peut conduire à une la création d'un biais sur les prédictions du modèle EDA (qui se basse sur la méthode de pêche à 1 et/ou 2 passages).
+
+Dans un premier temps, comparons les effectifs de pêches à 1 ou 2 passages réalisées au cours des années.
+
+```{r ope_multi_pass_chrono, message=F, warning=F}
+ope_whole_year <- electrofishing %>%
+  filter(ef_nbpas <=3 & ef_no_fishingmethod %in% c(62,602)) %>%
+  mutate(year = as.integer(format(as.Date(ob_starting_date, format="%Y/%m/%d"),"%Y"))) %>%
+  group_by(ef_nbpas,year) %>% 
+    summarise(n = n()
+              )
+
+
+ggplot(data=ope_whole_year,aes(x=year,y=n)) +
+  geom_line(aes(color=as.factor(ef_nbpas)),size=0.5) +
+  labs(y="Nombre d'opérations",x="Année",title="Cumul annuel des opérations de pêches", color="Nb de passages") +
+  scale_y_continuous(breaks = seq(0,800, by = 50),limits =c(0,800)) +
+  scale_x_continuous(breaks = seq(1966,2023, by = 2),limits =c(1966,2023))+
+  theme(panel.grid.minor=element_blank(),panel.grid.major = element_line(size = 0, colour = "gray",linetype=3),
+        axis.text.x = element_text(angle=90,hjust = 1,size=7),
+        axis.text.y = element_text(angle=0,hjust = 1,size=7),
+        plot.title = element_text(size=8),
+        panel.background = element_rect(fill="white",colour = "grey") )
+
+``` 
+
+Sur le graphique ci-dessus, on constate en effet qu'il existe une bascule en 2007 entre les opérations de pêches à 1 et 2 passages avec une grande différence surtout à partir de 2020.Le nombre d'opérations à 3 passages reste relativement faible.
+
+### Biais géographique
+Pour l'étude du biais géographique, on va distinguer le pays où se déroule l'opération de pêches. Puis on va regarder où se situe les stations dont les opérations de pêches sont passées de majoritairement à 2/3 passages vers des opérations à 1 passage
 
 ## Cas particuliers
 ### Pêches à plus de 3 passages

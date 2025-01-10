@@ -127,7 +127,9 @@ A partir de ces couples de stations, nous recherchons ensuite les opérations de
 
 Le principe de la requête est de remonter les opérations ASPE et RSA sur des stations connues comme potentiellement en doublons (sachant qu'une station ASPE/RSA peut être doublon d'une ou plusieurs stations RSA/ASPE). Ensuite ne sont retenus que les couples d'opérations sur des couples de doublons connus.
 
+Ces requêtes sont regroupées dans le fichier __script_recherche_doublons_ASPE_RSA.sql__, première partie.
 ```{sql doub_ope_sql, eval = FALSE, echo = TRUE}
+--on remonte les opérations ASPE et RSA dont les stations sont connues dans le fichier de doublonsdrop table if exists france.temp_ope_dup_aspe_rsa;
 drop table if exists france.temp_ope_dup_aspe_rsa;
 CREATE TABLE france.temp_ope_dup_aspe_rsa
 as
@@ -171,9 +173,9 @@ sor.rsa_qty as rsa_qty
 from select_ope_aspe soa
 --join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date, sor.rsa_qty) = (soa.sta_id, soa.ob_starting_date, soa.ba_quantity)
 join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date) = (soa.sta_id, soa.ob_starting_date)
+--01/12/23 : 749 opérations de pêches réalisées le même jour au même endroit (quelque soit résultat).
+--17/01/24 : 810 opérations
 ```  
-Au 01/12 , 749 opérations de pêches réalisées le même jour sur des stations géographiquement très proches (<=200m) sont trouvées .
-
 
 ## Comparaison du détails des pêches communes ASPE/RSA
 
@@ -184,6 +186,7 @@ La requête suivant permet de remonter l'ensemble des opérations de pêches ASP
 ```{sql doub_ope_moy_long, eval = FALSE, echo = TRUE}
 --on remonte maintenant plusieurs champs différents pour comparer ces opérations
 alter table france.temp_ope_dup_aspe_rsa
+add column what_to_keep varchar(30) default '', --a field to store which data record (ASPE or RSA) should be kept
 add column nb_dup_with_ASPE numeric default 1,
 add column nb_dup_with_RSA numeric default 1,
 add column nb_length_measured_aspe numeric default 0,
@@ -200,8 +203,8 @@ from
 from france.dbeel_batch_fish_aspe dbfa 
 join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id 
 where dmbca.bc_no_characteristic_type = 39 -- length
-group by (dbfa.ba_ob_id, dbfa.ba_no_biological_characteristic_type)) as sub_query
-where todar.aspe_ob_id::text = sub_query.ba_ob_id::text
+group by (dbfa.ba_ob_id)) as sub_query
+where todar.aspe_ob_id::text = sub_query.ba_ob_id::text;
 
 update france.temp_ope_dup_aspe_rsa todar
 set mean_length_rsa = sub_query.mean_length
@@ -210,8 +213,8 @@ from
 from france.dbeel_batch_fish_rsa dbfr
 join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id, dmbcr.ang_zone) = (dbfr.ang_id, dbfr.ang_zone)
 where dmbcr.bc_no_characteristic_type = 39 -- length
-group by (dbfr.ba_ob_id, dbfr.ba_no_biological_characteristic_type)) as sub_query
-where todar.rsa_ob_id::text = sub_query.ba_ob_id::text
+group by (dbfr.ba_ob_id)) as sub_query
+where todar.rsa_ob_id::text = sub_query.ba_ob_id::text;
 
 
 update france.temp_ope_dup_aspe_rsa todar
@@ -221,8 +224,8 @@ from
 from france.dbeel_batch_fish_aspe dbfa 
 join france.dbeel_mensurationindiv_biol_charac_aspe dmbca on dmbca.mei_id = dbfa.mei_id 
 where dmbca.bc_no_characteristic_type = 39 -- length
-group by (dbfa.ba_ob_id, dbfa.ba_no_biological_characteristic_type)) as sub_query
-where todar.aspe_ob_id::text = sub_query.ba_ob_id::text
+group by (dbfa.ba_ob_id)) as sub_query
+where todar.aspe_ob_id::text = sub_query.ba_ob_id::text;
 
 update france.temp_ope_dup_aspe_rsa todar
 set nb_length_measured_rsa = sub_query.nb_length
@@ -231,8 +234,8 @@ from
 from france.dbeel_batch_fish_rsa dbfr
 join france.dbeel_mensurationindiv_biol_charac_rsa dmbcr on (dmbcr.ang_id, dmbcr.ang_zone) = (dbfr.ang_id, dbfr.ang_zone)
 where dmbcr.bc_no_characteristic_type = 39 -- length
-group by (dbfr.ba_ob_id, dbfr.ba_no_biological_characteristic_type)) as sub_query
-where todar.rsa_ob_id::text = sub_query.ba_ob_id::text
+group by (dbfr.ba_ob_id)) as sub_query
+where todar.rsa_ob_id::text = sub_query.ba_ob_id::text;
 
 --ASPE operations linked with several RSA operations
 update france.temp_ope_dup_aspe_rsa todar
@@ -241,7 +244,7 @@ from
 (select todar.aspe_ob_id,count(*) as nb_dup
 from france.temp_ope_dup_aspe_rsa todar 
 group by (todar.aspe_ob_id)) as sub_query
-where todar.aspe_ob_id::text = sub_query.aspe_ob_id::text
+where todar.aspe_ob_id::text = sub_query.aspe_ob_id::text;
 
 --RSA operations linked with several ASPE operations
 update france.temp_ope_dup_aspe_rsa todar
@@ -250,7 +253,74 @@ from
 (select todar.rsa_ob_id,count(*) as nb_dup
 from france.temp_ope_dup_aspe_rsa todar 
 group by (todar.rsa_ob_id)) as sub_query
-where todar.rsa_ob_id::text = sub_query.rsa_ob_id::text
+where todar.rsa_ob_id::text = sub_query.rsa_ob_id::text;
+
+-- what to keep treatment
+--1) we set to manual all lines with nb_dup_with_ASPE/RSA >1
+update france.temp_ope_dup_aspe_rsa todar
+set what_to_keep = 'manual'
+where nb_dup_with_RSA > 1 or nb_dup_with_ASPE > 1
+
+--2) when quantity, nb_length_measured and mean_length are equal --> keep ASPE
+--		except when fishing method is not equal --> manual
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'ASPE'
+where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
+and mean_length_aspe = mean_length_rsa 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and aspe_qty = rsa_qty 
+and aspe_method = rsa_method; 
+
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'manual'
+where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
+and mean_length_aspe = mean_length_rsa 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and aspe_qty = rsa_qty 
+and aspe_method <> rsa_method ;
+
+--3) quantité égale mais effectif mesuré différent 
+		--> on conserve l'enregistrement dont l'effectif mesuré est le plus proche de la quantité capturée
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'ASPE'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe > nb_length_measured_rsa ;
+
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'RSA'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe < nb_length_measured_rsa ;
+
+-- 4) quantité égale, effectif mesuré égal, longueur moyenne différente
+	--> si diff <=10mm --> diff minime, on garde ASPE
+	--> si diff >10mm --> à traiter manuellement
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'ASPE' 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and mean_length_aspe <> mean_length_rsa 
+and abs(mean_length_aspe - mean_length_rsa) <= 10;
+
+update temp_ope_dup_aspe_rsa
+set what_to_keep = 'manual' 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+and nb_length_measured_aspe = nb_length_measured_rsa 
+and mean_length_aspe <> mean_length_rsa 
+and abs(mean_length_aspe - mean_length_rsa) > 10;
+
+--vérification : 0 résultat
+select * from temp_ope_dup_aspe_rsa todar 
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty = aspe_qty 
+
+update temp_ope_dup_aspe_rsa todar 
+set what_to_keep = 'keep_all'
+where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
+and rsa_qty <> aspe_qty 
 
 ```
 On distingue les cas suivants:
@@ -263,9 +333,82 @@ On distingue les cas suivants:
   - 6 pêches complète code 62
   - 1 pêche complète anguille code 302
   - 69 pêches par point code 303
+  
+__Attention__ : A cette étape il convient, avant de supprimer les doublons, de fiabiliser la base en terme de nombre de points de pêches lors de pêches IAA (cf étape suivante), avant d'effectuer la suppression des opérations de pêche ASPE ou RSA
+
+##Fiabilisation des opérations de type IAA
+Cette étape se déroule dans le fichier __dbeel_iaa_get_nb_points_rsa_to_aspe.sql__.
+
+Ce script a pour objectif de remonter le nombres de points réalisés lors des opérations de pêches IAA. Ce nombre de points est manquant dans ASPE mais existe dans RSA.
+
+Important :
+ 1) 	ce script doit être exécuté après avoir remonté le doublons mais avant de les avoir traités (suppression éventuelle) car beaucoup d'opérations de pêche IAA sont saisies à la fois dans ASPE et RSA et à ce stade on ne sait pas si on conserve l'opération ASPE ou RSA.
+ 2)	Toujours en lien avec les doublons potentiels, le nombre de points doit être stockés sur l'opération ASPE ET sur l'opération RSA (dans la dbeel)
+ 3)	le préambule à ce traitement est d'avoir créé une table temporaire france.temp_iaa_rsa_to_aspe_npoints qui permet de relier un code d'opé ASPE à un nombre de points. Cette table teporaire est alimenté via un fichier csv qui aura été fourni externe (au 12/12/2023, par G. André).
+
+##Suppression des opérations en doublons
+```{sql doub_ope_moy_long_supp, eval = FALSE, echo = TRUE}
+
+---------------------------------------------------------------------------------
+--suppression automatiques des opérations de pêches, mesures, poissons en doublons
+--1) cas ou what_to_keep = 'ASPE', on supprime côté RSA
+	--suppression des mesures RSA
+	delete from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr2
+	where dmbcr2.bc_id in (select dmbcr.bc_id from france.dbeel_mensurationindiv_biol_charac_rsa dmbcr 
+	join france.dbeel_batch_fish_rsa dbfr on dbfr.ba_id = dmbcr.bc_ba_id 
+	join france.dbeel_electrofishing_rsa der on der.ob_id = dbfr.ba_ob_id 
+	where dbfr.ba_ob_id in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dmbcr.bc_no_characteristic_type  = 39);
+	--suppression des poissons RSA
+	delete from france.dbeel_batch_fish_rsa dbfr
+	where dbfr.ba_ob_id  in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dbfr.ba_batch_level = 2; --only eels;
+	--suppression des batch d'ope RSA
+	delete from france.dbeel_batch_ope_rsa dbor
+	where dbor.ba_ob_id  in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE')
+	and dbor.ba_batch_level = 1; --only ope;
+	--suppression des opérations RSA
+	delete from france.dbeel_electrofishing_rsa der
+	where der.ob_id in (select todar.rsa_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'ASPE');
+--2) cas ou what_to_keep = 'RSA', on supprime côté ASPE
+	--suppression des mesures ASPE
+	delete from france.dbeel_mensurationindiv_biol_charac_aspe dmbcr2
+	where dmbcr2.bc_id in (select dmbcr.bc_id from france.dbeel_mensurationindiv_biol_charac_aspe dmbcr 
+	join france.dbeel_batch_fish_aspe dbfr on dbfr.ba_id = dmbcr.bc_ba_id 
+	join france.dbeel_electrofishing_aspe der on der.ob_id = dbfr.ba_ob_id 
+	where dbfr.ba_ob_id in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dmbcr.bc_no_characteristic_type  = 39);
+	--suppression des poissons ASPE
+	delete from france.dbeel_batch_fish_aspe dbfr
+	where dbfr.ba_ob_id  in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dbfr.ba_batch_level = 2; --only eels;
+	--suppression des batch d'ope ASPE
+	delete from france.dbeel_batch_ope_aspe dbor
+	where dbor.ba_ob_id  in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA')
+	and dbor.ba_batch_level = 1; --only ope;
+	--suppression des opérations ASPE
+	delete from france.dbeel_electrofishing_aspe der
+	where der.ob_id in (select todar.aspe_ob_id from france.temp_ope_dup_aspe_rsa todar 
+	where what_to_keep = 'RSA');
+
+
+--enfin on supprime les tables temporaires
+--drop table if exists france.temp_ope_dup_aspe_rsa;
+--drop table if exists france.temp_stations_dup_aspe_rsa;
+--drop table if exists france.temp_ope_dup_aspe_rsa_fish_level;
+--drop table if exists france.stations_dup_aspe_rsa;
+```
 
 # Opérations de pêches dupliquées ASPE/RSA
 
+Cette étape est regroupée dans le fichier __script_recherche_doublons_ASPE_RSA.sql__, seconde partie.
 Pour cette recherche de doublons, la méthode est moins strictement liée aux coordonnées des stations. On va considérer qu'un doublon est une opération de pêche réalisée au même endroit (on s'appuie sur le nom du lieu dit), à la même date, avec les mêmes caractéristiques de pêches. On portera également une attention particulière aux quantités pêchées.
 
 Dans un souci de réutilisation des scripts,dans la mesure du possible, les requêtes vont être exécutées sur les tables "mère". Ainsi nous allons travailler sur le schéma dbeel et sur les tables _observation_places_ (pour les stations), _electrofishing_ (pour le détail des opérations de pêches) et _batch_ (pour les résultats de pêches).

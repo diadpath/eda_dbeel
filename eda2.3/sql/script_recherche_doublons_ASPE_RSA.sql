@@ -1,6 +1,7 @@
 /* Un doublon = 
 - opération de pêche : même date, même lieu, même quantité pêchée 
 - poisson même date, même lieu, même poids, même taille
+
 Attention : il peut y avoir parfois des opérations de pêches qui ont donné lieu a 1 saisie dans RSA puis dans ASPE mais sur des données différentes
 Théoriquement dans ASPE, il n'y a que de l'OFB et dans RSA ce sont d'autres partenaires
 */
@@ -63,6 +64,7 @@ from select_ope_aspe soa
 --join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date, sor.rsa_qty) = (soa.sta_id, soa.ob_starting_date, soa.ba_quantity)
 join select_ope_rsa sor on (sor.aspe_sta_id, sor.rsa_date) = (soa.sta_id, soa.ob_starting_date)
 --01/12/23 : 749 opérations de pêches réalisées le même jour au même endroit (quelque soit résultat).
+--17/01/24 : 810 opérations
 
 --on remonte maintenant plusieurs champs différents pour comparer ces opérations
 alter table france.temp_ope_dup_aspe_rsa
@@ -149,7 +151,7 @@ where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
 and mean_length_aspe = mean_length_rsa 
 and nb_length_measured_aspe = nb_length_measured_rsa 
 and aspe_qty = rsa_qty 
-and aspe_method = rsa_method 
+and aspe_method = rsa_method; 
 
 update temp_ope_dup_aspe_rsa todar 
 set what_to_keep = 'manual'
@@ -157,7 +159,7 @@ where nb_dup_with_RSA = 1 and nb_dup_with_ASPE = 1
 and mean_length_aspe = mean_length_rsa 
 and nb_length_measured_aspe = nb_length_measured_rsa 
 and aspe_qty = rsa_qty 
-and aspe_method <> rsa_method 
+and aspe_method <> rsa_method ;
 
 --3) quantité égale mais effectif mesuré différent 
 		--> on conserve l'enregistrement dont l'effectif mesuré est le plus proche de la quantité capturée
@@ -165,13 +167,13 @@ update temp_ope_dup_aspe_rsa
 set what_to_keep = 'ASPE'
 where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
 and rsa_qty = aspe_qty 
-and nb_length_measured_aspe > nb_length_measured_rsa 
+and nb_length_measured_aspe > nb_length_measured_rsa ;
 
 update temp_ope_dup_aspe_rsa
 set what_to_keep = 'RSA'
 where what_to_keep = '' --pour éviter de travailler sur des lignes préalablement traitées
 and rsa_qty = aspe_qty 
-and nb_length_measured_aspe < nb_length_measured_rsa 
+and nb_length_measured_aspe < nb_length_measured_rsa ;
 
 -- 4) quantité égale, effectif mesuré égal, longueur moyenne différente
 	--> si diff <=10mm --> diff minime, on garde ASPE
@@ -182,7 +184,7 @@ where what_to_keep = '' --pour éviter de travailler sur des lignes préalableme
 and rsa_qty = aspe_qty 
 and nb_length_measured_aspe = nb_length_measured_rsa 
 and mean_length_aspe <> mean_length_rsa 
-and abs(mean_length_aspe - mean_length_rsa) <= 10
+and abs(mean_length_aspe - mean_length_rsa) <= 10;
 
 update temp_ope_dup_aspe_rsa
 set what_to_keep = 'manual' 
@@ -190,7 +192,7 @@ where what_to_keep = '' --pour éviter de travailler sur des lignes préalableme
 and rsa_qty = aspe_qty 
 and nb_length_measured_aspe = nb_length_measured_rsa 
 and mean_length_aspe <> mean_length_rsa 
-and abs(mean_length_aspe - mean_length_rsa) > 10
+and abs(mean_length_aspe - mean_length_rsa) > 10;
 
 --vérification : 0 résultat
 select * from temp_ope_dup_aspe_rsa todar 
@@ -290,10 +292,10 @@ e.ef_no_electrofishing_mean,e.ef_wetted_area,e.ef_fished_length,
 e.ef_fished_width,e.ef_duration,e.ef_nbpas,op.op_placename,op.op_gis_layername,b.ba_quantity)--pêche le même jour au même endroit avec le même résultat de pêche totale
 having count(*) > 1
 
--- 38 opérations de pêches qui sont présentent en double en PROD le 29/09/2023
+-- 56 opérations de pêches qui sont présentent en double en PROD le 17/01/24
 -- depuis RSA il y a des opérations de pêches réalisées le même jour sur le même site (type iaa par exemple, est-ce normal; exemple : op_zone = 'lcvlogrami' et op_id = 90 à 94)
--- depuis ASPE il semble y avoir de vrais doublons (exemple ob_id : 'da46be9a-b9a6-4a48-86c3-46ff71edaaf9','8ea9154e-a868-4522-97ad-0d86aa72b281'
---													ou :'bb04054a-48c0-415a-8efb-e638092aab14','2154f5f0-ed13-4c4d-9a77-e829480ef984' ) dans les deux cas il semble qu'il y ait effectivement des doublons dans ASPE
+-- depuis ASPE il semble y avoir de vrais doublons 
+
 
 --autre façon de faire
 --1)on crée d'abord une table temporaire pour récupérer toutes les caractéristiques d'oprations de pêches qui apparaissent plusieurs fois dans la base
